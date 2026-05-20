@@ -34,6 +34,7 @@ app = FastAPI(
 )
 
 DEFAULT_ALLOWED_ORIGINS = [
+    "https://sentinel-soc-nine.vercel.app",
     "http://10.170.117.155:5173",
     "http://127.0.0.1:5173",
     "http://localhost:5173",
@@ -46,7 +47,7 @@ def get_allowed_origins() -> list[str]:
     """Comma-separated ALLOWED_ORIGINS lets Render accept your Vercel domain."""
     raw_origins = os.getenv("ALLOWED_ORIGINS", "")
     configured_origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
-    return configured_origins or DEFAULT_ALLOWED_ORIGINS
+    return sorted(set(DEFAULT_ALLOWED_ORIGINS + configured_origins))
 
 
 app.add_middleware(
