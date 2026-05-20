@@ -384,10 +384,18 @@ def upload_alert(request: AlertUploadRequest, db: Session = Depends(get_db)):
 
 
 @app.post("/telemetry")
-async def receive_telemetry(request: Request):
+async def receive_telemetry(request: Request, db: Session = Depends(get_db)):
     payload = await request.json()
     print(f"[TELEMETRY] {payload}")
     telemetry_events.append(payload)
+
+    endpoint_id = payload.get("endpoint_id")
+    if endpoint_id is not None:
+        endpoint = db.get(Endpoint, int(endpoint_id))
+        if endpoint:
+            endpoint.last_seen = datetime.utcnow()
+            db.commit()
+
     return {"message": "Telemetry received"}
 
 
