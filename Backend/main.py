@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from datetime import datetime, timedelta
 from pathlib import Path
 from functools import wraps
@@ -24,6 +24,7 @@ init_database(Base)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 QUARANTINE_DIR = PROJECT_ROOT / "quarantine"
 ENDPOINT_ONLINE_TIMEOUT_SECONDS = 15
+telemetry_events = []
 
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("soc_api")
@@ -175,6 +176,16 @@ class TelemetryRequest(BaseModel):
     network_received: int = Field(..., ge=0)
     hostname: str = Field(..., min_length=1)
     timestamp: datetime
+
+
+class ThreatTelemetryRequest(BaseModel):
+    endpoint_id: int
+    pc_name: str
+    timestamp: str
+    file_name: str
+    file_hash: str
+    threat_score: int
+    status: str
 
 
 def serialize_telemetry(row: Telemetry):
@@ -382,9 +393,7 @@ def upload_alert(request: AlertUploadRequest, db: Session = Depends(get_db)):
     return {"message": "Alert stored successfully", "alert_id": alert.id}
 
 
-@app.post("/telemetry", status_code=status.HTTP_201_CREATED)
-@safe_endpoint
-def receive_telemetry(request: TelemetryRequest, db: Session = Depends(get_db)):
+def store_system_telemetry(request: TelemetryRequest, db: Session):
     endpoint = db.get(Endpoint, request.endpoint_id)
     if not endpoint:
         raise HTTPException(status_code=404, detail="Endpoint not found")
@@ -411,7 +420,41 @@ def receive_telemetry(request: TelemetryRequest, db: Session = Depends(get_db)):
     return {"message": "Telemetry stored successfully", "telemetry_id": telemetry.id}
 
 
+@app.post("/telemetry")
+@safe_endpoint
+def receive_telemetry(payload: dict, db: Session = Depends(get_db)):
+    print(f"[TELEMETRY] {payload}")
+    required_threat_fields = {
+        "endpoint_id",
+        "pc_name",
+        "timestamp",
+        "file_name",
+        "file_hash",
+        "threat_score",
+        "status",
+    }
+    if required_threat_fields.issubset(payload):
+        try:
+            threat_payload = ThreatTelemetryRequest(**payload)
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail=exc.errors())
+        telemetry_events.append(threat_payload.dict())
+        return {"message": "Telemetry received"}
+
+    try:
+        system_payload = TelemetryRequest(**payload)
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=exc.errors())
+    return store_system_telemetry(system_payload, db)
+
+
 @app.get("/telemetry")
+@safe_endpoint
+def get_telemetry():
+    return telemetry_events
+
+
+@app.get("/telemetry/latest")
 @safe_endpoint
 def get_latest_telemetry(db: Session = Depends(get_db)):
     return [serialize_telemetry(row) for row in latest_telemetry_rows(db)]
