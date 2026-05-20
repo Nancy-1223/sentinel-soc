@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+frontend/node_modules/
+frontend/dist/
+Backend/*.old_schema.*.db
+Backend/*.corrupt.*.db
+Backend/*.recreated.*.db
+Backend/soc_backend.db
+quarantine/
+agent/malicious_hashes.json
+.env
+*.env.local

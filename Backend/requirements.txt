@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+SQLAlchemy
+scikit-learn
+joblib
+python-jose[cryptography]
