@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 from datetime import datetime, timedelta
 from pathlib import Path
 from functools import wraps
@@ -176,16 +176,6 @@ class TelemetryRequest(BaseModel):
     network_received: int = Field(..., ge=0)
     hostname: str = Field(..., min_length=1)
     timestamp: datetime
-
-
-class ThreatTelemetryRequest(BaseModel):
-    endpoint_id: int
-    pc_name: str
-    timestamp: str
-    file_name: str
-    file_hash: str
-    threat_score: int
-    status: str
 
 
 def serialize_telemetry(row: Telemetry):
@@ -393,68 +383,15 @@ def upload_alert(request: AlertUploadRequest, db: Session = Depends(get_db)):
     return {"message": "Alert stored successfully", "alert_id": alert.id}
 
 
-def store_system_telemetry(request: TelemetryRequest, db: Session):
-    endpoint = db.get(Endpoint, request.endpoint_id)
-    if not endpoint:
-        raise HTTPException(status_code=404, detail="Endpoint not found")
-
-    received_at = datetime.utcnow()
-    telemetry = Telemetry(
-        endpoint_id=request.endpoint_id,
-        pc_name=request.pc_name.strip(),
-        cpu=request.cpu,
-        ram=request.ram,
-        disk=request.disk,
-        network_sent=request.network_sent,
-        network_received=request.network_received,
-        hostname=request.hostname.strip(),
-        timestamp=request.timestamp.replace(tzinfo=None),
-    )
-    endpoint.pc_name = request.pc_name.strip()
-    endpoint.last_seen = received_at
-    endpoint.status = "Online"
-
-    db.add(telemetry)
-    db.commit()
-    db.refresh(telemetry)
-    return {"message": "Telemetry stored successfully", "telemetry_id": telemetry.id}
-
-
 @app.post("/telemetry")
-@safe_endpoint
-def receive_telemetry(payload: dict, db: Session = Depends(get_db)):
+async def receive_telemetry(request: Request):
+    payload = await request.json()
     print(f"[TELEMETRY] {payload}")
-    required_threat_fields = {
-        "endpoint_id",
-        "pc_name",
-        "timestamp",
-        "file_name",
-        "file_hash",
-        "threat_score",
-        "status",
-    }
-    if required_threat_fields.issubset(payload):
-        try:
-            threat_payload = ThreatTelemetryRequest(**payload)
-        except ValidationError as exc:
-            raise HTTPException(status_code=422, detail=exc.errors())
-        telemetry_events.append(threat_payload.dict())
-        return {"message": "Telemetry received"}
-
-    try:
-        system_payload = TelemetryRequest(**payload)
-    except ValidationError as exc:
-        raise HTTPException(status_code=422, detail=exc.errors())
-    return store_system_telemetry(system_payload, db)
+    telemetry_events.append(payload)
+    return {"message": "Telemetry received"}
 
 
 @app.get("/telemetry")
-@safe_endpoint
-def get_telemetry():
-    return telemetry_events
-
-
-@app.get("/telemetry/latest")
 @safe_endpoint
 def get_latest_telemetry(db: Session = Depends(get_db)):
     return [serialize_telemetry(row) for row in latest_telemetry_rows(db)]
