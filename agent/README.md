@@ -1,4 +1,4 @@
-# Day 2 Endpoint Agent
+# Sentinel SOC Windows Endpoint Agent
 
 Safe demo-only endpoint monitor for the AI-Based SOC Virus Detection System.
 Use EICAR or fake suspicious files only. Do not test with real malware.
@@ -15,6 +15,9 @@ SOC Project/
     agent.py
     requirements.txt
     README.md
+    start_agent_silent.vbs
+    install_agent.bat
+    uninstall_agent.bat
   quarantine/
     suspicious_file.bat
     suspicious_file.bat.quarantine.json
@@ -49,10 +52,88 @@ registration.
 7. Double-click `install_agent.bat` once.
 
 The zip contains `agent.py`, `install_agent.py`, `install_agent.bat`,
-`start_agent.bat`, `stop_agent.bat`, and a pre-filled `.env` file. The
-installer creates a Windows Startup shortcut and starts the agent immediately.
-After that, telemetry and Downloads malware detection start automatically when
-Windows signs in.
+`start_agent_silent.vbs`, `start_agent.bat`, `stop_agent.bat`,
+`uninstall_agent.bat`, and a pre-filled `.env` file. The installer creates a
+Windows Startup shortcut to the silent launcher and starts the agent
+immediately in the background. After that, telemetry and Downloads malware
+detection start automatically when Windows signs in.
+
+## Install
+
+For downloaded dashboard packages, extract the zip and double-click:
+
+```text
+install_agent.bat
+```
+
+The installer saves or reuses `agent\.env`, installs Python dependencies, and
+creates a Windows Startup shortcut named `Sentinel SOC Agent.lnk`. The shortcut
+points to `start_agent_silent.vbs`, so no command window stays open while the
+agent runs.
+
+## Start
+
+Normal background start:
+
+```text
+start_agent_silent.vbs
+```
+
+Developer/testing start with visible logs:
+
+```text
+start_agent.bat
+```
+
+The existing terminal method also still works:
+
+```powershell
+python agent\agent.py
+```
+
+## Stop
+
+Double-click:
+
+```text
+stop_agent.bat
+```
+
+This stops the local Python process whose command line contains `agent.py`.
+
+## Uninstall
+
+Double-click:
+
+```text
+uninstall_agent.bat
+```
+
+This removes the `Sentinel SOC Agent.lnk` Startup shortcut and stops the
+currently running agent process. It does not delete `.env`, logs, quarantine
+metadata, or the downloaded agent folder.
+
+## Status And Logs
+
+The agent writes status and runtime logs to:
+
+```text
+agent\agent_status.json
+agent\agent.log
+```
+
+`agent_status.json` shows the current state, endpoint ID, PC name, backend URL,
+process ID, and last update time. `agent.log` records telemetry, detection,
+quarantine, and backend upload messages even when the agent is launched
+silently.
+
+## Verify Dashboard Online Status
+
+1. Confirm the backend URL in `agent\.env` matches the dashboard backend.
+2. Run `install_agent.bat` once, or double-click `start_agent_silent.vbs`.
+3. Open `agent\agent_status.json` and confirm the state is `running`.
+4. Open the Sentinel SOC dashboard and check Endpoint Details.
+5. The endpoint should change to Online after the next telemetry post.
 
 ## Developer Setup
 
@@ -71,9 +152,15 @@ The installer asks for:
 
 It saves those values to `agent\.env` and creates a Windows Startup folder
 shortcut named `Sentinel SOC Agent.lnk`. After that, the agent starts
-automatically when the Windows user signs in.
+automatically and silently when the Windows user signs in.
 
 To start the agent immediately without VS Code, double-click:
+
+```text
+agent\start_agent_silent.vbs
+```
+
+For visible testing logs, double-click:
 
 ```text
 agent\start_agent.bat
@@ -116,7 +203,7 @@ python agent\agent.py
 1. Run the backend.
 2. Register the endpoint from the dashboard.
 3. Run `python agent\install_agent.py` once and enter the endpoint details.
-4. Double-click `agent\start_agent.bat` or restart/sign in to let Windows auto-start it.
+4. Double-click `agent\start_agent_silent.vbs` or restart/sign in to let Windows auto-start it.
 5. Place a fake suspicious `.bat`, `.ps1`, `.js`, or EICAR test file in
    `C:\Users\<username>\Downloads`.
 6. The agent detects the file, blocks malicious/high-risk execution locally,

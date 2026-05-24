@@ -399,8 +399,11 @@ def download_agent(endpoint_id: int, request: Request, db: Session = Depends(get
     required_files = [
         "agent.py",
         "install_agent.py",
+        "install_agent.bat",
+        "start_agent_silent.vbs",
         "start_agent.bat",
         "stop_agent.bat",
+        "uninstall_agent.bat",
     ]
     missing_files = [name for name in required_files if not (AGENT_DIR / name).is_file()]
     if missing_files:
@@ -412,7 +415,7 @@ def download_agent(endpoint_id: int, request: Request, db: Session = Depends(get
         for filename in required_files:
             archive.write(AGENT_DIR / filename, arcname=filename)
 
-        optional_files = ["install_agent.bat", "requirements.txt", "README.md"]
+        optional_files = ["requirements.txt", "README.md"]
         for filename in optional_files:
             source_path = AGENT_DIR / filename
             if source_path.is_file():
@@ -428,8 +431,9 @@ def download_agent(endpoint_id: int, request: Request, db: Session = Depends(get
                     "",
                     "1. Extract this zip folder.",
                     "2. Double-click install_agent.bat, or install_agent.py if Python opens .py files.",
-                    "3. The installer creates Windows startup entry and starts the agent.",
+                    "3. The installer creates a Windows Startup entry and starts the agent silently.",
                     "4. After this, telemetry and Downloads malware detection start automatically when Windows signs in.",
+                    "5. Check agent_status.json or agent.log to confirm local status.",
                     "",
                 ]
             ),

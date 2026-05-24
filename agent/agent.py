@@ -27,6 +27,33 @@ from watchdog.observers import Observer
 
 
 AGENT_DIR = Path(__file__).resolve().parent
+LOG_PATH = AGENT_DIR / "agent.log"
+STATUS_PATH = AGENT_DIR / "agent_status.json"
+
+
+def append_log_file(level: str, message: str) -> None:
+    timestamp = datetime.utcnow().isoformat() + "Z"
+    try:
+        with LOG_PATH.open("a", encoding="utf-8") as log_file:
+            log_file.write(f"{timestamp} [{level}] {message}\n")
+    except OSError:
+        pass
+
+
+def write_status(state: str, message: str) -> None:
+    status_payload = {
+        "state": state,
+        "message": message,
+        "endpoint_id": ENDPOINT_ID if "ENDPOINT_ID" in globals() else None,
+        "pc_name": PC_NAME if "PC_NAME" in globals() else None,
+        "backend_url": BACKEND_URL if "BACKEND_URL" in globals() else None,
+        "pid": os.getpid(),
+        "updated_at": datetime.utcnow().isoformat() + "Z",
+    }
+    try:
+        STATUS_PATH.write_text(json.dumps(status_payload, indent=2), encoding="utf-8")
+    except OSError:
+        pass
 
 
 def load_env_file() -> None:
@@ -47,7 +74,7 @@ def load_env_file() -> None:
             if key and key not in os.environ:
                 os.environ[key] = value
     except OSError as exc:
-        print(f"[WARNING] Could not read agent .env file: {exc}", flush=True)
+        append_log_file("WARNING", f"Could not read agent .env file: {exc}")
 
 
 load_env_file()
@@ -135,8 +162,13 @@ cache_lock = threading.Lock()
 
 
 def log(level: str, message: str) -> None:
-    """Print clean SOC-style terminal logs."""
-    print(f"[{level}] {message}", flush=True)
+    """Write clean SOC-style logs to console when visible and always to disk."""
+    if sys.stdout:
+        try:
+            print(f"[{level}] {message}", flush=True)
+        except OSError:
+            pass
+    append_log_file(level, message)
 
 
 def ensure_agent_folders() -> None:
@@ -225,10 +257,13 @@ def send_telemetry_once() -> None:
         )
         response.raise_for_status()
         log("INFO", "Telemetry sent successfully")
+        write_status("running", "Telemetry sent successfully")
     except RequestException as exc:
         log("WARNING", f"Telemetry backend is offline or unreachable: {exc}")
+        write_status("running_offline", f"Telemetry backend is offline or unreachable: {exc}")
     except Exception as exc:
         log("ERROR", f"Telemetry collection failed: {exc}")
+        write_status("error", f"Telemetry collection failed: {exc}")
 
 
 def telemetry_loop(stop_event: threading.Event) -> None:
@@ -834,10 +869,12 @@ class DownloadsEventHandler(FileSystemEventHandler):
 def start_monitoring() -> None:
     if not DOWNLOADS_DIR.exists():
         log("ERROR", f"Downloads folder not found: {DOWNLOADS_DIR}")
+        write_status("error", f"Downloads folder not found: {DOWNLOADS_DIR}")
         return
 
     ensure_agent_folders()
     load_malicious_hashes()
+    write_status("starting", "Sentinel SOC Agent is starting")
 
     log("INFO", f"Endpoint ID: {ENDPOINT_ID}")
     log("INFO", f"PC Name: {PC_NAME}")
@@ -850,17 +887,20 @@ def start_monitoring() -> None:
     stop_event = threading.Event()
     telemetry_thread = threading.Thread(target=telemetry_loop, args=(stop_event,), daemon=True)
     telemetry_thread.start()
+    write_status("running", "Monitoring Downloads and sending telemetry")
 
     try:
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
         log("INFO", "Stopping endpoint agent...")
+        write_status("stopping", "Sentinel SOC Agent is stopping")
     finally:
         stop_event.set()
         observer.stop()
         observer.join()
         telemetry_thread.join(timeout=2)
+        write_status("stopped", "Sentinel SOC Agent stopped")
 
 
 if __name__ == "__main__":

@@ -17,6 +17,7 @@ from pathlib import Path
 AGENT_DIR = Path(__file__).resolve().parent
 ENV_PATH = AGENT_DIR / ".env"
 START_BAT = AGENT_DIR / "start_agent.bat"
+SILENT_LAUNCHER = AGENT_DIR / "start_agent_silent.vbs"
 SHORTCUT_NAME = "Sentinel SOC Agent.lnk"
 
 
@@ -87,10 +88,11 @@ def create_startup_shortcut() -> Path:
     startup_folder.mkdir(parents=True, exist_ok=True)
     shortcut_path = startup_folder / SHORTCUT_NAME
 
+    target_path = SILENT_LAUNCHER if SILENT_LAUNCHER.exists() else START_BAT
     powershell = f"""
 $WScriptShell = New-Object -ComObject WScript.Shell
 $Shortcut = $WScriptShell.CreateShortcut('{shortcut_path}')
-$Shortcut.TargetPath = '{START_BAT}'
+$Shortcut.TargetPath = '{target_path}'
 $Shortcut.WorkingDirectory = '{AGENT_DIR}'
 $Shortcut.WindowStyle = 7
 $Shortcut.Description = 'Starts the Sentinel SOC endpoint agent'
@@ -120,16 +122,17 @@ def install_dependencies() -> None:
 
 
 def start_agent_now() -> None:
-    if not START_BAT.exists():
+    launcher = SILENT_LAUNCHER if SILENT_LAUNCHER.exists() else START_BAT
+    if not launcher.exists():
         return
 
     try:
         subprocess.Popen(
-            ["cmd", "/c", "start", "Sentinel SOC Agent", str(START_BAT)],
+            ["wscript.exe", str(launcher)] if launcher.suffix.lower() == ".vbs" else ["cmd", "/c", "start", "Sentinel SOC Agent", str(launcher)],
             cwd=str(AGENT_DIR),
             shell=False,
         )
-        print("Started Sentinel SOC Agent.")
+        print("Started Sentinel SOC Agent in the background.")
     except Exception as exc:
         print(f"Could not start the agent automatically: {exc}")
         print("You can still start it by double-clicking start_agent.bat.")

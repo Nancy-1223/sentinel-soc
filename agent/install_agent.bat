@@ -8,4 +8,8 @@ if %ERRORLEVEL%==0 (
 ) else (
     python "%~dp0install_agent.py"
 )
-pause
+if errorlevel 1 (
+    echo.
+    echo Installation failed. Review the message above.
+    pause
+)
