@@ -26,6 +26,32 @@ from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
 
+AGENT_DIR = Path(__file__).resolve().parent
+
+
+def load_env_file() -> None:
+    """Load agent/.env values without overriding real environment variables."""
+    env_path = AGENT_DIR / ".env"
+    if not env_path.exists():
+        return
+
+    try:
+        for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+
+            key, value = line.split("=", 1)
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+            if key and key not in os.environ:
+                os.environ[key] = value
+    except OSError as exc:
+        print(f"[WARNING] Could not read agent .env file: {exc}", flush=True)
+
+
+load_env_file()
+
 BACKEND_URL = os.getenv("SOC_BACKEND_URL", "http://10.170.117.155:8000")
 ENDPOINT_ID = int(os.getenv("SOC_ENDPOINT_ID", "1"))
 PC_NAME = os.getenv("SOC_PC_NAME", socket.gethostname())
@@ -33,7 +59,7 @@ PC_NAME = os.getenv("SOC_PC_NAME", socket.gethostname())
 DOWNLOADS_DIR = Path.home() / "Downloads"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 QUARANTINE_DIR = PROJECT_ROOT / "quarantine"
-HASH_BLACKLIST_PATH = Path(__file__).resolve().parent / "malicious_hashes.json"
+HASH_BLACKLIST_PATH = AGENT_DIR / "malicious_hashes.json"
 
 SCAN_DELAY_SECONDS = 0.5
 REQUEST_TIMEOUT_SECONDS = 8
