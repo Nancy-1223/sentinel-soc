@@ -1,17 +1,17 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { Download } from "lucide-react";
 import { createApiClient, getApiErrorMessage } from "../api/client";
 import { useAlerts } from "../context/AlertsContext";
-import { useSettings } from "../context/SettingsContext";
 import { useTelemetry } from "../context/TelemetryContext";
 import { formatBytes, formatDate } from "../utils/format";
 
 export default function EndpointDetails() {
-  const { settings } = useSettings();
   const { alerts, refreshAlerts } = useAlerts();
   const { endpointStatus, offline: telemetryOffline, refreshTelemetry } = useTelemetry();
   const user = JSON.parse(localStorage.getItem("soc_user") || "null");
   const [pcName, setPcName] = useState("");
+  const [registeredEndpoint, setRegisteredEndpoint] = useState(null);
   const [message, setMessage] = useState("");
   const [toast, setToast] = useState(null);
   const [busyAction, setBusyAction] = useState("");
@@ -57,19 +57,69 @@ export default function EndpointDetails() {
   async function registerEndpoint(event) {
     event.preventDefault();
     setMessage("");
+    setRegisteredEndpoint(null);
+    const userId = user?.user_id || user?.id;
+    if (!userId) {
+      const text = "Login again before registering an endpoint.";
+      setMessage(text);
+      showToast("error", text);
+      return;
+    }
+
+    setBusyAction("register");
     try {
       const api = createApiClient();
       const response = await api.post("/register-endpoint", {
-        user_id: user?.user_id || user?.id || 1,
-        pc_name: pcName || "LAB-PC-01",
+        user_id: userId,
+        pc_name: pcName.trim() || "LAB-PC-01",
       });
-      setMessage(`Endpoint registered with ID ${response.data.endpoint_id}`);
+      const nextEndpoint = {
+        endpoint_id: response.data.endpoint_id,
+        pc_name: response.data.pc_name || pcName.trim() || "LAB-PC-01",
+        status: response.data.status || "Registered",
+      };
+      setRegisteredEndpoint(nextEndpoint);
+      setMessage("Endpoint registered successfully. Download and run the Sentinel Agent once to start protection.");
       setPcName("");
-      showToast("success", "Endpoint registered successfully.");
+      showToast("success", "Endpoint registered successfully. Download and run the Sentinel Agent once to start protection.");
       await refreshAll();
     } catch (exc) {
       setMessage(getApiErrorMessage(exc, "Endpoint registration failed."));
       showToast("error", getApiErrorMessage(exc, "Endpoint registration failed."));
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  function getDownloadFilename(response, endpoint) {
+    const disposition = response.headers?.["content-disposition"] || "";
+    const match = disposition.match(/filename="?([^"]+)"?/i);
+    if (match?.[1]) {
+      return match[1];
+    }
+    return `sentinel-agent-endpoint-${endpoint.endpoint_id}.zip`;
+  }
+
+  async function downloadAgent(endpoint) {
+    setBusyAction(`download-${endpoint.endpoint_id}`);
+    try {
+      const api = createApiClient();
+      const response = await api.get(`/download-agent/${endpoint.endpoint_id}`, {
+        responseType: "blob",
+      });
+      const blobUrl = window.URL.createObjectURL(new Blob([response.data], { type: "application/zip" }));
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = getDownloadFilename(response, endpoint);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+      showToast("success", "Configured agent package downloaded.");
+    } catch (exc) {
+      showToast("error", getApiErrorMessage(exc, "Could not download agent package."));
+    } finally {
+      setBusyAction("");
     }
   }
 
@@ -141,10 +191,39 @@ export default function EndpointDetails() {
         </div>
       )}
       <form onSubmit={registerEndpoint} className="glass cyber-border hover-glow-card grid gap-3 rounded-lg p-4 md:grid-cols-[1fr_auto]">
-        <input className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-sm outline-none focus:border-cyber-cyan/60" placeholder="PC name for /register-endpoint" value={pcName} onChange={(e) => setPcName(e.target.value)} />
-        <button className="hover-glow-button rounded-md bg-cyber-cyan px-4 py-2 text-sm font-semibold text-slate-950">Register Endpoint</button>
+        <input className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-sm outline-none focus:border-cyber-cyan/60" placeholder="PC name" value={pcName} onChange={(e) => setPcName(e.target.value)} />
+        <button disabled={busyAction === "register"} className="hover-glow-button rounded-md bg-cyber-cyan px-4 py-2 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-60">
+          {busyAction === "register" ? "Registering..." : "Register Endpoint"}
+        </button>
         {message && <div className="text-sm text-cyber-cyan md:col-span-2">{message}</div>}
       </form>
+      {registeredEndpoint && (
+        <div className="glass cyber-border hover-glow-card rounded-lg p-4">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Ready for Agent Install</div>
+              <div className="mt-2 text-lg font-semibold text-white">{registeredEndpoint.pc_name}</div>
+              <div className="mt-1 text-sm text-slate-400">
+                Endpoint #{registeredEndpoint.endpoint_id} - {registeredEndpoint.status}
+              </div>
+              <div className="mt-3 text-sm text-cyber-cyan">
+                Download and run Sentinel Agent once. After that, monitoring starts automatically.
+              </div>
+            </div>
+            <button
+              onClick={() => downloadAgent(registeredEndpoint)}
+              disabled={busyAction === `download-${registeredEndpoint.endpoint_id}`}
+              className="hover-glow-button inline-flex items-center justify-center gap-2 rounded-md bg-cyber-green px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Download className="h-4 w-4" />
+              {busyAction === `download-${registeredEndpoint.endpoint_id}` ? "Preparing..." : "Download Agent"}
+            </button>
+          </div>
+        </div>
+      )}
+      <div className="glass cyber-border hover-glow-card rounded-lg p-4 text-sm text-slate-300">
+        Download and run Sentinel Agent once. After that, monitoring starts automatically. No Swagger or terminal commands are needed for normal endpoint onboarding.
+      </div>
       <div className="glass cyber-border hover-glow-card flex flex-wrap gap-3 rounded-lg p-4">
         <button
           onClick={clearOfflineEndpoints}
@@ -193,6 +272,14 @@ export default function EndpointDetails() {
               <div><div className="text-slate-500">Network</div><div className="text-cyber-cyan">{formatBytes(endpoint.telemetry?.network_sent || 0)} / {formatBytes(endpoint.telemetry?.network_received || 0)}</div></div>
             </div>
             <div className="mt-4 text-xs text-slate-500">Last seen {formatDate(endpoint.lastSeen)}</div>
+            <button
+              onClick={() => downloadAgent(endpoint)}
+              disabled={busyAction === `download-${endpoint.endpoint_id}`}
+              className="hover-glow-button mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md border border-cyber-green/30 px-3 py-2 text-sm font-semibold text-cyber-green transition hover:bg-cyber-green/10 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Download className="h-4 w-4" />
+              {busyAction === `download-${endpoint.endpoint_id}` ? "Preparing..." : "Download Agent"}
+            </button>
             <button
               onClick={() => deleteEndpoint(endpoint)}
               disabled={busyAction === `delete-${endpoint.endpoint_id}`}

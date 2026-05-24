@@ -4,8 +4,21 @@ AI-Based SOC Threat Detection Platform.
 
 ## Windows Endpoint Agent
 
-After registering an endpoint from the dashboard, install the Windows-friendly
-background agent once:
+Normal users should onboard endpoints from the Sentinel SOC dashboard:
+
+1. Login to the dashboard.
+2. Open Endpoint Details.
+3. Enter the PC name.
+4. Click Register Endpoint.
+5. Click Download Agent.
+6. Extract the zip and double-click `install_agent.bat` once.
+
+The downloaded package already contains the endpoint configuration. The
+installer creates a Windows Startup entry and starts telemetry plus Downloads
+malware detection.
+
+Developer/testing setup is still available. After registering an endpoint from
+the dashboard, install the Windows-friendly background agent manually:
 
 ```powershell
 python agent\install_agent.py

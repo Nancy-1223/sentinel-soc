@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -9,10 +9,12 @@ from pydantic import BaseModel, Field
 from datetime import datetime, timedelta
 from pathlib import Path
 from functools import wraps
+from io import BytesIO
 import json
 import logging
 import os
 import shutil
+import zipfile
 
 from database import Base, get_db, init_database
 from models import User, Endpoint, Alert, Telemetry
@@ -22,8 +24,10 @@ from detector import predict_file
 init_database(Base)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+AGENT_DIR = PROJECT_ROOT / "agent"
 QUARANTINE_DIR = PROJECT_ROOT / "quarantine"
 ENDPOINT_ONLINE_TIMEOUT_SECONDS = 15
+DEFAULT_AGENT_BACKEND_URL = "https://sentinel-soc-backend-fxb8.onrender.com"
 telemetry_events = []
 
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(name)s: %(message)s")
@@ -57,6 +61,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition"],
 )
 
 
@@ -264,6 +269,34 @@ def build_unique_restore_path(original_path: Path) -> Path:
         counter += 1
 
 
+def public_backend_url(request: Request) -> str:
+    return os.getenv("AGENT_BACKEND_URL", DEFAULT_AGENT_BACKEND_URL).rstrip("/")
+
+
+def env_quote(value: str) -> str:
+    if value and all(char not in value for char in [' ', "\t", '"', "'"]):
+        return value
+    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def build_agent_env(backend_url: str, endpoint: Endpoint) -> str:
+    return "\n".join(
+        [
+            f"SOC_BACKEND_URL={env_quote(backend_url)}",
+            f"SOC_ENDPOINT_ID={env_quote(str(endpoint.id))}",
+            f"SOC_PC_NAME={env_quote(endpoint.pc_name)}",
+            "",
+        ]
+    )
+
+
+def get_endpoint_or_404(endpoint_id: int, db: Session) -> Endpoint:
+    endpoint = db.get(Endpoint, endpoint_id)
+    if not endpoint:
+        raise HTTPException(status_code=404, detail="Endpoint not found")
+    return endpoint
+
+
 @app.post("/register", status_code=status.HTTP_201_CREATED)
 @safe_endpoint
 def register(request: RegisterRequest, db: Session = Depends(get_db)):
@@ -328,16 +361,86 @@ def register_endpoint(request: EndpointRegisterRequest, db: Session = Depends(ge
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    pc_name = request.pc_name.strip()
+    if not pc_name:
+        raise HTTPException(status_code=400, detail="PC name is required")
+
     endpoint = Endpoint(
         user_id=request.user_id,
-        pc_name=request.pc_name,
-        status="Protected",
-        last_seen=datetime.utcnow(),
+        pc_name=pc_name,
+        status="Registered",
+        last_seen=None,
     )
     db.add(endpoint)
     db.commit()
     db.refresh(endpoint)
-    return {"message": "Endpoint registered successfully", "endpoint_id": endpoint.id}
+    return {
+        "message": "Endpoint registered successfully",
+        "endpoint_id": endpoint.id,
+        "pc_name": endpoint.pc_name,
+        "status": "Registered",
+    }
+
+
+@app.get("/agent-config/{endpoint_id}")
+@safe_endpoint
+def get_agent_config(endpoint_id: int, request: Request, db: Session = Depends(get_db)):
+    endpoint = get_endpoint_or_404(endpoint_id, db)
+    return {
+        "SOC_BACKEND_URL": public_backend_url(request),
+        "SOC_ENDPOINT_ID": str(endpoint.id),
+        "SOC_PC_NAME": endpoint.pc_name,
+    }
+
+
+@app.get("/download-agent/{endpoint_id}")
+@safe_endpoint
+def download_agent(endpoint_id: int, request: Request, db: Session = Depends(get_db)):
+    endpoint = get_endpoint_or_404(endpoint_id, db)
+    required_files = [
+        "agent.py",
+        "install_agent.py",
+        "start_agent.bat",
+        "stop_agent.bat",
+    ]
+    missing_files = [name for name in required_files if not (AGENT_DIR / name).is_file()]
+    if missing_files:
+        raise HTTPException(status_code=500, detail=f"Agent package files missing: {', '.join(missing_files)}")
+
+    package = BytesIO()
+    backend_url = public_backend_url(request)
+    with zipfile.ZipFile(package, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for filename in required_files:
+            archive.write(AGENT_DIR / filename, arcname=filename)
+
+        optional_files = ["install_agent.bat", "requirements.txt", "README.md"]
+        for filename in optional_files:
+            source_path = AGENT_DIR / filename
+            if source_path.is_file():
+                archive.write(source_path, arcname=filename)
+
+        archive.writestr(".env", build_agent_env(backend_url, endpoint))
+        archive.writestr(
+            "README_AGENT_SETUP.txt",
+            "\n".join(
+                [
+                    "Sentinel SOC Agent",
+                    "==================",
+                    "",
+                    "1. Extract this zip folder.",
+                    "2. Double-click install_agent.bat, or install_agent.py if Python opens .py files.",
+                    "3. The installer creates Windows startup entry and starts the agent.",
+                    "4. After this, telemetry and Downloads malware detection start automatically when Windows signs in.",
+                    "",
+                ]
+            ),
+        )
+    package.seek(0)
+
+    safe_pc_name = "".join(char if char.isalnum() or char in {"-", "_"} else "-" for char in endpoint.pc_name).strip("-")
+    filename = f"sentinel-agent-endpoint-{endpoint.id}-{safe_pc_name or 'pc'}.zip"
+    headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+    return StreamingResponse(package, media_type="application/zip", headers=headers)
 
 
 @app.post("/predict")
