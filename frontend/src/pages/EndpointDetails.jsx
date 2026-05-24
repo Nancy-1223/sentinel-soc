@@ -9,7 +9,6 @@ import { formatBytes, formatDate } from "../utils/format";
 export default function EndpointDetails() {
   const { alerts, refreshAlerts } = useAlerts();
   const { endpointStatus, offline: telemetryOffline, refreshTelemetry } = useTelemetry();
-  const user = JSON.parse(localStorage.getItem("soc_user") || "null");
   const [pcName, setPcName] = useState("");
   const [registeredEndpoint, setRegisteredEndpoint] = useState(null);
   const [message, setMessage] = useState("");
@@ -58,19 +57,11 @@ export default function EndpointDetails() {
     event.preventDefault();
     setMessage("");
     setRegisteredEndpoint(null);
-    const userId = user?.user_id || user?.id;
-    if (!userId) {
-      const text = "Login again before registering an endpoint.";
-      setMessage(text);
-      showToast("error", text);
-      return;
-    }
 
     setBusyAction("register");
     try {
       const api = createApiClient();
       const response = await api.post("/register-endpoint", {
-        user_id: userId,
         pc_name: pcName.trim() || "LAB-PC-01",
       });
       const nextEndpoint = {

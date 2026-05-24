@@ -146,8 +146,7 @@ class LoginResponse(BaseModel):
 
 
 class EndpointRegisterRequest(BaseModel):
-    user_id: int
-    pc_name: str
+    pc_name: str = Field(..., min_length=1)
 
 
 class PredictRequest(BaseModel):
@@ -356,17 +355,17 @@ def read_current_user(current_user: User = Depends(get_current_user)):
 
 @app.post("/register-endpoint", status_code=status.HTTP_201_CREATED)
 @safe_endpoint
-def register_endpoint(request: EndpointRegisterRequest, db: Session = Depends(get_db)):
-    user = db.get(User, request.user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
+def register_endpoint(
+    request: EndpointRegisterRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     pc_name = request.pc_name.strip()
     if not pc_name:
         raise HTTPException(status_code=400, detail="PC name is required")
 
     endpoint = Endpoint(
-        user_id=request.user_id,
+        user_id=current_user.id,
         pc_name=pc_name,
         status="Registered",
         last_seen=None,
