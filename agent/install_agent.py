@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import socket
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -31,6 +32,20 @@ def prompt_value(label: str, default: str | None = None) -> str:
     if default:
         return default
     return prompt_value(label, default)
+
+
+def load_existing_env() -> dict[str, str]:
+    if not ENV_PATH.exists():
+        return {}
+
+    values = {}
+    for raw_line in ENV_PATH.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        values[key.strip()] = value.strip().strip('"').strip("'")
+    return values
 
 
 def env_quote(value: str) -> str:
@@ -88,15 +103,55 @@ $Shortcut.Save()
     return shortcut_path
 
 
+def install_dependencies() -> None:
+    requirements_path = AGENT_DIR / "requirements.txt"
+    if not requirements_path.exists():
+        return
+
+    print("Checking agent dependencies...")
+    try:
+        subprocess.run(
+            [sys.executable, "-m", "pip", "install", "-r", str(requirements_path)],
+            check=True,
+        )
+    except Exception as exc:
+        print(f"Could not install dependencies automatically: {exc}")
+        print("If the agent does not start, install Python dependencies manually.")
+
+
+def start_agent_now() -> None:
+    if not START_BAT.exists():
+        return
+
+    try:
+        subprocess.Popen(
+            ["cmd", "/c", "start", "Sentinel SOC Agent", str(START_BAT)],
+            cwd=str(AGENT_DIR),
+            shell=False,
+        )
+        print("Started Sentinel SOC Agent.")
+    except Exception as exc:
+        print(f"Could not start the agent automatically: {exc}")
+        print("You can still start it by double-clicking start_agent.bat.")
+
+
 def main() -> int:
     print("Sentinel SOC Agent Setup")
     print("========================")
-    print("Enter the endpoint values shown in the SOC dashboard.")
-    print()
+    existing_env = load_existing_env()
 
-    backend_url = prompt_value("Backend URL", "http://127.0.0.1:8000").rstrip("/")
-    endpoint_id = prompt_value("Endpoint ID")
-    pc_name = prompt_value("PC name", socket.gethostname())
+    backend_url = existing_env.get("SOC_BACKEND_URL", "").rstrip("/")
+    endpoint_id = existing_env.get("SOC_ENDPOINT_ID", "")
+    pc_name = existing_env.get("SOC_PC_NAME", "")
+
+    if not all([backend_url, endpoint_id, pc_name]):
+        print("Enter the endpoint values shown in the SOC dashboard.")
+        print()
+        backend_url = prompt_value("Backend URL", backend_url or "http://127.0.0.1:8000").rstrip("/")
+        endpoint_id = prompt_value("Endpoint ID", endpoint_id or None)
+        pc_name = prompt_value("PC name", pc_name or socket.gethostname())
+    else:
+        print(f"Using dashboard configuration for endpoint {endpoint_id} ({pc_name}).")
 
     try:
         int(endpoint_id)
@@ -106,6 +161,7 @@ def main() -> int:
 
     save_env(backend_url, endpoint_id, pc_name)
     print(f"Saved settings to: {ENV_PATH}")
+    install_dependencies()
 
     try:
         shortcut_path = create_startup_shortcut()
@@ -117,7 +173,8 @@ def main() -> int:
 
     print()
     print("Setup complete.")
-    print("Double-click start_agent.bat to start now, or restart/sign in to start automatically.")
+    start_agent_now()
+    print("The agent will also start automatically when Windows signs in.")
     return 0
 
 

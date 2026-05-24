@@ -35,8 +35,29 @@ cd Backend
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-Register an endpoint in the backend and note its `endpoint_id`. Then run the
-Windows installer from the project root:
+## Dashboard Onboarding
+
+Normal users should not use Swagger or terminal commands for endpoint
+registration.
+
+1. Login to the Sentinel SOC dashboard.
+2. Open Endpoint Details.
+3. Enter the PC name.
+4. Click Register Endpoint.
+5. Click Download Agent.
+6. Extract the downloaded zip.
+7. Double-click `install_agent.bat` once.
+
+The zip contains `agent.py`, `install_agent.py`, `install_agent.bat`,
+`start_agent.bat`, `stop_agent.bat`, and a pre-filled `.env` file. The
+installer creates a Windows Startup shortcut and starts the agent immediately.
+After that, telemetry and Downloads malware detection start automatically when
+Windows signs in.
+
+## Developer Setup
+
+Register an endpoint in the dashboard or backend and note its `endpoint_id`.
+Then run the Windows installer from the project root:
 
 ```powershell
 python agent\install_agent.py
