@@ -5,7 +5,6 @@ import AlertsPanel from "./pages/AlertsPanel";
 import Dashboard from "./pages/Dashboard";
 import DemoChecklist from "./pages/DemoChecklist";
 import EndpointDetails from "./pages/EndpointDetails";
-import LiveAttackMap from "./pages/LiveAttackMap";
 import Login from "./pages/Login";
 import Quarantine from "./pages/Quarantine";
 import Register from "./pages/Register";
@@ -24,7 +23,6 @@ export default function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/alerts" element={<AlertsPanel />} />
           <Route path="/alerts/:id" element={<ThreatDetails />} />
-          <Route path="/map" element={<LiveAttackMap />} />
           <Route path="/behavior" element={<UserBehavior />} />
           <Route path="/endpoints" element={<EndpointDetails />} />
           <Route path="/quarantine" element={<Quarantine />} />

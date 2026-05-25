@@ -320,79 +320,417 @@ select.bg-white\/\[0\.04\] {
   }
 }
 
-.map-grid {
+.ai-command-hero {
+  position: relative;
+  background:
+    linear-gradient(120deg, rgba(8, 19, 34, 0.96), rgba(5, 12, 24, 0.98)),
+    radial-gradient(circle at 14% 18%, rgba(34, 211, 238, 0.18), transparent 28%),
+    radial-gradient(circle at 88% 24%, rgba(57, 255, 136, 0.12), transparent 24%);
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  box-shadow: 0 18px 52px rgba(0, 0, 0, 0.34), inset 0 0 44px rgba(34, 211, 238, 0.035);
+}
+
+.ai-command-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.28;
+  background-image:
+    linear-gradient(rgba(34, 211, 238, 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.09) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(circle at 50% 35%, black, transparent 76%);
+}
+
+.soc-scan-sweep {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 0%, transparent 42%, rgba(34, 211, 238, 0.09) 50%, transparent 58%, transparent 100%);
+  animation: soc-sweep 5.8s ease-in-out infinite;
+}
+
+@keyframes soc-sweep {
+  0%, 30% {
+    transform: translateX(-58%);
+    opacity: 0;
+  }
+  52% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(58%);
+    opacity: 0;
+  }
+}
+
+.ai-meter,
+.dna-panel,
+.neural-panel,
+.topology-panel,
+.vault-panel {
+  position: relative;
+  overflow: hidden;
+}
+
+.endpoint-matrix-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(126px, 1fr));
+  gap: 12px;
+}
+
+.endpoint-cell {
+  min-height: 84px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-radius: 8px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.88), rgba(8, 19, 34, 0.94));
+  animation: endpoint-breathe 2.8s ease-in-out infinite;
+}
+
+.endpoint-cell span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #f8fafc;
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.endpoint-cell small {
+  color: #94a3b8;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.endpoint-cell-green {
+  border-color: rgba(57, 255, 136, 0.34);
+  box-shadow: 0 0 18px rgba(57, 255, 136, 0.11), inset 0 0 18px rgba(57, 255, 136, 0.035);
+}
+
+.endpoint-cell-amber {
+  border-color: rgba(250, 204, 21, 0.42);
+  box-shadow: 0 0 18px rgba(250, 204, 21, 0.12), inset 0 0 18px rgba(250, 204, 21, 0.04);
+}
+
+.endpoint-cell-red {
+  border-color: rgba(251, 113, 133, 0.46);
+  box-shadow: 0 0 20px rgba(251, 113, 133, 0.16), inset 0 0 18px rgba(251, 113, 133, 0.05);
+}
+
+.endpoint-cell-cyan {
+  border-color: rgba(34, 211, 238, 0.28);
+  box-shadow: 0 0 15px rgba(34, 211, 238, 0.09), inset 0 0 16px rgba(34, 211, 238, 0.035);
+}
+
+@keyframes endpoint-breathe {
+  0%, 100% {
+    transform: translateY(0);
+    filter: brightness(1);
+  }
+  50% {
+    transform: translateY(-1px);
+    filter: brightness(1.08);
+  }
+}
+
+.neural-canvas,
+.topology-canvas {
+  position: relative;
+  min-height: 330px;
+  border-radius: 8px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(34, 211, 238, 0.12), transparent 24%),
+    linear-gradient(145deg, rgba(5, 12, 24, 0.95), rgba(8, 19, 34, 0.92));
+  border: 1px solid rgba(34, 211, 238, 0.14);
+}
+
+.neural-canvas::before,
+.topology-canvas::before {
+  content: "";
+  position: absolute;
+  inset: 0;
   background-image:
     linear-gradient(rgba(34, 211, 238, 0.055) 1px, transparent 1px),
     linear-gradient(90deg, rgba(34, 211, 238, 0.055) 1px, transparent 1px);
-  background-size: 34px 34px;
+  background-size: 28px 28px;
+  animation: cyber-grid-drift 22s linear infinite;
 }
 
-.world-land {
-  filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.18));
+.neural-core,
+.topology-core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: grid;
+  height: 110px;
+  width: 110px;
+  place-items: center;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  border: 1px solid rgba(34, 211, 238, 0.42);
+  background: rgba(2, 8, 23, 0.9);
+  box-shadow: 0 0 34px rgba(34, 211, 238, 0.18), inset 0 0 24px rgba(34, 211, 238, 0.08);
 }
 
-.map-label {
-  fill: #dbeafe;
-  font-size: 2.2px;
-  font-weight: 600;
-  letter-spacing: 0;
-  paint-order: stroke;
-  stroke: rgba(2, 6, 23, 0.94);
-  stroke-width: 0.72px;
-  stroke-linejoin: round;
-}
-
-.atlas-land {
-  filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.1));
-}
-
-.atlas-borders {
-  stroke-dasharray: 2 5;
-}
-
-.atlas-region-label text,
-.atlas-marker-label {
-  letter-spacing: 0;
-  paint-order: stroke;
-  stroke: rgba(2, 6, 23, 0.96);
-  stroke-linejoin: round;
-}
-
-.atlas-region-label text {
-  fill: rgba(203, 213, 225, 0.44);
-  font-size: 15px;
+.neural-core span,
+.topology-core span {
+  font-size: 0.66rem;
   font-weight: 700;
-  stroke-width: 4px;
+  letter-spacing: 0.16em;
+  color: #67e8f9;
 }
 
-.atlas-marker-label {
-  fill: #e0f2fe;
-  font-size: 16px;
+.neural-node,
+.neural-stream {
+  position: absolute;
+  display: block;
+}
+
+.neural-node {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #22d3ee;
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.72);
+  animation: neural-pulse 2.6s ease-in-out infinite;
+}
+
+.neural-stream {
+  height: 1px;
+  width: 38%;
+  transform-origin: left center;
+  background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.7), transparent);
+  animation: data-stream 2.9s linear infinite;
+}
+
+.neural-node-1 { left: 10%; top: 18%; }
+.neural-node-2 { left: 23%; top: 72%; animation-delay: .25s; }
+.neural-node-3 { left: 36%; top: 30%; animation-delay: .5s; }
+.neural-node-4 { left: 64%; top: 19%; animation-delay: .75s; }
+.neural-node-5 { left: 78%; top: 66%; animation-delay: 1s; }
+.neural-node-6 { left: 88%; top: 36%; animation-delay: 1.25s; }
+.neural-node-7 { left: 46%; top: 83%; animation-delay: 1.5s; }
+.neural-node-8 { left: 15%; top: 46%; animation-delay: 1.75s; }
+.neural-node-9 { left: 58%; top: 68%; animation-delay: 2s; }
+.neural-node-10 { left: 71%; top: 42%; animation-delay: 2.25s; }
+.neural-node-11 { left: 32%; top: 52%; animation-delay: 2.5s; }
+.neural-node-12 { left: 52%; top: 12%; animation-delay: 2.75s; }
+
+.neural-stream-1 { left: 10%; top: 22%; transform: rotate(18deg); }
+.neural-stream-2 { left: 24%; top: 72%; transform: rotate(-34deg); animation-delay: .2s; }
+.neural-stream-3 { left: 33%; top: 34%; transform: rotate(14deg); animation-delay: .4s; }
+.neural-stream-4 { left: 51%; top: 23%; transform: rotate(35deg); animation-delay: .6s; }
+.neural-stream-5 { left: 55%; top: 68%; transform: rotate(-18deg); animation-delay: .8s; }
+.neural-stream-6 { left: 12%; top: 47%; transform: rotate(-10deg); animation-delay: 1s; }
+.neural-stream-7 { left: 43%; top: 82%; transform: rotate(-42deg); animation-delay: 1.2s; }
+.neural-stream-8 { left: 65%; top: 44%; transform: rotate(5deg); animation-delay: 1.4s; }
+.neural-stream-9 { left: 29%; top: 54%; transform: rotate(28deg); animation-delay: 1.6s; }
+
+@keyframes neural-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.7);
+    opacity: 1;
+  }
+}
+
+@keyframes data-stream {
+  from {
+    background-position: -160px 0;
+    opacity: 0.22;
+  }
+  to {
+    background-position: 160px 0;
+    opacity: 0.88;
+  }
+}
+
+.dna-scanner {
+  position: relative;
+  display: grid;
+  width: min(230px, 100%);
+  aspect-ratio: 1;
+  place-items: center;
+  margin: 0 auto;
+}
+
+.dna-ring {
+  position: absolute;
+  inset: 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(34, 211, 238, 0.28);
+}
+
+.dna-ring-outer {
+  animation: dna-rotate 8s linear infinite;
+  border-top-color: rgba(57, 255, 136, 0.9);
+  border-right-color: rgba(34, 211, 238, 0.58);
+}
+
+.dna-ring-inner {
+  inset: 42px;
+  animation: dna-rotate 5s linear infinite reverse;
+  border-bottom-color: rgba(250, 204, 21, 0.75);
+}
+
+.dna-reticle {
+  z-index: 1;
+  display: grid;
+  height: 118px;
+  width: 118px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(2, 8, 23, 0.86);
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  text-align: center;
+}
+
+@keyframes dna-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.vault-door {
+  display: grid;
+  min-height: 150px;
+  place-items: center;
+  border-radius: 8px;
+  border: 1px solid rgba(57, 255, 136, 0.22);
+  background:
+    radial-gradient(circle, rgba(57, 255, 136, 0.12), transparent 42%),
+    repeating-linear-gradient(90deg, rgba(57, 255, 136, 0.04) 0 2px, transparent 2px 14px),
+    rgba(5, 12, 24, 0.88);
+  box-shadow: inset 0 0 36px rgba(57, 255, 136, 0.06);
+}
+
+.vault-door span {
+  font-size: 2rem;
   font-weight: 700;
-  stroke-width: 5px;
+  color: #39ff88;
 }
 
-.map-marker {
-  transition: filter 180ms ease, transform 180ms ease;
-  transform-box: fill-box;
-  transform-origin: center;
+.vault-container {
+  border: 1px solid rgba(57, 255, 136, 0.2);
+  border-radius: 8px;
+  padding: 12px;
+  background: linear-gradient(135deg, rgba(57, 255, 136, 0.055), rgba(34, 211, 238, 0.035));
 }
 
-.map-marker:hover,
-.map-marker:focus {
-  transform: scale(1.08);
-  filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.45));
+.topology-canvas {
+  min-height: 380px;
 }
 
-.map-marker-core {
-  transition: r 180ms ease, filter 180ms ease;
+.topology-canvas::after {
+  content: "";
+  position: absolute;
+  inset: 15%;
+  border-radius: 999px;
+  border: 1px dashed rgba(34, 211, 238, 0.2);
+  animation: dna-rotate 18s linear infinite;
 }
 
-.map-marker:hover .map-marker-core,
-.map-marker:focus .map-marker-core {
-  r: 8px;
-  filter: drop-shadow(0 0 7px rgba(34, 211, 238, 0.55));
+.topology-node {
+  position: absolute;
+  display: grid;
+  width: 118px;
+  min-height: 50px;
+  place-items: center;
+  border-radius: 8px;
+  padding: 8px;
+  border: 1px solid rgba(34, 211, 238, 0.25);
+  background: rgba(2, 8, 23, 0.86);
+  text-align: center;
+  font-size: 0.78rem;
+  color: #e2e8f0;
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.1);
 }
+
+.topology-node::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 120px;
+  height: 1px;
+  transform-origin: left center;
+  background: linear-gradient(90deg, rgba(34, 211, 238, 0.5), transparent);
+}
+
+.topology-green { border-color: rgba(57, 255, 136, 0.38); }
+.topology-amber { border-color: rgba(250, 204, 21, 0.48); }
+.topology-red { border-color: rgba(251, 113, 133, 0.5); }
+.topology-cyan { border-color: rgba(34, 211, 238, 0.34); }
+
+.topology-node-1 { left: 9%; top: 12%; }
+.topology-node-1::before { transform: rotate(25deg); }
+.topology-node-2 { left: 8%; top: 44%; }
+.topology-node-2::before { transform: rotate(-5deg); }
+.topology-node-3 { left: 16%; bottom: 9%; }
+.topology-node-3::before { transform: rotate(-32deg); }
+.topology-node-4 { right: 8%; top: 13%; }
+.topology-node-4::before { left: auto; right: 50%; transform-origin: right center; transform: rotate(-24deg); }
+.topology-node-5 { right: 7%; top: 45%; }
+.topology-node-5::before { left: auto; right: 50%; transform-origin: right center; transform: rotate(5deg); }
+.topology-node-6 { right: 15%; bottom: 9%; }
+.topology-node-6::before { left: auto; right: 50%; transform-origin: right center; transform: rotate(31deg); }
+.topology-node-7 { left: 38%; top: 7%; }
+.topology-node-7::before { transform: rotate(72deg); }
+.topology-node-8 { left: 39%; bottom: 6%; }
+.topology-node-8::before { transform: rotate(-72deg); }
+.topology-node-9 { right: 36%; top: 26%; }
+.topology-node-9::before { left: auto; right: 50%; transform-origin: right center; transform: rotate(-8deg); }
+
+.threat-timeline {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(220px, 1fr);
+  gap: 16px;
+  overflow-x: auto;
+  padding: 12px 2px 4px;
+}
+
+.timeline-item {
+  position: relative;
+  min-height: 150px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(15, 23, 42, 0.62);
+  padding: 18px 14px 14px;
+}
+
+.timeline-item::before {
+  content: "";
+  position: absolute;
+  left: 16px;
+  right: -18px;
+  top: 8px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(34, 211, 238, 0.54), transparent);
+}
+
+.timeline-dot {
+  position: absolute;
+  left: 12px;
+  top: 4px;
+  height: 9px;
+  width: 9px;
+  border-radius: 999px;
+  box-shadow: 0 0 14px currentColor;
+}
+
+.timeline-green { background: #39ff88; color: #39ff88; }
+.timeline-amber { background: #facc15; color: #facc15; }
+.timeline-red { background: #fb7185; color: #fb7185; }
+.timeline-cyan { background: #22d3ee; color: #22d3ee; }
 
 .thin-scrollbar::-webkit-scrollbar {
   width: 8px;
@@ -536,13 +874,6 @@ html[data-theme="light"] tbody tr:hover {
   background: rgba(14, 165, 233, 0.06) !important;
 }
 
-html[data-theme="light"] .map-grid {
-  background-color: rgba(255, 255, 255, 0.35);
-  background-image:
-    linear-gradient(rgba(2, 132, 199, 0.12) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(2, 132, 199, 0.12) 1px, transparent 1px);
-}
-
 html[data-theme="light"] .bg-cyber-cyan {
   background-color: #0284c7 !important;
 }
@@ -617,10 +948,6 @@ html[data-presentation="on"] .presentation-cards .text-2xl {
 
 html[data-presentation="on"] table {
   font-size: 0.95rem;
-}
-
-html[data-presentation="on"] .map-grid {
-  opacity: 0.45;
 }
 
 html[data-presentation="on"] main {

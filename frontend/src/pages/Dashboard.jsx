@@ -2,49 +2,172 @@ import { motion } from "framer-motion";
 import {
   Activity,
   Bot,
+  BrainCircuit,
+  CheckCircle2,
   Cpu,
-  Crosshair,
   DatabaseZap,
+  Fingerprint,
+  Gauge,
+  HardDrive,
+  Hexagon,
+  LockKeyhole,
   Network,
-  Radar,
-  Server,
+  RadioTower,
+  ScanLine,
   ShieldCheck,
   Siren,
+  Sparkles,
   Terminal,
+  Zap,
 } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import AlertTable from "../components/AlertTable";
-import AttackMap from "../components/AttackMap";
 import StatCard from "../components/StatCard";
 import { useAlerts } from "../context/AlertsContext";
 import { useSettings } from "../context/SettingsContext";
 import { useTelemetry } from "../context/TelemetryContext";
+import { formatDate } from "../utils/format";
 
-function trendData(alerts) {
-  const buckets = alerts.slice(0, 12).reverse().map((alert, index) => ({
-    name: `A${index + 1}`,
-    risk: Number(alert.risk_score || 0),
-    confidence: Math.min(99, Math.max(45, Number(alert.risk_score || 0) + Number(alert.keyword_count || 0) * 2)),
-  }));
-  return buckets.length ? buckets : [{ name: "Now", risk: 0, confidence: 0 }];
+function clamp(value, min = 0, max = 100) {
+  return Math.min(max, Math.max(min, Number(value || 0)));
 }
 
-function StatusChip({ icon: Icon, label, value, tone = "cyan", live = false }) {
+function isThreat(alert) {
+  return String(alert.prediction).toLowerCase() !== "safe";
+}
+
+function aiConfidence(alert) {
+  if (!alert) return 0;
+  return clamp(Math.round(Number(alert.risk_score || 0) + Number(alert.keyword_count || 0) * 2), 45, 99);
+}
+
+function threatTone(score) {
+  if (score >= 70) return "red";
+  if (score >= 45) return "amber";
+  return "green";
+}
+
+function toneClasses(tone) {
   const tones = {
     cyan: "border-cyber-cyan/30 bg-cyber-cyan/10 text-cyber-cyan",
     green: "border-cyber-green/30 bg-cyber-green/10 text-cyber-green",
     amber: "border-cyber-amber/30 bg-cyber-amber/10 text-cyber-amber",
     red: "border-cyber-red/30 bg-cyber-red/10 text-cyber-red",
   };
+  return tones[tone] || tones.cyan;
+}
 
+function toneText(tone) {
+  const tones = {
+    cyan: "text-cyber-cyan",
+    green: "text-cyber-green",
+    amber: "text-cyber-amber",
+    red: "text-cyber-red",
+  };
+  return tones[tone] || tones.cyan;
+}
+
+function trendData(alerts) {
+  const buckets = alerts.slice(0, 14).reverse().map((alert, index) => ({
+    name: `T-${14 - index}`,
+    risk: clamp(alert.risk_score),
+    confidence: aiConfidence(alert),
+  }));
+  return buckets.length ? buckets : [{ name: "Now", risk: 0, confidence: 0 }];
+}
+
+function getEndpointTone(endpoint) {
+  const protection = String(endpoint.protection_status || endpoint.protectionStatus || "").toLowerCase();
+  const status = String(endpoint.status || "").toLowerCase();
+  const risk = Number(endpoint.max_risk_score || endpoint.maxRisk || 0);
+  if (protection.includes("attack") || risk >= 70) return "red";
+  if (protection.includes("failure") || risk >= 45) return "amber";
+  if (status !== "online") return "cyan";
+  return "green";
+}
+
+function buildEndpointRows(endpointStatus, latestTelemetry, alerts) {
+  const rows = new Map();
+
+  alerts.forEach((alert) => {
+    rows.set(alert.endpoint_id, {
+      endpoint_id: alert.endpoint_id,
+      pc_name: alert.pc_name,
+      status: "Observed",
+      protection_status: Number(alert.risk_score || 0) >= 70 ? "Under Attack" : "Protected",
+      max_risk_score: Number(alert.risk_score || 0),
+      total_alerts: 1,
+    });
+  });
+
+  latestTelemetry.forEach((row) => {
+    const current = rows.get(row.endpoint_id) || {};
+    rows.set(row.endpoint_id, {
+      ...current,
+      endpoint_id: row.endpoint_id,
+      pc_name: row.pc_name || current.pc_name,
+      telemetry: row,
+      status: current.status || "Online",
+    });
+  });
+
+  endpointStatus.forEach((endpoint) => {
+    rows.set(endpoint.endpoint_id, {
+      ...rows.get(endpoint.endpoint_id),
+      ...endpoint,
+    });
+  });
+
+  return Array.from(rows.values()).sort((a, b) => Number(a.endpoint_id || 0) - Number(b.endpoint_id || 0));
+}
+
+function CommandHero({ summary, activeAlerts, quarantined, totalThreats, securityScore, presentationMode }) {
+  return (
+    <section className="ai-command-hero cyber-border overflow-hidden rounded-lg p-5 lg:p-6">
+      <div className="soc-scan-sweep" />
+      <div className="relative grid gap-6 xl:grid-cols-[1.15fr_.85fr] xl:items-center">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-cyber-green/35 bg-cyber-green/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-cyber-green">
+              Neural Defense Online
+            </span>
+            <span className="rounded-full border border-cyber-cyan/35 bg-cyber-cyan/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-cyber-cyan">
+              Endpoint Mesh Live
+            </span>
+            {presentationMode && (
+              <span className="rounded-full border border-cyber-amber/35 bg-cyber-amber/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-cyber-amber">
+                Presentation Mode
+              </span>
+            )}
+          </div>
+          <h1 className="mt-4 max-w-3xl text-3xl font-semibold text-white sm:text-4xl">
+            Sentinel AI Cyber Command Center
+          </h1>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
+            Enterprise endpoint defense with AI threat scoring, containment telemetry, suspicious process
+            correlation, and real-time cyber posture intelligence.
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <MetricPill icon={ShieldCheck} label="Security Score" value={`${securityScore}%`} tone={securityScore >= 80 ? "green" : "amber"} live />
+          <MetricPill icon={Siren} label="Active Threats" value={activeAlerts} tone={activeAlerts ? "red" : "cyan"} live={activeAlerts > 0} />
+          <MetricPill icon={LockKeyhole} label="Quarantined" value={quarantined} tone="green" />
+          <MetricPill icon={DatabaseZap} label="Telemetry Events" value={totalThreats + summary.online + summary.offline} tone="cyan" live />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function MetricPill({ icon: Icon, label, value, tone = "cyan", live = false }) {
   return (
     <motion.div
-      className={`hover-glow-card rounded-lg border p-4 ${tones[tone]}`}
-      initial={{ opacity: 0, y: 14 }}
+      className={`hover-glow-card rounded-lg border p-4 ${toneClasses(tone)}`}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
     >
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between">
         <Icon className="h-5 w-5" />
         {live && <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-current shadow-[0_0_18px_currentColor]" />}
       </div>
@@ -54,113 +177,435 @@ function StatusChip({ icon: Icon, label, value, tone = "cyan", live = false }) {
   );
 }
 
-function HeroStatusSection({ summary, activeAlerts, quarantined, totalThreats, offline, presentationMode }) {
+function AiThreatIntelligence({ alerts, summary, endpoints }) {
+  const latestThreats = alerts.filter(isThreat).slice(0, 3);
+  const latest = latestThreats[0] || alerts[0];
+  const suspiciousProcesses = latestThreats.length
+    ? latestThreats.map((alert) => ({
+        name: alert.filename,
+        endpoint: alert.pc_name,
+        score: alert.risk_score,
+      }))
+    : [
+        { name: "memory-watch.exe", endpoint: "AI sandbox", score: 18 },
+        { name: "script-observer.ps1", endpoint: "Telemetry mesh", score: 12 },
+      ];
+
   return (
-      <div className="glass cyber-border hover-glow-card static-visual-surface overflow-hidden rounded-lg p-5">
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyber-cyan/70 to-transparent" />
-      <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-cyber-green/30 bg-cyber-green/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-cyber-green">
-              AI Detection Engine Active
-            </span>
-            <span className="rounded-full border border-cyber-cyan/30 bg-cyber-cyan/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-cyber-cyan">
-              Threat Monitoring Live
-            </span>
-            {presentationMode && (
-              <span className="rounded-full border border-cyber-amber/30 bg-cyber-amber/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-cyber-amber">
-                Presentation Mode Active
-              </span>
+    <div className="grid gap-6 xl:grid-cols-[1.15fr_.85fr]">
+      <div className="glass cyber-border hover-glow-card rounded-lg p-5">
+        <div className="mb-5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
+            <BrainCircuit className="h-4 w-4 text-cyber-cyan" />
+            AI Threat Intelligence Center
+          </div>
+          <span className="rounded-full border border-cyber-cyan/25 bg-cyber-cyan/10 px-2.5 py-1 text-xs text-cyber-cyan">
+            Live inference
+          </span>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-[.95fr_1.05fr]">
+          <AttackConfidenceMeter alert={latest} />
+          <div className="space-y-3">
+            {(latestThreats.length ? latestThreats : alerts.slice(0, 3)).map((alert) => (
+              <ThreatCard key={alert.id} alert={alert} />
+            ))}
+            {!alerts.length && (
+              <div className="rounded-lg border border-white/10 bg-white/[0.035] p-4 text-sm text-slate-400">
+                AI threat cards are standing by for endpoint detections.
+              </div>
             )}
           </div>
-          <h2 className="mt-4 text-2xl font-semibold text-white sm:text-3xl">Sentinel SOC Command Center</h2>
-          <p className="mt-2 max-w-3xl text-sm text-slate-400">
-            Enterprise-style monitoring surface for AI detections, endpoint telemetry, quarantine status, and global threat movement.
-          </p>
-        </div>
-        <div className="grid min-w-[min(100%,560px)] grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatusChip icon={Server} label="Endpoints" value={summary.online} tone="green" live />
-          <StatusChip icon={Siren} label="Threats" value={activeAlerts} tone={activeAlerts ? "red" : "cyan"} live={activeAlerts > 0} />
-          <StatusChip icon={ShieldCheck} label="Quarantine" value={quarantined} tone="amber" />
-          <StatusChip icon={DatabaseZap} label="Events" value={totalThreats} tone={offline ? "red" : "cyan"} live={!offline} />
         </div>
       </div>
+
+      <div className="grid gap-6">
+        <AnomalyFeed alerts={alerts} summary={summary} />
+        <div className="glass cyber-border hover-glow-card rounded-lg p-5">
+          <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-200">
+            <Cpu className="h-4 w-4 text-cyber-amber" />
+            Active Suspicious Processes
+          </div>
+          <div className="space-y-3">
+            {suspiciousProcesses.slice(0, 4).map((process, index) => (
+              <div key={`${process.name}-${index}`} className="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.035] p-3">
+                <div className="min-w-0">
+                  <div className="truncate font-mono text-sm text-slate-200">{process.name}</div>
+                  <div className="mt-1 text-xs text-slate-500">{process.endpoint}</div>
+                </div>
+                <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${toneClasses(threatTone(process.score))}`}>
+                  {process.score}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <EndpointHealthCards endpoints={endpoints} />
     </div>
   );
 }
 
-function CircularRiskMeter({ score }) {
-  const radius = 48;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (Math.min(score, 100) / 100) * circumference;
-  const tone = score >= 70 ? "text-cyber-red" : score >= 45 ? "text-cyber-amber" : "text-cyber-green";
+function ThreatCard({ alert }) {
+  const tone = threatTone(Number(alert.risk_score || 0));
+  return (
+    <motion.div
+      layout
+      className="rounded-lg border border-white/10 bg-white/[0.035] p-4 transition hover:border-cyber-cyan/30"
+      initial={{ opacity: 0, x: 10 }}
+      animate={{ opacity: 1, x: 0 }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate font-medium text-white">{alert.filename}</div>
+          <div className="mt-1 text-xs text-slate-500">{alert.pc_name} - {formatDate(alert.created_at)}</div>
+        </div>
+        <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${toneClasses(tone)}`}>
+          {alert.prediction}
+        </span>
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+        <MiniMetric label="Risk" value={alert.risk_score} tone={tone} />
+        <MiniMetric label="AI Conf." value={`${aiConfidence(alert)}%`} tone="cyan" />
+        <MiniMetric label="Action" value={alert.action_taken || "Observe"} tone={String(alert.action_taken).toLowerCase() === "quarantined" ? "green" : "amber"} />
+      </div>
+    </motion.div>
+  );
+}
+
+function MiniMetric({ label, value, tone = "cyan" }) {
+  return (
+    <div className="min-w-0 rounded-md border border-white/10 bg-black/20 p-2">
+      <div className="truncate uppercase tracking-[0.14em] text-slate-500">{label}</div>
+      <div className={`mt-1 truncate font-semibold ${toneText(tone)}`}>{value}</div>
+    </div>
+  );
+}
+
+function AttackConfidenceMeter({ alert }) {
+  const confidence = aiConfidence(alert);
+  const circumference = 2 * Math.PI * 46;
+  const offset = circumference - (confidence / 100) * circumference;
 
   return (
-    <div className="glass cyber-border hover-glow-card static-visual-surface rounded-lg p-5">
-      <div className="mb-3 text-sm font-medium text-slate-200">Circular Risk Meter</div>
-      <div className="grid place-items-center py-2">
-        <div className="relative h-40 w-40">
+    <div className="ai-meter rounded-lg border border-cyber-cyan/18 bg-[#081322] p-5">
+      <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Attack Confidence Meter</div>
+      <div className="mt-5 grid place-items-center">
+        <div className="relative h-44 w-44">
           <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
-            <circle cx="60" cy="60" r={radius} fill="none" stroke="rgba(148,163,184,.12)" strokeWidth="10" />
+            <circle cx="60" cy="60" r="46" fill="none" stroke="rgba(148,163,184,.13)" strokeWidth="9" />
             <motion.circle
               cx="60"
               cy="60"
-              r={radius}
+              r="46"
               fill="none"
-              stroke={score >= 70 ? "#fb7185" : score >= 45 ? "#facc15" : "#39ff88"}
+              stroke={confidence >= 70 ? "#fb7185" : confidence >= 45 ? "#facc15" : "#39ff88"}
               strokeLinecap="round"
-              strokeWidth="10"
+              strokeWidth="9"
               strokeDasharray={circumference}
               initial={{ strokeDashoffset: circumference }}
               animate={{ strokeDashoffset: offset }}
-              transition={{ duration: 0.9, ease: "easeOut" }}
+              transition={{ duration: 0.9 }}
             />
           </svg>
           <div className="absolute inset-0 grid place-items-center text-center">
             <div>
-              <div className={`text-4xl font-semibold ${tone}`}>{score}</div>
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-500">risk</div>
+              <div className={`text-4xl font-semibold ${toneText(threatTone(confidence))}`}>{confidence}%</div>
+              <div className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">confidence</div>
             </div>
           </div>
         </div>
       </div>
-      <div className="text-center text-sm text-slate-400">Highest current alert risk score</div>
+      <div className="mt-4 text-sm text-slate-400">
+        {alert ? `${alert.prediction} behavior on ${alert.pc_name}` : "Awaiting AI prediction stream"}
+      </div>
     </div>
   );
 }
 
-function MiniPanel({ label, value, detail, tone = "cyan" }) {
-  const tones = {
-    cyan: "text-cyber-cyan",
-    green: "text-cyber-green",
-    amber: "text-cyber-amber",
-    red: "text-cyber-red",
-  };
+function AnomalyFeed({ alerts, summary }) {
+  const latest = alerts[0];
+  const anomalies = [
+    { label: "CPU deviation", value: `${summary.cpu}%`, tone: summary.cpu > 75 ? "amber" : "cyan" },
+    { label: "Memory pressure", value: `${summary.ram}%`, tone: summary.ram > 80 ? "amber" : "green" },
+    { label: "Disk telemetry", value: `${summary.disk}%`, tone: "cyan" },
+    { label: "Latest risk delta", value: latest ? `+${latest.risk_score}` : "0", tone: latest && latest.risk_score >= 45 ? "red" : "green" },
+  ];
 
   return (
-    <div className="hover-glow-card rounded-lg border border-white/10 bg-white/[0.035] p-3">
-      <div className="text-xs uppercase tracking-[0.16em] text-slate-500">{label}</div>
-      <div className={`mt-2 text-xl font-semibold ${tones[tone]}`}>{value}</div>
-      <div className="mt-1 text-xs text-slate-400">{detail}</div>
+    <div className="glass cyber-border hover-glow-card rounded-lg p-5">
+      <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-200">
+        <ScanLine className="h-4 w-4 text-cyber-green" />
+        Anomaly Detection Feed
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {anomalies.map((item) => (
+          <div key={item.label} className="rounded-lg border border-white/10 bg-white/[0.035] p-3">
+            <div className="text-xs uppercase tracking-[0.16em] text-slate-500">{item.label}</div>
+            <div className={`mt-2 text-xl font-semibold ${toneText(item.tone)}`}>{item.value}</div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
-function TerminalActivity({ alerts, summary, quarantined }) {
+function EndpointHealthCards({ endpoints }) {
+  const top = endpoints.slice(0, 4);
+  return (
+    <div className="glass cyber-border hover-glow-card rounded-lg p-5 xl:col-span-2">
+      <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-200">
+        <HardDrive className="h-4 w-4 text-cyber-cyan" />
+        Endpoint Health Cards
+      </div>
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {top.map((endpoint) => {
+          const telemetry = endpoint.telemetry || {};
+          const tone = getEndpointTone(endpoint);
+          return (
+            <div key={endpoint.endpoint_id} className={`rounded-lg border p-3 ${toneClasses(tone)}`}>
+              <div className="truncate text-sm font-semibold text-slate-100">{endpoint.pc_name}</div>
+              <div className="mt-1 text-xs uppercase tracking-[0.14em] opacity-80">{endpoint.status || "Observed"}</div>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                <div>CPU <span className="text-slate-100">{Math.round(telemetry.cpu || 0)}%</span></div>
+                <div>RAM <span className="text-slate-100">{Math.round(telemetry.ram || 0)}%</span></div>
+                <div>Risk <span className="text-slate-100">{endpoint.max_risk_score || 0}</span></div>
+              </div>
+            </div>
+          );
+        })}
+        {!top.length && <div className="rounded-lg border border-white/10 bg-white/[0.035] p-4 text-sm text-slate-400">No registered endpoints yet.</div>}
+      </div>
+    </div>
+  );
+}
+
+function EndpointSecurityMatrix({ endpoints }) {
+  const cells = endpoints.length
+    ? endpoints
+    : Array.from({ length: 12 }).map((_, index) => ({
+        endpoint_id: `placeholder-${index}`,
+        pc_name: `Node-${String(index + 1).padStart(2, "0")}`,
+        status: "Standby",
+        max_risk_score: 0,
+      }));
+
+  return (
+    <div className="glass cyber-border hover-glow-card rounded-lg p-5">
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
+          <Fingerprint className="h-4 w-4 text-cyber-green" />
+          Endpoint Security Matrix
+        </div>
+        <div className="flex gap-2 text-xs">
+          <span className="text-cyber-green">Protected</span>
+          <span className="text-cyber-amber">Suspicious</span>
+          <span className="text-cyber-red">Under attack</span>
+        </div>
+      </div>
+      <div className="endpoint-matrix-grid">
+        {cells.map((endpoint, index) => {
+          const tone = getEndpointTone(endpoint);
+          return (
+            <motion.div
+              key={endpoint.endpoint_id}
+              className={`endpoint-cell endpoint-cell-${tone}`}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: index * 0.025 }}
+            >
+              <span>{endpoint.pc_name}</span>
+              <small>{endpoint.status || "Observed"}</small>
+            </motion.div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SocNeuralVisualization({ endpoints, alerts }) {
+  const nodeCount = Math.max(7, Math.min(12, endpoints.length + 5));
+  const latestRisk = clamp(alerts[0]?.risk_score);
+
+  return (
+    <div className="glass cyber-border hover-glow-card neural-panel rounded-lg p-5">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
+          <Sparkles className="h-4 w-4 text-cyber-cyan" />
+          SOC Neural Visualization
+        </div>
+        <span className={`rounded-full border px-2.5 py-1 text-xs ${toneClasses(threatTone(latestRisk))}`}>
+          Pulse {latestRisk || 12}
+        </span>
+      </div>
+      <div className="neural-canvas">
+        {Array.from({ length: nodeCount }).map((_, index) => (
+          <span key={index} className={`neural-node neural-node-${index + 1}`} />
+        ))}
+        {Array.from({ length: 9 }).map((_, index) => (
+          <span key={index} className={`neural-stream neural-stream-${index + 1}`} />
+        ))}
+        <div className="neural-core">
+          <BrainCircuit className="h-9 w-9 text-cyber-cyan" />
+          <span>AI CORE</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EndpointTopology({ endpoints }) {
+  const nodes = endpoints.slice(0, 9);
+  return (
+    <div className="glass cyber-border hover-glow-card topology-panel rounded-lg p-5">
+      <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-200">
+        <Network className="h-4 w-4 text-cyber-cyan" />
+        Interactive Endpoint Topology
+      </div>
+      <div className="topology-canvas">
+        <div className="topology-core">
+          <ShieldCheck className="h-8 w-8 text-cyber-green" />
+          <span>SOC</span>
+        </div>
+        {(nodes.length ? nodes : Array.from({ length: 6 }).map((_, index) => ({ endpoint_id: index, pc_name: `Endpoint ${index + 1}` }))).map((endpoint, index) => {
+          const tone = getEndpointTone(endpoint);
+          return (
+            <div key={endpoint.endpoint_id} className={`topology-node topology-node-${index + 1} topology-${tone}`}>
+              <span>{endpoint.pc_name}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ThreatDnaAnalyzer({ alerts, maxRisk }) {
+  const latest = alerts[0];
+  const confidence = aiConfidence(latest);
+  const fileReputation = latest ? clamp(100 - Number(latest.risk_score || 0), 1, 100) : 100;
+
+  return (
+    <div className="glass cyber-border hover-glow-card dna-panel rounded-lg p-5">
+      <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-200">
+        <Hexagon className="h-4 w-4 text-cyber-cyan" />
+        Threat DNA Analyzer
+      </div>
+      <div className="dna-scanner">
+        <div className="dna-ring dna-ring-outer" />
+        <div className="dna-ring dna-ring-inner" />
+        <div className="dna-reticle">
+          <div className={`text-3xl font-semibold ${toneText(threatTone(maxRisk))}`}>{maxRisk}</div>
+          <div className="text-xs uppercase tracking-[0.16em] text-slate-500">risk score</div>
+        </div>
+      </div>
+      <div className="mt-5 grid grid-cols-2 gap-3">
+        <MiniMetric label="Malware confidence" value={`${confidence}%`} tone={threatTone(confidence)} />
+        <MiniMetric label="Behavior anomalies" value={latest?.keyword_count || 0} tone="amber" />
+        <MiniMetric label="File reputation" value={`${fileReputation}%`} tone={fileReputation > 65 ? "green" : "red"} />
+        <MiniMetric label="Containment" value={latest?.action_taken || "Ready"} tone={String(latest?.action_taken).toLowerCase() === "quarantined" ? "green" : "cyan"} />
+      </div>
+    </div>
+  );
+}
+
+function ThreatTimeline({ alerts }) {
+  const timeline = alerts.slice(0, 6);
+  return (
+    <div className="glass cyber-border hover-glow-card rounded-lg p-5">
+      <div className="mb-5 flex items-center gap-2 text-sm font-medium text-slate-200">
+        <RadioTower className="h-4 w-4 text-cyber-green" />
+        AI Threat Timeline
+      </div>
+      <div className="threat-timeline thin-scrollbar">
+        {(timeline.length ? timeline : [{ id: "empty", pc_name: "AI engine", prediction: "Baseline", risk_score: 0, action_taken: "Monitoring" }]).map((alert, index) => {
+          const tone = threatTone(Number(alert.risk_score || 0));
+          return (
+            <div key={alert.id} className="timeline-item">
+              <span className={`timeline-dot timeline-${tone}`} />
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-500">{formatDate(alert.created_at)}</div>
+              <div className="mt-2 font-medium text-white">{alert.prediction}</div>
+              <div className="mt-1 text-sm text-slate-400">{alert.action_taken || "Monitoring"} - {alert.pc_name}</div>
+              <div className={`mt-3 inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${toneClasses(tone)}`}>
+                Level {alert.risk_score || 0}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function QuarantineVault({ alerts }) {
+  const quarantined = alerts.filter((alert) => String(alert.action_taken).toLowerCase() === "quarantined").slice(0, 4);
+  return (
+    <div className="glass cyber-border hover-glow-card vault-panel rounded-lg p-5">
+      <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-200">
+        <LockKeyhole className="h-4 w-4 text-cyber-green" />
+        Quarantine Vault
+      </div>
+      <div className="vault-door">
+        <LockKeyhole className="h-9 w-9 text-cyber-green" />
+        <span>{quarantined.length}</span>
+      </div>
+      <div className="mt-4 space-y-3">
+        {quarantined.map((alert) => (
+          <div key={alert.id} className="vault-container">
+            <div className="truncate font-medium text-white">{alert.filename}</div>
+            <div className="mt-1 text-xs text-slate-500">{alert.pc_name} - isolated container</div>
+          </div>
+        ))}
+        {!quarantined.length && <div className="vault-container text-sm text-slate-400">No files isolated in the vault.</div>}
+      </div>
+    </div>
+  );
+}
+
+function SecurityScorePanel({ securityScore, summary, activeAlerts, avgRisk }) {
+  const metrics = [
+    { label: "Protected", value: `${securityScore}%`, tone: securityScore >= 80 ? "green" : "amber" },
+    { label: "Detection efficiency", value: `${clamp(92 - activeAlerts * 4, 45, 99)}%`, tone: "cyan" },
+    { label: "Endpoint trust", value: `${clamp(summary.online * 18 - summary.offline * 12 + 70, 20, 99)}%`, tone: summary.offline ? "amber" : "green" },
+    { label: "Response speed", value: avgRisk >= 70 ? "Fast" : "Ready", tone: avgRisk >= 70 ? "green" : "cyan" },
+  ];
+
+  return (
+    <div className="glass cyber-border hover-glow-card rounded-lg p-5">
+      <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-200">
+        <Gauge className="h-4 w-4 text-cyber-cyan" />
+        AI Security Score
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {metrics.map((metric) => (
+          <div key={metric.label} className="rounded-lg border border-white/10 bg-white/[0.035] p-3">
+            <div className="text-xs uppercase tracking-[0.16em] text-slate-500">{metric.label}</div>
+            <div className={`mt-2 text-2xl font-semibold ${toneText(metric.tone)}`}>{metric.value}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RealTimeActivityFeed({ alerts, summary, telemetryOffline }) {
   const latest = alerts[0];
   const lines = [
-    `[INFO] Monitoring endpoint ${latest?.pc_name || "PC_2"}`,
-    `[AI] ${latest?.prediction || "Threat signature"} analysis active`,
-    quarantined ? `[ACTION] ${quarantined} file(s) quarantined` : "[ACTION] Quarantine engine standing by",
-    `[STATUS] ${summary.online} endpoint(s) online`,
-    "[STATUS] AI engine active",
+    `[AI] Telemetry fused from ${summary.online} online endpoint(s)`,
+    latest ? `[SCAN] ${latest.filename} scored ${latest.risk_score} on ${latest.pc_name}` : "[SCAN] AI scanner waiting for endpoint samples",
+    latest && String(latest.action_taken).toLowerCase() === "quarantined"
+      ? `[VAULT] ${latest.filename} isolated successfully`
+      : "[VAULT] Quarantine vault armed",
+    telemetryOffline ? "[LINK] Backend telemetry connection degraded" : "[LINK] Endpoint mesh synchronized",
+    `[TRUST] CPU ${summary.cpu}% RAM ${summary.ram}% DISK ${summary.disk}%`,
   ];
 
   return (
     <div className="glass cyber-border hover-glow-card rounded-lg p-5">
       <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-200">
         <Terminal className="h-4 w-4 text-cyber-green" />
-        Live Terminal Activity
+        Real-Time AI Activity Feed
       </div>
       <div className="space-y-2 font-mono text-xs sm:text-sm">
         {lines.map((line, index) => (
@@ -169,9 +614,9 @@ function TerminalActivity({ alerts, summary, quarantined }) {
             className="terminal-line text-slate-300"
             initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.18, duration: 0.32 }}
+            transition={{ delay: index * 0.12 }}
           >
-            <span className={line.startsWith("[AI]") ? "text-cyber-cyan" : line.startsWith("[ACTION]") ? "text-cyber-amber" : "text-cyber-green"}>
+            <span className={line.startsWith("[AI]") ? "text-cyber-cyan" : line.startsWith("[VAULT]") ? "text-cyber-green" : line.startsWith("[LINK]") ? "text-cyber-amber" : "text-slate-400"}>
               {line.split("]")[0]}]
             </span>
             {line.slice(line.indexOf("]") + 1)}
@@ -182,73 +627,27 @@ function TerminalActivity({ alerts, summary, quarantined }) {
   );
 }
 
-function EndpointHealth({ summary }) {
-  return (
-    <div className="glass cyber-border hover-glow-card rounded-lg p-5">
-      <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-200"><Network className="h-4 w-4 text-cyber-cyan" />Endpoint Health</div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <MiniPanel label="Online" value={summary.online} detail="Active agents" tone="green" />
-        <MiniPanel label="Offline" value={summary.offline} detail="Needs attention" tone={summary.offline ? "red" : "cyan"} />
-        <MiniPanel label="CPU" value={`${summary.cpu}%`} detail="Average load" tone="cyan" />
-        <MiniPanel label="RAM" value={`${summary.ram}%`} detail="Memory pressure" tone="green" />
-      </div>
-    </div>
-  );
-}
-
-function AiConfidencePanel({ alerts }) {
-  const latest = alerts[0];
-  const confidence = latest
-    ? Math.min(99, Math.max(50, Math.round(Number(latest.risk_score || 0) + Number(latest.keyword_count || 0) * 2)))
-    : 0;
-
-  return (
-    <div className="glass cyber-border hover-glow-card rounded-lg p-5">
-      <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-200"><Bot className="h-4 w-4 text-cyber-cyan" />AI Confidence Panel</div>
-      <div className="text-3xl font-semibold text-cyber-cyan">{confidence}%</div>
-      <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
-        <motion.div
-          className="h-full rounded-full bg-gradient-to-r from-cyber-cyan to-cyber-green"
-          initial={{ width: 0 }}
-          animate={{ width: `${confidence}%` }}
-          transition={{ duration: 0.8 }}
-        />
-      </div>
-      <div className="mt-3 text-sm text-slate-400">
-        {latest ? `${latest.prediction || "Unknown"} prediction on ${latest.pc_name}` : "Awaiting AI prediction data"}
-      </div>
-    </div>
-  );
-}
-
-function QuarantineSummary({ count, activeAlerts }) {
-  return (
-    <div className="glass cyber-border hover-glow-card rounded-lg p-5">
-      <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-200"><ShieldCheck className="h-4 w-4 text-cyber-green" />Quarantine Summary</div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <MiniPanel label="Contained" value={count} detail="Files isolated" tone="green" />
-        <MiniPanel label="Watchlist" value={activeAlerts} detail="High-risk alerts" tone="amber" />
-      </div>
-    </div>
-  );
-}
-
 export default function Dashboard() {
   const { alerts, loading, offline } = useAlerts();
   const { settings } = useSettings();
-  const { summary, offline: telemetryOffline } = useTelemetry();
-  const totalThreats = alerts.filter((alert) => String(alert.prediction).toLowerCase() !== "safe").length;
+  const { summary, endpointStatus, latestTelemetry, offline: telemetryOffline } = useTelemetry();
+  const endpoints = buildEndpointRows(endpointStatus, latestTelemetry, alerts);
+  const totalThreats = alerts.filter(isThreat).length;
   const activeAlerts = alerts.filter((alert) => Number(alert.risk_score) >= 45).length;
   const quarantined = alerts.filter((alert) => String(alert.action_taken).toLowerCase() === "quarantined").length;
   const avgRisk = alerts.length ? Math.round(alerts.reduce((sum, alert) => sum + Number(alert.risk_score || 0), 0) / alerts.length) : 0;
   const maxRisk = alerts.length ? Math.max(...alerts.map((alert) => Number(alert.risk_score || 0))) : 0;
+  const protectedEndpoints = endpoints.filter((endpoint) => getEndpointTone(endpoint) === "green").length;
+  const securityScore = endpoints.length
+    ? clamp(Math.round((protectedEndpoints / endpoints.length) * 100 - activeAlerts * 3 + quarantined * 2), 0, 100)
+    : clamp(100 - activeAlerts * 8 - avgRisk / 3, 40, 100);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
-          <h1 className="text-xl font-semibold text-white">SOC Command Dashboard</h1>
-          <p className="mt-1 text-sm text-slate-400">Live security posture, endpoint health, and AI threat confidence.</p>
+          <h1 className="text-xl font-semibold text-white">AI Cyber Command Dashboard</h1>
+          <p className="mt-1 text-sm text-slate-400">AI-driven endpoint defense, threat intelligence, containment, and posture telemetry.</p>
         </div>
         {settings.presentationMode && (
           <div className="rounded-lg border border-cyber-green/25 bg-cyber-green/10 px-3 py-2 text-xs uppercase tracking-[0.18em] text-cyber-green">
@@ -257,18 +656,18 @@ export default function Dashboard() {
         )}
       </div>
 
-      <HeroStatusSection
+      <CommandHero
         summary={summary}
         activeAlerts={activeAlerts}
         quarantined={quarantined}
         totalThreats={totalThreats}
-        offline={offline}
+        securityScore={securityScore}
         presentationMode={settings.presentationMode}
       />
 
-      {telemetryOffline && (
+      {(telemetryOffline || offline) && (
         <div className="glass cyber-border rounded-lg border-cyber-amber/30 p-3 text-sm text-cyber-amber">
-          Cannot connect to SOC backend server.
+          SOC backend connection is degraded. Cached dashboard state remains visible.
         </div>
       )}
 
@@ -281,18 +680,35 @@ export default function Dashboard() {
       )}
 
       <div className={`grid gap-4 sm:grid-cols-2 ${settings.presentationMode ? "xl:grid-cols-4 presentation-cards" : "xl:grid-cols-4"}`}>
-        <StatCard label="Total Threats" value={totalThreats} detail="Non-safe AI predictions" tone="red" icon={Crosshair} />
+        <StatCard label="Total Threats" value={totalThreats} detail="Non-safe AI predictions" tone="red" icon={Zap} />
         <StatCard label="Active Alerts" value={activeAlerts} detail="Risk score above watch threshold" tone="amber" icon={Siren} />
-        <StatCard label="Quarantined" value={quarantined} detail="Endpoint containment actions" tone="green" icon={ShieldCheck} />
+        <StatCard label="Quarantined" value={quarantined} detail="Endpoint containment actions" tone="green" icon={LockKeyhole} />
         <StatCard label="SOC Status" value={offline ? "Offline" : "Online"} detail={`Average risk ${avgRisk}`} tone={offline ? "red" : "cyan"} icon={Activity} />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-4">
-        <CircularRiskMeter score={maxRisk} />
-        <div className="glass cyber-border hover-glow-card static-visual-surface rounded-lg p-5 xl:col-span-2">
+      <AiThreatIntelligence alerts={alerts} summary={summary} endpoints={endpoints} />
+
+      <div className="grid gap-6 xl:grid-cols-[1.1fr_.9fr]">
+        <EndpointSecurityMatrix endpoints={endpoints} />
+        <SocNeuralVisualization endpoints={endpoints} alerts={alerts} />
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-3">
+        <ThreatDnaAnalyzer alerts={alerts} maxRisk={maxRisk} />
+        <EndpointTopology endpoints={endpoints} />
+        <QuarantineVault alerts={alerts} />
+      </div>
+
+      <ThreatTimeline alerts={alerts} />
+
+      <div className="grid gap-6 xl:grid-cols-[1.1fr_.9fr]">
+        <div className="glass cyber-border hover-glow-card static-visual-surface rounded-lg p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-sm font-medium text-slate-200"><Radar className="h-4 w-4 text-cyber-cyan" />Attack Trend Graph</div>
-            <div className="text-xs text-slate-500">Latest 12 alerts</div>
+            <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
+              <Bot className="h-4 w-4 text-cyber-cyan" />
+              AI Detection Trend
+            </div>
+            <div className="text-xs text-slate-500">Latest 14 detections</div>
           </div>
           <div className="static-visual-surface h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -317,27 +733,16 @@ export default function Dashboard() {
             </ResponsiveContainer>
           </div>
         </div>
-        <AiConfidencePanel alerts={alerts} />
+        <SecurityScorePanel securityScore={securityScore} summary={summary} activeAlerts={activeAlerts} avgRisk={avgRisk} />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-3">
-        <EndpointHealth summary={summary} />
-        <QuarantineSummary count={quarantined} activeAlerts={activeAlerts} />
-        <div className="glass cyber-border hover-glow-card rounded-lg p-5">
-          <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-200"><Cpu className="h-4 w-4 text-cyber-amber" />Live Telemetry Summary</div>
-          <div className="space-y-3">
-            <MiniPanel label="Highest Risk" value={maxRisk} detail="Peak alert score" tone={maxRisk >= 70 ? "red" : "amber"} />
-            <MiniPanel label="Pipeline" value={offline ? "Offline" : "Online"} detail="Backend alert service" tone={offline ? "red" : "cyan"} />
-          </div>
-        </div>
-      </div>
-
-      <TerminalActivity alerts={alerts} summary={summary} quarantined={quarantined} />
-
-      <AttackMap />
+      <RealTimeActivityFeed alerts={alerts} summary={summary} telemetryOffline={telemetryOffline} />
 
       <div className="glass cyber-border hover-glow-card rounded-lg p-4">
-        <div className="mb-4 text-sm font-medium text-slate-200">Recent Alerts</div>
+        <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-200">
+          <CheckCircle2 className="h-4 w-4 text-cyber-green" />
+          Recent Alerts
+        </div>
         {alerts.length ? (
           <AlertTable alerts={alerts.slice(0, settings.presentationMode ? 4 : 6)} compact={settings.presentationMode} />
         ) : (

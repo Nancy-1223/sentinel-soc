@@ -3,7 +3,6 @@ import { NavLink } from "react-router-dom";
 const navItems = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/alerts", label: "Alerts Panel" },
-  { to: "/map", label: "Live Attack Map" },
   { to: "/behavior", label: "User Behavior" },
   { to: "/endpoints", label: "Endpoint Details" },
   { to: "/quarantine", label: "Quarantine" },
