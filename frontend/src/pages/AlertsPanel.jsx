@@ -67,7 +67,7 @@ export default function AlertsPanel() {
       {!settings.presentationMode && (
         <div className="glass cyber-border hover-glow-card grid gap-3 rounded-lg p-4 md:grid-cols-3">
           <input className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-sm outline-none focus:border-cyber-cyan/60" placeholder="Search alerts" value={search} onChange={(e) => setSearch(e.target.value)} />
-          <select className="rounded-md border border-white/10 bg-[#0b1220] px-3 py-2 text-sm outline-none focus:border-cyber-cyan/60" value={prediction} onChange={(e) => setPrediction(e.target.value)}>
+          <select className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-sm outline-none focus:border-cyber-cyan/60" value={prediction} onChange={(e) => setPrediction(e.target.value)}>
             <option value="all">All predictions</option>
             <option value="safe">Safe</option>
             <option value="suspicious">Suspicious</option>
@@ -97,8 +97,8 @@ export default function AlertsPanel() {
             exit={{ opacity: 0, y: 18, scale: 0.96 }}
             className={`fixed bottom-5 right-5 z-50 w-[min(360px,calc(100vw-2rem))] rounded-lg border p-4 shadow-2xl ${
               toast.type === "success"
-                ? "border-cyber-green/30 bg-[#07130d]/95 text-cyber-green"
-                : "border-cyber-red/30 bg-[#13070d]/95 text-cyber-red"
+                ? "border-cyber-green/30 bg-[#102847]/95 text-cyber-green"
+                : "border-cyber-red/30 bg-[#132d52]/95 text-cyber-red"
             }`}
           >
             <div className="text-sm font-semibold">{toast.type === "success" ? "Alert deleted" : "Delete failed"}</div>

@@ -86,10 +86,11 @@ function MetricChart({ title, dataKey, color, data, updatedAt }) {
             <YAxis stroke="#64748b" tick={{ fontSize: 11 }} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
             <Tooltip
               contentStyle={{
-                background: "rgba(2,8,23,.92)",
+                background: "linear-gradient(145deg, rgba(16,40,71,.96), rgba(11,29,53,.94))",
                 border: "1px solid rgba(34,211,238,.28)",
-                borderRadius: "8px",
-                boxShadow: "0 18px 50px rgba(0,0,0,.45)",
+                borderRadius: "14px",
+                boxShadow: "0 18px 50px rgba(4,16,33,.38)",
+                color: "#d8e7f2",
               }}
               labelStyle={{ color: "#cbd5e1" }}
               formatter={(value) => [`${value}%`, title.replace(" Usage", "")]}

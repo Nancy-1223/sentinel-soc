@@ -13,7 +13,7 @@ export default function Toast({ alert, onClose }) {
           animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
           exit={{ opacity: 0, x: 26, y: 8, scale: 0.96 }}
           transition={{ duration: 0.24 }}
-          className={`hover-glow-card fixed bottom-5 right-5 z-50 w-[min(380px,calc(100vw-2rem))] rounded-lg border bg-[#07111f] p-4 shadow-[0_16px_42px_rgba(0,0,0,.48)] ${tone}`}
+          className={`hover-glow-card fixed bottom-5 right-5 z-50 w-[min(380px,calc(100vw-2rem))] rounded-lg border bg-[#102847]/95 p-4 shadow-[0_16px_42px_rgba(4,16,33,.42)] backdrop-blur-xl ${tone}`}
         >
           <div className="flex items-start gap-3">
             <div className="rounded-lg border border-current/30 bg-current/10 p-2">

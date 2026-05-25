@@ -308,7 +308,7 @@ function AttackConfidenceMeter({ alert }) {
   const offset = circumference - (confidence / 100) * circumference;
 
   return (
-    <div className="ai-meter rounded-2xl border border-cyber-cyan/18 bg-[#081322] p-5">
+    <div className="ai-meter rounded-2xl border border-cyber-cyan/18 p-5">
       <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Attack Confidence Meter</div>
       <div className="mt-5 grid place-items-center">
         <div className="relative h-44 w-44">
@@ -765,7 +765,7 @@ export default function Dashboard() {
                     <stop offset="95%" stopColor="#39ff88" stopOpacity={0.02} />
                   </linearGradient>
                 </defs>
-                <Tooltip contentStyle={{ background: "rgba(2,8,23,.92)", border: "1px solid rgba(34,211,238,.3)", borderRadius: "8px", boxShadow: "0 18px 48px rgba(0,0,0,.45)" }} />
+                <Tooltip contentStyle={{ background: "linear-gradient(145deg, rgba(16,40,71,.96), rgba(11,29,53,.94))", border: "1px solid rgba(34,211,238,.32)", borderRadius: "14px", boxShadow: "0 18px 48px rgba(4,16,33,.36)", color: "#d8e7f2" }} />
                 <Area type="monotone" dataKey="risk" stroke="#22d3ee" strokeWidth={2.8} fill="url(#riskGradient)" dot={false} animationDuration={900} />
                 <Area type="monotone" dataKey="confidence" stroke="#39ff88" strokeWidth={2.2} fill="url(#confidenceGradient)" dot={false} animationDuration={1100} />
               </AreaChart>

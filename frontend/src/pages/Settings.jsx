@@ -62,7 +62,7 @@ export default function Settings() {
               <label className="space-y-2">
                 <span className="text-sm text-slate-300">Refresh Interval</span>
                 <select
-                  className="w-full rounded-md border border-white/10 bg-[#0b1220] px-3 py-3 text-sm outline-none focus:border-cyber-cyan/60"
+                  className="w-full rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-sm outline-none focus:border-cyber-cyan/60"
                   value={settings.refreshInterval}
                   onChange={(e) => updateSettings({ refreshInterval: Number(e.target.value) })}
                 >
@@ -77,7 +77,7 @@ export default function Settings() {
           <label className="space-y-2">
             <span className="text-sm text-slate-300">Theme</span>
             <select
-              className="w-full rounded-md border border-white/10 bg-[#0b1220] px-3 py-3 text-sm outline-none focus:border-cyber-cyan/60"
+              className="w-full rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-sm outline-none focus:border-cyber-cyan/60"
               value={settings.theme}
               onChange={(e) => updateSettings({ theme: e.target.value })}
             >
