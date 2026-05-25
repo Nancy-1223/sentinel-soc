@@ -128,19 +128,13 @@ function AiCorePanel({ summary, activeAlerts, quarantined, totalThreats, securit
   return (
     <section className="ai-core-panel cyber-border overflow-hidden rounded-2xl p-5 lg:p-6">
       <div className="soc-scan-sweep" />
-      <div className="relative flex min-h-full flex-col items-center justify-between gap-6">
-        <div className="flex flex-wrap justify-center gap-2">
-          <span className="rounded-full border border-cyber-green/35 bg-cyber-green/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-cyber-green">
-            Neural Defense Online
-          </span>
-          <span className="rounded-full border border-cyber-cyan/35 bg-cyber-cyan/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-cyber-cyan">
-            Endpoint Mesh Live
-          </span>
-          {presentationMode && (
-            <span className="rounded-full border border-cyber-amber/35 bg-cyber-amber/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-cyber-amber">
-              Presentation Mode
-            </span>
-          )}
+      <div className="relative flex min-h-full flex-col items-center justify-between gap-5">
+        <div className="max-w-xl text-center">
+          <div className="text-xs font-semibold uppercase tracking-[0.2em] text-cyber-cyan">Sentinel AI Core</div>
+          <h2 className="mt-2 text-2xl font-semibold text-slate-100 sm:text-3xl">Autonomous Defense Core</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-400">
+            AI-powered endpoint protection, telemetry scoring, and threat response.
+          </p>
         </div>
 
         <div className="ai-core-orbit ai-core-orbit-hero mx-auto">
@@ -165,6 +159,23 @@ function AiCorePanel({ summary, activeAlerts, quarantined, totalThreats, securit
             <div className="mt-2 text-4xl font-semibold text-white">{securityScore}</div>
             <div className="text-xs uppercase tracking-[0.16em] text-cyber-cyan">AI score</div>
           </div>
+        </div>
+
+        <div className="flex flex-wrap justify-center gap-2">
+          <span className="rounded-full border border-cyber-green/35 bg-cyber-green/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-cyber-green">
+            Endpoint Mesh Active
+          </span>
+          <span className="rounded-full border border-cyber-cyan/35 bg-cyber-cyan/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-cyber-cyan">
+            Threat Scanner Live
+          </span>
+          <span className="rounded-full border border-cyber-green/35 bg-cyber-green/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-cyber-green">
+            Quarantine Ready
+          </span>
+          {presentationMode && (
+            <span className="rounded-full border border-cyber-amber/35 bg-cyber-amber/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-cyber-amber">
+              Presentation Mode
+            </span>
+          )}
         </div>
 
         <div className="grid w-full gap-3 sm:grid-cols-2 xl:grid-cols-4">
