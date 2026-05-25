@@ -128,8 +128,22 @@ function AiCorePanel({ summary, activeAlerts, quarantined, totalThreats, securit
   return (
     <section className="ai-core-panel cyber-border overflow-hidden rounded-2xl p-5 lg:p-6">
       <div className="soc-scan-sweep" />
-      <div className="relative grid gap-6 lg:grid-cols-[.9fr_1.1fr] lg:items-center">
-        <div className="ai-core-orbit mx-auto">
+      <div className="relative flex min-h-full flex-col items-center justify-between gap-6">
+        <div className="flex flex-wrap justify-center gap-2">
+          <span className="rounded-full border border-cyber-green/35 bg-cyber-green/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-cyber-green">
+            Neural Defense Online
+          </span>
+          <span className="rounded-full border border-cyber-cyan/35 bg-cyber-cyan/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-cyber-cyan">
+            Endpoint Mesh Live
+          </span>
+          {presentationMode && (
+            <span className="rounded-full border border-cyber-amber/35 bg-cyber-amber/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-cyber-amber">
+              Presentation Mode
+            </span>
+          )}
+        </div>
+
+        <div className="ai-core-orbit ai-core-orbit-hero mx-auto">
           <svg viewBox="0 0 140 140" className="ai-core-ring">
             <circle cx="70" cy="70" r={radius} fill="none" stroke="rgba(148,163,184,.14)" strokeWidth="8" />
             <motion.circle
@@ -152,33 +166,12 @@ function AiCorePanel({ summary, activeAlerts, quarantined, totalThreats, securit
             <div className="text-xs uppercase tracking-[0.16em] text-cyber-cyan">AI score</div>
           </div>
         </div>
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-cyber-green/35 bg-cyber-green/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-cyber-green">
-              Neural Defense Online
-            </span>
-            <span className="rounded-full border border-cyber-cyan/35 bg-cyber-cyan/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-cyber-cyan">
-              Endpoint Mesh Live
-            </span>
-            {presentationMode && (
-              <span className="rounded-full border border-cyber-amber/35 bg-cyber-amber/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-cyber-amber">
-                Presentation Mode
-              </span>
-            )}
-          </div>
-          <h1 className="mt-4 max-w-3xl text-3xl font-semibold text-white sm:text-5xl">
-            Sentinel AI Defense Core
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
-            A presentation-ready cyber command surface for endpoint telemetry, threat confidence,
-            quarantine containment, and real-time response posture.
-          </p>
-          <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <MetricPill icon={ShieldCheck} label="Endpoints Live" value={summary.online} tone="green" live />
-            <MetricPill icon={Siren} label="Active Threats" value={activeAlerts} tone={activeAlerts ? "red" : "cyan"} live={activeAlerts > 0} />
-            <MetricPill icon={LockKeyhole} label="Quarantine" value={quarantined} tone="green" />
-            <MetricPill icon={DatabaseZap} label="Events" value={totalThreats + summary.online + summary.offline} tone="cyan" live />
-          </div>
+
+        <div className="grid w-full gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricPill icon={ShieldCheck} label="Endpoints Live" value={summary.online} tone="green" live />
+          <MetricPill icon={Siren} label="Active Threats" value={activeAlerts} tone={activeAlerts ? "red" : "cyan"} live={activeAlerts > 0} />
+          <MetricPill icon={LockKeyhole} label="Quarantine" value={quarantined} tone="green" />
+          <MetricPill icon={DatabaseZap} label="Events" value={totalThreats + summary.online + summary.offline} tone="cyan" live />
         </div>
       </div>
     </section>
