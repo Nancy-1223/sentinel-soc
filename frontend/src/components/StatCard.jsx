@@ -12,7 +12,7 @@ export default function StatCard({ label, value, detail, tone = "cyan", icon: Ic
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass cyber-border hover-glow-card rounded-lg p-4"
+      className="glass cyber-border hover-glow-card rounded-2xl p-4"
     >
       <div className="flex items-center justify-between gap-3">
         <div className="text-xs uppercase tracking-[0.18em] text-slate-400">{label}</div>

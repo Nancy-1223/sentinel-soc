@@ -4,7 +4,6 @@ import {
   Bot,
   BrainCircuit,
   CheckCircle2,
-  Cpu,
   DatabaseZap,
   Fingerprint,
   Gauge,
@@ -121,11 +120,38 @@ function buildEndpointRows(endpointStatus, latestTelemetry, alerts) {
   return Array.from(rows.values()).sort((a, b) => Number(a.endpoint_id || 0) - Number(b.endpoint_id || 0));
 }
 
-function CommandHero({ summary, activeAlerts, quarantined, totalThreats, securityScore, presentationMode }) {
+function AiCorePanel({ summary, activeAlerts, quarantined, totalThreats, securityScore, presentationMode }) {
+  const radius = 54;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (securityScore / 100) * circumference;
+
   return (
-    <section className="ai-command-hero cyber-border overflow-hidden rounded-lg p-5 lg:p-6">
+    <section className="ai-core-panel cyber-border overflow-hidden rounded-2xl p-5 lg:p-6">
       <div className="soc-scan-sweep" />
-      <div className="relative grid gap-6 xl:grid-cols-[1.15fr_.85fr] xl:items-center">
+      <div className="relative grid gap-6 lg:grid-cols-[.9fr_1.1fr] lg:items-center">
+        <div className="ai-core-orbit mx-auto">
+          <svg viewBox="0 0 140 140" className="ai-core-ring">
+            <circle cx="70" cy="70" r={radius} fill="none" stroke="rgba(148,163,184,.14)" strokeWidth="8" />
+            <motion.circle
+              cx="70"
+              cy="70"
+              r={radius}
+              fill="none"
+              stroke={securityScore >= 80 ? "#39ff88" : securityScore >= 55 ? "#22d3ee" : "#facc15"}
+              strokeLinecap="round"
+              strokeWidth="8"
+              strokeDasharray={circumference}
+              initial={{ strokeDashoffset: circumference }}
+              animate={{ strokeDashoffset: offset }}
+              transition={{ duration: 1 }}
+            />
+          </svg>
+          <div className="ai-core-inner">
+            <BrainCircuit className="h-10 w-10 text-cyber-cyan" />
+            <div className="mt-2 text-4xl font-semibold text-white">{securityScore}</div>
+            <div className="text-xs uppercase tracking-[0.16em] text-cyber-cyan">AI score</div>
+          </div>
+        </div>
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full border border-cyber-green/35 bg-cyber-green/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-cyber-green">
@@ -140,19 +166,19 @@ function CommandHero({ summary, activeAlerts, quarantined, totalThreats, securit
               </span>
             )}
           </div>
-          <h1 className="mt-4 max-w-3xl text-3xl font-semibold text-white sm:text-4xl">
-            Sentinel AI Cyber Command Center
+          <h1 className="mt-4 max-w-3xl text-3xl font-semibold text-white sm:text-5xl">
+            Sentinel AI Defense Core
           </h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-            Enterprise endpoint defense with AI threat scoring, containment telemetry, suspicious process
-            correlation, and real-time cyber posture intelligence.
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
+            A presentation-ready cyber command surface for endpoint telemetry, threat confidence,
+            quarantine containment, and real-time response posture.
           </p>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <MetricPill icon={ShieldCheck} label="Security Score" value={`${securityScore}%`} tone={securityScore >= 80 ? "green" : "amber"} live />
-          <MetricPill icon={Siren} label="Active Threats" value={activeAlerts} tone={activeAlerts ? "red" : "cyan"} live={activeAlerts > 0} />
-          <MetricPill icon={LockKeyhole} label="Quarantined" value={quarantined} tone="green" />
-          <MetricPill icon={DatabaseZap} label="Telemetry Events" value={totalThreats + summary.online + summary.offline} tone="cyan" live />
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricPill icon={ShieldCheck} label="Endpoints Live" value={summary.online} tone="green" live />
+            <MetricPill icon={Siren} label="Active Threats" value={activeAlerts} tone={activeAlerts ? "red" : "cyan"} live={activeAlerts > 0} />
+            <MetricPill icon={LockKeyhole} label="Quarantine" value={quarantined} tone="green" />
+            <MetricPill icon={DatabaseZap} label="Events" value={totalThreats + summary.online + summary.offline} tone="cyan" live />
+          </div>
         </div>
       </div>
     </section>
@@ -180,20 +206,10 @@ function MetricPill({ icon: Icon, label, value, tone = "cyan", live = false }) {
 function AiThreatIntelligence({ alerts, summary, endpoints }) {
   const latestThreats = alerts.filter(isThreat).slice(0, 3);
   const latest = latestThreats[0] || alerts[0];
-  const suspiciousProcesses = latestThreats.length
-    ? latestThreats.map((alert) => ({
-        name: alert.filename,
-        endpoint: alert.pc_name,
-        score: alert.risk_score,
-      }))
-    : [
-        { name: "memory-watch.exe", endpoint: "AI sandbox", score: 18 },
-        { name: "script-observer.ps1", endpoint: "Telemetry mesh", score: 12 },
-      ];
 
   return (
     <div className="grid gap-6 xl:grid-cols-[1.15fr_.85fr]">
-      <div className="glass cyber-border hover-glow-card rounded-lg p-5">
+      <div className="glass cyber-border hover-glow-card rounded-2xl p-5">
         <div className="mb-5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
             <BrainCircuit className="h-4 w-4 text-cyber-cyan" />
@@ -220,24 +236,28 @@ function AiThreatIntelligence({ alerts, summary, endpoints }) {
 
       <div className="grid gap-6">
         <AnomalyFeed alerts={alerts} summary={summary} />
-        <div className="glass cyber-border hover-glow-card rounded-lg p-5">
+        <div className="glass cyber-border hover-glow-card rounded-2xl p-5">
           <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-200">
-            <Cpu className="h-4 w-4 text-cyber-amber" />
-            Active Suspicious Processes
+            <ScanLine className="h-4 w-4 text-cyber-amber" />
+            Detection Candidates
           </div>
-          <div className="space-y-3">
-            {suspiciousProcesses.slice(0, 4).map((process, index) => (
-              <div key={`${process.name}-${index}`} className="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.035] p-3">
-                <div className="min-w-0">
-                  <div className="truncate font-mono text-sm text-slate-200">{process.name}</div>
-                  <div className="mt-1 text-xs text-slate-500">{process.endpoint}</div>
+          {alerts.length ? (
+            <div className="space-y-3">
+              {alerts.slice(0, 4).map((alert) => (
+                <div key={alert.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.035] p-3">
+                  <div className="min-w-0">
+                    <div className="truncate font-mono text-sm text-slate-200">{alert.filename}</div>
+                    <div className="mt-1 text-xs text-slate-500">{alert.pc_name} - {alert.prediction}</div>
+                  </div>
+                  <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${toneClasses(threatTone(alert.risk_score))}`}>
+                    {alert.risk_score}
+                  </span>
                 </div>
-                <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${toneClasses(threatTone(process.score))}`}>
-                  {process.score}
-                </span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState text="No scanned files reported by endpoint agents yet." />
+          )}
         </div>
       </div>
 
@@ -251,7 +271,7 @@ function ThreatCard({ alert }) {
   return (
     <motion.div
       layout
-      className="rounded-lg border border-white/10 bg-white/[0.035] p-4 transition hover:border-cyber-cyan/30"
+      className="rounded-xl border border-white/10 bg-white/[0.035] p-4 transition hover:border-cyber-cyan/30"
       initial={{ opacity: 0, x: 10 }}
       animate={{ opacity: 1, x: 0 }}
     >
@@ -275,7 +295,7 @@ function ThreatCard({ alert }) {
 
 function MiniMetric({ label, value, tone = "cyan" }) {
   return (
-    <div className="min-w-0 rounded-md border border-white/10 bg-black/20 p-2">
+    <div className="min-w-0 rounded-lg border border-white/10 bg-white/[0.035] p-2">
       <div className="truncate uppercase tracking-[0.14em] text-slate-500">{label}</div>
       <div className={`mt-1 truncate font-semibold ${toneText(tone)}`}>{value}</div>
     </div>
@@ -288,7 +308,7 @@ function AttackConfidenceMeter({ alert }) {
   const offset = circumference - (confidence / 100) * circumference;
 
   return (
-    <div className="ai-meter rounded-lg border border-cyber-cyan/18 bg-[#081322] p-5">
+    <div className="ai-meter rounded-2xl border border-cyber-cyan/18 bg-[#081322] p-5">
       <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Attack Confidence Meter</div>
       <div className="mt-5 grid place-items-center">
         <div className="relative h-44 w-44">
@@ -333,14 +353,14 @@ function AnomalyFeed({ alerts, summary }) {
   ];
 
   return (
-    <div className="glass cyber-border hover-glow-card rounded-lg p-5">
+    <div className="glass cyber-border hover-glow-card rounded-2xl p-5">
       <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-200">
         <ScanLine className="h-4 w-4 text-cyber-green" />
         Anomaly Detection Feed
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         {anomalies.map((item) => (
-          <div key={item.label} className="rounded-lg border border-white/10 bg-white/[0.035] p-3">
+          <div key={item.label} className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
             <div className="text-xs uppercase tracking-[0.16em] text-slate-500">{item.label}</div>
             <div className={`mt-2 text-xl font-semibold ${toneText(item.tone)}`}>{item.value}</div>
           </div>
@@ -353,7 +373,7 @@ function AnomalyFeed({ alerts, summary }) {
 function EndpointHealthCards({ endpoints }) {
   const top = endpoints.slice(0, 4);
   return (
-    <div className="glass cyber-border hover-glow-card rounded-lg p-5 xl:col-span-2">
+    <div className="glass cyber-border hover-glow-card rounded-2xl p-5 xl:col-span-2">
       <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-200">
         <HardDrive className="h-4 w-4 text-cyber-cyan" />
         Endpoint Health Cards
@@ -363,7 +383,7 @@ function EndpointHealthCards({ endpoints }) {
           const telemetry = endpoint.telemetry || {};
           const tone = getEndpointTone(endpoint);
           return (
-            <div key={endpoint.endpoint_id} className={`rounded-lg border p-3 ${toneClasses(tone)}`}>
+            <div key={endpoint.endpoint_id} className={`rounded-xl border p-3 ${toneClasses(tone)}`}>
               <div className="truncate text-sm font-semibold text-slate-100">{endpoint.pc_name}</div>
               <div className="mt-1 text-xs uppercase tracking-[0.14em] opacity-80">{endpoint.status || "Observed"}</div>
               <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
@@ -374,24 +394,15 @@ function EndpointHealthCards({ endpoints }) {
             </div>
           );
         })}
-        {!top.length && <div className="rounded-lg border border-white/10 bg-white/[0.035] p-4 text-sm text-slate-400">No registered endpoints yet.</div>}
+        {!top.length && <EmptyState text="No registered endpoints yet." />}
       </div>
     </div>
   );
 }
 
 function EndpointSecurityMatrix({ endpoints }) {
-  const cells = endpoints.length
-    ? endpoints
-    : Array.from({ length: 12 }).map((_, index) => ({
-        endpoint_id: `placeholder-${index}`,
-        pc_name: `Node-${String(index + 1).padStart(2, "0")}`,
-        status: "Standby",
-        max_risk_score: 0,
-      }));
-
   return (
-    <div className="glass cyber-border hover-glow-card rounded-lg p-5">
+    <div className="glass cyber-border hover-glow-card rounded-2xl p-5">
       <div className="mb-5 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
           <Fingerprint className="h-4 w-4 text-cyber-green" />
@@ -403,8 +414,9 @@ function EndpointSecurityMatrix({ endpoints }) {
           <span className="text-cyber-red">Under attack</span>
         </div>
       </div>
-      <div className="endpoint-matrix-grid">
-        {cells.map((endpoint, index) => {
+      {endpoints.length ? (
+        <div className="endpoint-matrix-grid">
+          {endpoints.map((endpoint, index) => {
           const tone = getEndpointTone(endpoint);
           return (
             <motion.div
@@ -418,8 +430,11 @@ function EndpointSecurityMatrix({ endpoints }) {
               <small>{endpoint.status || "Observed"}</small>
             </motion.div>
           );
-        })}
-      </div>
+          })}
+        </div>
+      ) : (
+        <EmptyState text="Endpoint matrix will populate after endpoint registration or telemetry." />
+      )}
     </div>
   );
 }
@@ -429,7 +444,7 @@ function SocNeuralVisualization({ endpoints, alerts }) {
   const latestRisk = clamp(alerts[0]?.risk_score);
 
   return (
-    <div className="glass cyber-border hover-glow-card neural-panel rounded-lg p-5">
+    <div className="glass cyber-border hover-glow-card neural-panel rounded-2xl p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
           <Sparkles className="h-4 w-4 text-cyber-cyan" />
@@ -458,7 +473,7 @@ function SocNeuralVisualization({ endpoints, alerts }) {
 function EndpointTopology({ endpoints }) {
   const nodes = endpoints.slice(0, 9);
   return (
-    <div className="glass cyber-border hover-glow-card topology-panel rounded-lg p-5">
+    <div className="glass cyber-border hover-glow-card topology-panel rounded-2xl p-5">
       <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-200">
         <Network className="h-4 w-4 text-cyber-cyan" />
         Interactive Endpoint Topology
@@ -468,7 +483,7 @@ function EndpointTopology({ endpoints }) {
           <ShieldCheck className="h-8 w-8 text-cyber-green" />
           <span>SOC</span>
         </div>
-        {(nodes.length ? nodes : Array.from({ length: 6 }).map((_, index) => ({ endpoint_id: index, pc_name: `Endpoint ${index + 1}` }))).map((endpoint, index) => {
+        {nodes.map((endpoint, index) => {
           const tone = getEndpointTone(endpoint);
           return (
             <div key={endpoint.endpoint_id} className={`topology-node topology-node-${index + 1} topology-${tone}`}>
@@ -476,6 +491,7 @@ function EndpointTopology({ endpoints }) {
             </div>
           );
         })}
+        {!nodes.length && <div className="topology-empty">Register an endpoint to light up the mesh</div>}
       </div>
     </div>
   );
@@ -487,7 +503,7 @@ function ThreatDnaAnalyzer({ alerts, maxRisk }) {
   const fileReputation = latest ? clamp(100 - Number(latest.risk_score || 0), 1, 100) : 100;
 
   return (
-    <div className="glass cyber-border hover-glow-card dna-panel rounded-lg p-5">
+    <div className="glass cyber-border hover-glow-card dna-panel rounded-2xl p-5">
       <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-200">
         <Hexagon className="h-4 w-4 text-cyber-cyan" />
         Threat DNA Analyzer
@@ -513,13 +529,13 @@ function ThreatDnaAnalyzer({ alerts, maxRisk }) {
 function ThreatTimeline({ alerts }) {
   const timeline = alerts.slice(0, 6);
   return (
-    <div className="glass cyber-border hover-glow-card rounded-lg p-5">
+    <div className="glass cyber-border hover-glow-card rounded-2xl p-5">
       <div className="mb-5 flex items-center gap-2 text-sm font-medium text-slate-200">
         <RadioTower className="h-4 w-4 text-cyber-green" />
         AI Threat Timeline
       </div>
       <div className="threat-timeline thin-scrollbar">
-        {(timeline.length ? timeline : [{ id: "empty", pc_name: "AI engine", prediction: "Baseline", risk_score: 0, action_taken: "Monitoring" }]).map((alert, index) => {
+        {timeline.map((alert) => {
           const tone = threatTone(Number(alert.risk_score || 0));
           return (
             <div key={alert.id} className="timeline-item">
@@ -533,6 +549,7 @@ function ThreatTimeline({ alerts }) {
             </div>
           );
         })}
+        {!timeline.length && <EmptyState text="No detections have reached the timeline yet." />}
       </div>
     </div>
   );
@@ -541,7 +558,7 @@ function ThreatTimeline({ alerts }) {
 function QuarantineVault({ alerts }) {
   const quarantined = alerts.filter((alert) => String(alert.action_taken).toLowerCase() === "quarantined").slice(0, 4);
   return (
-    <div className="glass cyber-border hover-glow-card vault-panel rounded-lg p-5">
+    <div className="glass cyber-border hover-glow-card vault-panel rounded-2xl p-5">
       <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-200">
         <LockKeyhole className="h-4 w-4 text-cyber-green" />
         Quarantine Vault
@@ -572,7 +589,7 @@ function SecurityScorePanel({ securityScore, summary, activeAlerts, avgRisk }) {
   ];
 
   return (
-    <div className="glass cyber-border hover-glow-card rounded-lg p-5">
+    <div className="glass cyber-border hover-glow-card rounded-2xl p-5">
       <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-200">
         <Gauge className="h-4 w-4 text-cyber-cyan" />
         AI Security Score
@@ -589,29 +606,34 @@ function SecurityScorePanel({ securityScore, summary, activeAlerts, avgRisk }) {
   );
 }
 
-function RealTimeActivityFeed({ alerts, summary, telemetryOffline }) {
+function buildActivityLines(alerts, latestTelemetry, endpoints, summary, telemetryOffline) {
   const latest = alerts[0];
-  const lines = [
-    `[AI] Telemetry fused from ${summary.online} online endpoint(s)`,
-    latest ? `[SCAN] ${latest.filename} scored ${latest.risk_score} on ${latest.pc_name}` : "[SCAN] AI scanner waiting for endpoint samples",
-    latest && String(latest.action_taken).toLowerCase() === "quarantined"
-      ? `[VAULT] ${latest.filename} isolated successfully`
-      : "[VAULT] Quarantine vault armed",
-    telemetryOffline ? "[LINK] Backend telemetry connection degraded" : "[LINK] Endpoint mesh synchronized",
-    `[TRUST] CPU ${summary.cpu}% RAM ${summary.ram}% DISK ${summary.disk}%`,
-  ];
+  const latestEndpoint = endpoints.find((endpoint) => endpoint.status === "Online") || endpoints[0];
+  const lines = [];
+  if (latestTelemetry[0]) lines.push(`[TELEMETRY] ${latestTelemetry[0].pc_name} reported CPU ${Math.round(latestTelemetry[0].cpu || 0)}% RAM ${Math.round(latestTelemetry[0].ram || 0)}%`);
+  if (latestEndpoint) lines.push(`[ENDPOINT] ${latestEndpoint.pc_name} is ${latestEndpoint.status || "observed"}`);
+  if (latest) lines.push(`[SCAN] ${latest.filename} scored ${latest.risk_score} on ${latest.pc_name}`);
+  if (latest && String(latest.prediction).toLowerCase() !== "safe") lines.push(`[THREAT] ${latest.prediction} detection on ${latest.pc_name}`);
+  if (latest && String(latest.action_taken).toLowerCase() === "quarantined") lines.push(`[VAULT] ${latest.filename} isolated successfully`);
+  lines.push(telemetryOffline ? "[LINK] Backend telemetry connection degraded" : `[LINK] Mesh synchronized across ${summary.online} online endpoint(s)`);
+  return lines;
+}
+
+function RealTimeActivityFeed({ alerts, latestTelemetry, endpoints, summary, telemetryOffline }) {
+  const lines = buildActivityLines(alerts, latestTelemetry, endpoints, summary, telemetryOffline);
 
   return (
-    <div className="glass cyber-border hover-glow-card rounded-lg p-5">
+    <div className="glass cyber-border hover-glow-card rounded-2xl p-5">
       <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-200">
         <Terminal className="h-4 w-4 text-cyber-green" />
         Real-Time AI Activity Feed
       </div>
-      <div className="space-y-2 font-mono text-xs sm:text-sm">
-        {lines.map((line, index) => (
+      {lines.length ? (
+        <div className="space-y-2 font-mono text-xs sm:text-sm">
+          {lines.map((line, index) => (
           <motion.div
             key={line}
-            className="terminal-line text-slate-300"
+            className="activity-line text-slate-300"
             initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.12 }}
@@ -621,8 +643,19 @@ function RealTimeActivityFeed({ alerts, summary, telemetryOffline }) {
             </span>
             {line.slice(line.indexOf("]") + 1)}
           </motion.div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <EmptyState text="Activity feed will stream once endpoints send telemetry." />
+      )}
+    </div>
+  );
+}
+
+function EmptyState({ text }) {
+  return (
+    <div className="empty-state rounded-xl border border-white/10 bg-white/[0.03] p-5 text-sm text-slate-400">
+      {text}
     </div>
   );
 }
@@ -656,14 +689,20 @@ export default function Dashboard() {
         )}
       </div>
 
-      <CommandHero
+      <div className="grid gap-6 xl:grid-cols-[1.08fr_.92fr]">
+        <AiCorePanel
         summary={summary}
         activeAlerts={activeAlerts}
         quarantined={quarantined}
         totalThreats={totalThreats}
         securityScore={securityScore}
         presentationMode={settings.presentationMode}
-      />
+        />
+        <div className="grid gap-6">
+          <EndpointTopology endpoints={endpoints} />
+          <RealTimeActivityFeed alerts={alerts} latestTelemetry={latestTelemetry} endpoints={endpoints} summary={summary} telemetryOffline={telemetryOffline} />
+        </div>
+      </div>
 
       {(telemetryOffline || offline) && (
         <div className="glass cyber-border rounded-lg border-cyber-amber/30 p-3 text-sm text-cyber-amber">
@@ -695,14 +734,14 @@ export default function Dashboard() {
 
       <div className="grid gap-6 xl:grid-cols-3">
         <ThreatDnaAnalyzer alerts={alerts} maxRisk={maxRisk} />
-        <EndpointTopology endpoints={endpoints} />
         <QuarantineVault alerts={alerts} />
+        <SecurityScorePanel securityScore={securityScore} summary={summary} activeAlerts={activeAlerts} avgRisk={avgRisk} />
       </div>
 
       <ThreatTimeline alerts={alerts} />
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_.9fr]">
-        <div className="glass cyber-border hover-glow-card static-visual-surface rounded-lg p-5">
+        <div className="glass cyber-border hover-glow-card static-visual-surface rounded-2xl p-5 xl:col-span-2">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
               <Bot className="h-4 w-4 text-cyber-cyan" />
@@ -733,12 +772,9 @@ export default function Dashboard() {
             </ResponsiveContainer>
           </div>
         </div>
-        <SecurityScorePanel securityScore={securityScore} summary={summary} activeAlerts={activeAlerts} avgRisk={avgRisk} />
       </div>
 
-      <RealTimeActivityFeed alerts={alerts} summary={summary} telemetryOffline={telemetryOffline} />
-
-      <div className="glass cyber-border hover-glow-card rounded-lg p-4">
+      <div className="glass cyber-border hover-glow-card rounded-2xl p-4">
         <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-200">
           <CheckCircle2 className="h-4 w-4 text-cyber-green" />
           Recent Alerts

@@ -16,7 +16,7 @@ export default function Topbar() {
   }
 
   return (
-    <header className="sticky top-0 z-30 border-b border-cyber-cyan/10 bg-[#05080f] px-4 py-3 lg:px-8">
+    <header className="premium-topbar sticky top-0 z-30 border-b border-cyber-cyan/10 px-4 py-3 lg:px-8">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <div className="text-xs uppercase tracking-[0.2em] text-slate-500">Security operations center</div>
@@ -34,21 +34,21 @@ export default function Topbar() {
           {!settings.presentationMode && (
             <button
               onClick={refreshAlerts}
-              className="hover-glow-button rounded-md border border-cyber-cyan/30 px-3 py-2 text-xs font-medium text-cyber-cyan hover:bg-cyber-cyan/10"
+              className="hover-glow-button rounded-lg border border-cyber-cyan/30 px-3 py-2 text-xs font-medium text-cyber-cyan hover:bg-cyber-cyan/10"
             >
               Refresh
             </button>
           )}
           <Link
             to="/alerts"
-            className="hover-glow-button rounded-md border border-white/10 px-3 py-2 text-xs text-slate-300 hover:bg-white/[0.04]"
+            className="hover-glow-button rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-300 hover:bg-white/[0.04]"
           >
             Investigate
           </Link>
-          <div className="rounded-md border border-white/10 px-3 py-2 text-xs text-slate-400">
+          <div className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-400">
             {user?.name || "SOC Analyst"}
           </div>
-          <button onClick={logout} className="hover-glow-button rounded-md border border-white/10 px-3 py-2 text-xs text-slate-400">
+          <button onClick={logout} className="hover-glow-button rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-400">
             Logout
           </button>
         </div>
