@@ -97,8 +97,8 @@ export default function AlertsPanel() {
             exit={{ opacity: 0, y: 18, scale: 0.96 }}
             className={`fixed bottom-5 right-5 z-50 w-[min(360px,calc(100vw-2rem))] rounded-lg border p-4 shadow-2xl ${
               toast.type === "success"
-                ? "border-cyber-green/30 bg-[#102847]/95 text-cyber-green"
-                : "border-cyber-red/30 bg-[#132d52]/95 text-cyber-red"
+                ? "border-cyber-green/30 bg-white/90 text-cyber-green"
+                : "border-cyber-red/30 bg-white/90 text-cyber-red"
             }`}
           >
             <div className="text-sm font-semibold">{toast.type === "success" ? "Alert deleted" : "Delete failed"}</div>

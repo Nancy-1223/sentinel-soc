@@ -1176,3 +1176,230 @@ html[data-presentation="on"] .glass {
 html[data-presentation="on"] .scanline {
   animation-duration: 6s;
 }
+
+/* Premium light SaaS cybersecurity theme */
+:root {
+  color-scheme: light;
+}
+
+body {
+  background:
+    radial-gradient(circle at 10% 8%, rgba(14, 165, 233, 0.2), transparent 30%),
+    radial-gradient(circle at 84% 12%, rgba(124, 58, 237, 0.16), transparent 28%),
+    radial-gradient(circle at 72% 78%, rgba(20, 184, 166, 0.14), transparent 32%),
+    linear-gradient(135deg, #f8fbff 0%, #eef7ff 45%, #f7f2ff 100%);
+  color: #162033;
+}
+
+body::before {
+  opacity: 0.32;
+  background-image:
+    linear-gradient(rgba(14, 165, 233, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(14, 165, 233, 0.12) 1px, transparent 1px);
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.28), transparent 84%);
+}
+
+.cyber-background {
+  background:
+    radial-gradient(circle at 16% 18%, rgba(14, 165, 233, 0.2), transparent 30%),
+    radial-gradient(circle at 78% 10%, rgba(124, 58, 237, 0.16), transparent 28%),
+    radial-gradient(circle at 72% 78%, rgba(20, 184, 166, 0.16), transparent 28%);
+}
+
+.cyber-grid-layer {
+  opacity: 0.18;
+  background-image:
+    linear-gradient(rgba(14, 165, 233, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(14, 165, 233, 0.12) 1px, transparent 1px);
+}
+
+.cyber-particle-layer {
+  opacity: 0.24;
+}
+
+.glass,
+.ai-meter,
+.dna-panel,
+.neural-panel,
+.topology-panel,
+.vault-panel,
+.static-visual-surface.glass {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.88), rgba(239, 248, 255, 0.76)),
+    radial-gradient(circle at 100% 0%, rgba(14, 165, 233, 0.12), transparent 38%),
+    radial-gradient(circle at 0% 100%, rgba(124, 58, 237, 0.08), transparent 38%);
+  border-color: rgba(14, 165, 233, 0.18);
+  box-shadow:
+    0 18px 48px rgba(15, 23, 42, 0.08),
+    0 0 36px rgba(14, 165, 233, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px);
+}
+
+.cyber-border::after {
+  border-color: rgba(14, 165, 233, 0.16);
+}
+
+.premium-sidebar {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(241, 248, 255, 0.82)),
+    radial-gradient(circle at 50% 0%, rgba(14, 165, 233, 0.18), transparent 36%),
+    radial-gradient(circle at 0% 85%, rgba(124, 58, 237, 0.1), transparent 34%);
+  border-color: rgba(14, 165, 233, 0.14);
+  box-shadow: 18px 0 54px rgba(15, 23, 42, 0.07);
+}
+
+.premium-topbar {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.86), rgba(239, 248, 255, 0.72));
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.06);
+}
+
+.sidebar-link-active {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.14), rgba(124, 58, 237, 0.1)) !important;
+  box-shadow: 0 10px 26px rgba(14, 165, 233, 0.12), inset 0 0 20px rgba(255, 255, 255, 0.56);
+}
+
+.hover-glow-card:hover,
+.hover-glow-card:focus-within {
+  border-color: rgba(14, 165, 233, 0.3);
+  box-shadow:
+    0 22px 52px rgba(15, 23, 42, 0.1),
+    0 0 0 1px rgba(14, 165, 233, 0.12),
+    0 0 32px rgba(14, 165, 233, 0.12),
+    0 0 40px rgba(124, 58, 237, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.bg-white\/\[0\.03\],
+.bg-white\/\[0\.035\],
+.bg-white\/\[0\.04\],
+input.bg-white\/\[0\.04\],
+textarea.bg-white\/\[0\.04\],
+select.bg-white\/\[0\.04\] {
+  background-color: rgba(255, 255, 255, 0.64);
+}
+
+input,
+select,
+textarea {
+  color: #0f172a;
+}
+
+.ai-core-panel {
+  background:
+    radial-gradient(circle at 24% 50%, rgba(14, 165, 233, 0.2), transparent 34%),
+    radial-gradient(circle at 82% 18%, rgba(124, 58, 237, 0.16), transparent 30%),
+    radial-gradient(circle at 60% 84%, rgba(20, 184, 166, 0.12), transparent 32%),
+    linear-gradient(120deg, rgba(255, 255, 255, 0.88), rgba(232, 244, 255, 0.74));
+  border-color: rgba(14, 165, 233, 0.22);
+  box-shadow: 0 26px 70px rgba(15, 23, 42, 0.1), 0 0 48px rgba(14, 165, 233, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.ai-core-panel::before {
+  opacity: 0.22;
+  background-image:
+    linear-gradient(rgba(14, 165, 233, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(14, 165, 233, 0.12) 1px, transparent 1px);
+}
+
+.ai-core-inner,
+.neural-core,
+.topology-core,
+.dna-reticle {
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.94), rgba(226, 246, 255, 0.78) 70%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.92), rgba(232, 244, 255, 0.78));
+  border-color: rgba(14, 165, 233, 0.28);
+  box-shadow: 0 0 36px rgba(14, 165, 233, 0.16), 0 0 28px rgba(124, 58, 237, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.neural-canvas,
+.topology-canvas {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(14, 165, 233, 0.12), transparent 26%),
+    radial-gradient(circle at 14% 20%, rgba(124, 58, 237, 0.09), transparent 30%),
+    radial-gradient(circle at 84% 80%, rgba(20, 184, 166, 0.1), transparent 30%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.74), rgba(232, 244, 255, 0.58));
+  border-color: rgba(14, 165, 233, 0.16);
+}
+
+.endpoint-cell,
+.topology-node,
+.timeline-item,
+.activity-line,
+.vault-container,
+.empty-state {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(14, 165, 233, 0.1), transparent 36%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.78), rgba(239, 248, 255, 0.62));
+  border-color: rgba(14, 165, 233, 0.14);
+  color: #1e293b;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.06);
+}
+
+.vault-door {
+  background:
+    radial-gradient(circle, rgba(20, 184, 166, 0.14), transparent 42%),
+    radial-gradient(circle at 20% 20%, rgba(14, 165, 233, 0.12), transparent 38%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.78), rgba(244, 239, 255, 0.7));
+  border-color: rgba(124, 58, 237, 0.18);
+}
+
+.activity-line {
+  border-right: 0;
+}
+
+.alert-row-malicious:hover {
+  background: rgba(244, 63, 94, 0.08);
+}
+
+.alert-row-suspicious:hover {
+  background: rgba(245, 158, 11, 0.09);
+}
+
+.text-white,
+.text-slate-100,
+.text-slate-200 {
+  color: #0f172a !important;
+}
+
+.text-slate-300 {
+  color: #334155 !important;
+}
+
+.text-slate-400 {
+  color: #475569 !important;
+}
+
+.text-slate-500 {
+  color: #64748b !important;
+}
+
+.text-cyber-cyan {
+  color: #0284c7 !important;
+}
+
+.text-cyber-green {
+  color: #047857 !important;
+}
+
+.text-cyber-amber {
+  color: #b45309 !important;
+}
+
+.text-cyber-red {
+  color: #be123c !important;
+}
+
+.border-white\/10 {
+  border-color: rgba(15, 23, 42, 0.1) !important;
+}
+
+.divide-white\/10 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(15, 23, 42, 0.09) !important;
+}
+
+.hover\:bg-white\/\[0\.04\]:hover,
+.hover\:bg-white\/\[0\.03\]:hover {
+  background-color: rgba(14, 165, 233, 0.08) !important;
+}

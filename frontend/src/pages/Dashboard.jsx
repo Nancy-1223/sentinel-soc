@@ -765,7 +765,7 @@ export default function Dashboard() {
                     <stop offset="95%" stopColor="#39ff88" stopOpacity={0.02} />
                   </linearGradient>
                 </defs>
-                <Tooltip contentStyle={{ background: "linear-gradient(145deg, rgba(16,40,71,.96), rgba(11,29,53,.94))", border: "1px solid rgba(34,211,238,.32)", borderRadius: "14px", boxShadow: "0 18px 48px rgba(4,16,33,.36)", color: "#d8e7f2" }} />
+                <Tooltip contentStyle={{ background: "linear-gradient(145deg, rgba(255,255,255,.96), rgba(239,248,255,.94))", border: "1px solid rgba(14,165,233,.26)", borderRadius: "14px", boxShadow: "0 18px 48px rgba(15,23,42,.14)", color: "#0f172a" }} />
                 <Area type="monotone" dataKey="risk" stroke="#22d3ee" strokeWidth={2.8} fill="url(#riskGradient)" dot={false} animationDuration={900} />
                 <Area type="monotone" dataKey="confidence" stroke="#39ff88" strokeWidth={2.2} fill="url(#confidenceGradient)" dot={false} animationDuration={1100} />
               </AreaChart>

@@ -21,7 +21,7 @@ export default function UserBehavior() {
             <LineChart data={data}>
               <XAxis dataKey="name" stroke="#64748b" />
               <YAxis stroke="#64748b" />
-              <Tooltip contentStyle={{ background: "linear-gradient(145deg, rgba(16,40,71,.96), rgba(11,29,53,.94))", border: "1px solid rgba(34,211,238,.28)", borderRadius: "14px", color: "#d8e7f2" }} />
+              <Tooltip contentStyle={{ background: "linear-gradient(145deg, rgba(255,255,255,.96), rgba(239,248,255,.94))", border: "1px solid rgba(14,165,233,.26)", borderRadius: "14px", color: "#0f172a" }} />
               <Line type="monotone" dataKey="risk" stroke="#22d3ee" strokeWidth={2} />
               <Line type="monotone" dataKey="downloads" stroke="#39ff88" strokeWidth={2} />
             </LineChart>
