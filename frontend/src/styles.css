@@ -394,7 +394,7 @@ select.bg-white\/\[0\.04\] {
     linear-gradient(120deg, rgba(22, 57, 95, 0.82), rgba(11, 29, 53, 0.74));
   border: 1px solid rgba(34, 211, 238, 0.26);
   box-shadow: 0 24px 66px rgba(4, 16, 33, 0.36), 0 0 44px rgba(34, 211, 238, 0.075), inset 0 0 54px rgba(34, 211, 238, 0.055);
-  min-height: 390px;
+  min-height: 250px;
 }
 
 .ai-core-panel::before {
@@ -412,13 +412,13 @@ select.bg-white\/\[0\.04\] {
 .ai-core-orbit {
   position: relative;
   display: grid;
-  width: min(330px, 82vw);
+  width: min(250px, 70vw);
   aspect-ratio: 1;
   place-items: center;
 }
 
 .ai-core-orbit-hero {
-  width: min(360px, 78vw);
+  width: min(245px, 68vw);
 }
 
 .ai-core-orbit::before,
@@ -453,8 +453,8 @@ select.bg-white\/\[0\.04\] {
 .ai-core-inner {
   z-index: 2;
   display: grid;
-  height: 148px;
-  width: 148px;
+  height: 112px;
+  width: 112px;
   place-items: center;
   border-radius: 999px;
   border: 1px solid rgba(125, 211, 252, 0.35);
@@ -942,11 +942,11 @@ select.bg-white\/\[0\.04\] {
   }
 
   .ai-core-orbit {
-    width: min(260px, 78vw);
+    width: min(220px, 72vw);
   }
 
   .ai-core-orbit-hero {
-    width: min(280px, 78vw);
+    width: min(220px, 72vw);
   }
 
   .topology-node {

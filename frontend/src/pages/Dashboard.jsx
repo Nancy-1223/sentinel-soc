@@ -126,13 +126,13 @@ function AiCorePanel({ summary, activeAlerts, quarantined, totalThreats, securit
   const offset = circumference - (securityScore / 100) * circumference;
 
   return (
-    <section className="ai-core-panel cyber-border overflow-hidden rounded-2xl p-5 lg:p-6">
+    <section className="ai-core-panel cyber-border overflow-hidden rounded-2xl p-4 lg:p-5">
       <div className="soc-scan-sweep" />
-      <div className="relative flex min-h-full flex-col items-center justify-between gap-5">
+      <div className="relative flex min-h-full flex-col items-center justify-between gap-3">
         <div className="max-w-xl text-center">
-          <div className="text-xs font-semibold uppercase tracking-[0.2em] text-cyber-cyan">Sentinel AI Core</div>
-          <h2 className="mt-2 text-2xl font-semibold text-slate-100 sm:text-3xl">Autonomous Defense Core</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-400">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyber-cyan">Sentinel AI Core</div>
+          <h2 className="mt-1.5 text-xl font-semibold text-slate-100 sm:text-2xl">Autonomous Defense Core</h2>
+          <p className="mt-1 text-sm leading-5 text-slate-400">
             AI-powered endpoint protection, telemetry scoring, and threat response.
           </p>
         </div>
@@ -162,23 +162,23 @@ function AiCorePanel({ summary, activeAlerts, quarantined, totalThreats, securit
         </div>
 
         <div className="flex flex-wrap justify-center gap-2">
-          <span className="rounded-full border border-cyber-green/35 bg-cyber-green/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-cyber-green">
+          <span className="rounded-full border border-cyber-green/35 bg-cyber-green/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-cyber-green">
             Endpoint Mesh Active
           </span>
-          <span className="rounded-full border border-cyber-cyan/35 bg-cyber-cyan/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-cyber-cyan">
+          <span className="rounded-full border border-cyber-cyan/35 bg-cyber-cyan/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-cyber-cyan">
             Threat Scanner Live
           </span>
-          <span className="rounded-full border border-cyber-green/35 bg-cyber-green/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-cyber-green">
+          <span className="rounded-full border border-cyber-green/35 bg-cyber-green/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-cyber-green">
             Quarantine Ready
           </span>
           {presentationMode && (
-            <span className="rounded-full border border-cyber-amber/35 bg-cyber-amber/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-cyber-amber">
+            <span className="rounded-full border border-cyber-amber/35 bg-cyber-amber/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-cyber-amber">
               Presentation Mode
             </span>
           )}
         </div>
 
-        <div className="grid w-full gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid w-full gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
           <MetricPill icon={ShieldCheck} label="Endpoints Live" value={summary.online} tone="green" live />
           <MetricPill icon={Siren} label="Active Threats" value={activeAlerts} tone={activeAlerts ? "red" : "cyan"} live={activeAlerts > 0} />
           <MetricPill icon={LockKeyhole} label="Quarantine" value={quarantined} tone="green" />
@@ -192,17 +192,17 @@ function AiCorePanel({ summary, activeAlerts, quarantined, totalThreats, securit
 function MetricPill({ icon: Icon, label, value, tone = "cyan", live = false }) {
   return (
     <motion.div
-      className={`hover-glow-card rounded-lg border p-4 ${toneClasses(tone)}`}
+      className={`hover-glow-card rounded-lg border p-3 ${toneClasses(tone)}`}
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
     >
       <div className="flex items-center justify-between">
-        <Icon className="h-5 w-5" />
+        <Icon className="h-4 w-4" />
         {live && <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-current shadow-[0_0_18px_currentColor]" />}
       </div>
-      <div className="mt-4 text-xs uppercase tracking-[0.16em] opacity-80">{label}</div>
-      <div className="mt-1 text-2xl font-semibold text-slate-100">{value}</div>
+      <div className="mt-3 text-[11px] uppercase tracking-[0.14em] opacity-80">{label}</div>
+      <div className="mt-0.5 text-xl font-semibold text-slate-100">{value}</div>
     </motion.div>
   );
 }
