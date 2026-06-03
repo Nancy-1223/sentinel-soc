@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   Activity,
@@ -19,21 +20,14 @@ import {
   Terminal,
   Zap,
 } from "lucide-react";
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import AlertTable from "../components/AlertTable";
 import StatCard from "../components/StatCard";
 import { useAlerts } from "../context/AlertsContext";
 import { useSettings } from "../context/SettingsContext";
 import { useTelemetry } from "../context/TelemetryContext";
+import { buildEndpointRows, clamp, endpointTone, formatDuration, isThreat } from "../utils/endpointIntelligence";
 import { formatDate } from "../utils/format";
-
-function clamp(value, min = 0, max = 100) {
-  return Math.min(max, Math.max(min, Number(value || 0)));
-}
-
-function isThreat(alert) {
-  return String(alert.prediction).toLowerCase() !== "safe";
-}
 
 function aiConfidence(alert) {
   if (!alert) return 0;
@@ -76,48 +70,7 @@ function trendData(alerts) {
 }
 
 function getEndpointTone(endpoint) {
-  const protection = String(endpoint.protection_status || endpoint.protectionStatus || "").toLowerCase();
-  const status = String(endpoint.status || "").toLowerCase();
-  const risk = Number(endpoint.max_risk_score || endpoint.maxRisk || 0);
-  if (protection.includes("attack") || risk >= 70) return "red";
-  if (protection.includes("failure") || risk >= 45) return "amber";
-  if (status !== "online") return "cyan";
-  return "green";
-}
-
-function buildEndpointRows(endpointStatus, latestTelemetry, alerts) {
-  const rows = new Map();
-
-  alerts.forEach((alert) => {
-    rows.set(alert.endpoint_id, {
-      endpoint_id: alert.endpoint_id,
-      pc_name: alert.pc_name,
-      status: "Observed",
-      protection_status: Number(alert.risk_score || 0) >= 70 ? "Under Attack" : "Protected",
-      max_risk_score: Number(alert.risk_score || 0),
-      total_alerts: 1,
-    });
-  });
-
-  latestTelemetry.forEach((row) => {
-    const current = rows.get(row.endpoint_id) || {};
-    rows.set(row.endpoint_id, {
-      ...current,
-      endpoint_id: row.endpoint_id,
-      pc_name: row.pc_name || current.pc_name,
-      telemetry: row,
-      status: current.status || "Online",
-    });
-  });
-
-  endpointStatus.forEach((endpoint) => {
-    rows.set(endpoint.endpoint_id, {
-      ...rows.get(endpoint.endpoint_id),
-      ...endpoint,
-    });
-  });
-
-  return Array.from(rows.values()).sort((a, b) => Number(a.endpoint_id || 0) - Number(b.endpoint_id || 0));
+  return endpointTone(endpoint);
 }
 
 function AiCorePanel({ summary, activeAlerts, quarantined, totalThreats, securityScore, presentationMode }) {
@@ -375,25 +328,43 @@ function AnomalyFeed({ alerts, summary }) {
 }
 
 function EndpointHealthCards({ endpoints }) {
-  const top = endpoints.slice(0, 4);
+  const top = endpoints.slice(0, 6);
   return (
     <div className="glass cyber-border hover-glow-card rounded-2xl p-5 xl:col-span-2">
-      <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-200">
-        <HardDrive className="h-4 w-4 text-cyber-cyan" />
-        Endpoint Health Cards
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
+          <HardDrive className="h-4 w-4 text-cyber-cyan" />
+          Live Endpoint Health
+        </div>
+        <span className="rounded-full border border-cyber-cyan/25 bg-cyber-cyan/10 px-2.5 py-1 text-xs text-cyber-cyan">
+          Telemetry driven
+        </span>
       </div>
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {top.map((endpoint) => {
           const telemetry = endpoint.telemetry || {};
-          const tone = getEndpointTone(endpoint);
           return (
-            <div key={endpoint.endpoint_id} className={`rounded-xl border p-3 ${toneClasses(tone)}`}>
-              <div className="truncate text-sm font-semibold text-slate-100">{endpoint.pc_name}</div>
-              <div className="mt-1 text-xs uppercase tracking-[0.14em] opacity-80">{endpoint.status || "Observed"}</div>
-              <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                <div>CPU <span className="text-slate-100">{Math.round(telemetry.cpu || 0)}%</span></div>
-                <div>RAM <span className="text-slate-100">{Math.round(telemetry.ram || 0)}%</span></div>
-                <div>Risk <span className="text-slate-100">{endpoint.max_risk_score || 0}</span></div>
+            <div key={endpoint.endpoint_id} className={`rounded-xl border p-4 ${toneClasses(endpoint.riskTone)}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold text-slate-100">{endpoint.pc_name}</div>
+                  <div className="mt-1 text-xs uppercase tracking-[0.14em] opacity-80">{endpoint.agentModeLabel}</div>
+                </div>
+                <span className={`rounded-full border px-2 py-1 text-xs font-semibold ${toneClasses(endpoint.riskTone)}`}>
+                  {endpoint.riskScore} {endpoint.riskLevel}
+                </span>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                <MiniMetric label="CPU Usage" value={`${Math.round(telemetry.cpu || 0)}%`} tone={Number(telemetry.cpu || 0) > 80 ? "amber" : "cyan"} />
+                <MiniMetric label="Memory" value={`${Math.round(telemetry.ram || 0)}%`} tone={Number(telemetry.ram || 0) > 80 ? "amber" : "green"} />
+                <MiniMetric label="Disk" value={`${Math.round(telemetry.disk || 0)}%`} tone="cyan" />
+                <MiniMetric label="Health" value={`${endpoint.healthScore}%`} tone={endpoint.healthScore < 55 ? "amber" : "green"} />
+                <MiniMetric label="Version" value={endpoint.agentVersion} tone="cyan" />
+                <MiniMetric label="Uptime" value={formatDuration(endpoint.uptimeSeconds)} tone="green" />
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className="rounded-full border border-white/10 bg-white/[0.035] px-2 py-1 text-[11px] text-slate-300">{endpoint.detectionStatus}</span>
+                <span className="rounded-full border border-white/10 bg-white/[0.035] px-2 py-1 text-[11px] text-slate-300">Last seen {formatDate(endpoint.last_seen)}</span>
               </div>
             </div>
           );
@@ -475,23 +446,42 @@ function SocNeuralVisualization({ endpoints, alerts }) {
 }
 
 function EndpointTopology({ endpoints }) {
-  const nodes = endpoints.slice(0, 9);
+  const nodes = endpoints.slice(0, 8);
   return (
     <div className="glass cyber-border hover-glow-card topology-panel rounded-2xl p-5">
-      <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-200">
-        <Network className="h-4 w-4 text-cyber-cyan" />
-        Interactive Endpoint Topology
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
+          <Network className="h-4 w-4 text-cyber-cyan" />
+          SOC Endpoint Topology
+        </div>
+        <span className="text-xs text-slate-500">SOC Core - monitored PCs</span>
       </div>
-      <div className="topology-canvas">
+      <div className="soc-topology-map">
         <div className="topology-core">
           <ShieldCheck className="h-8 w-8 text-cyber-green" />
-          <span>SOC</span>
+          <span>SOC CORE</span>
         </div>
         {nodes.map((endpoint, index) => {
-          const tone = getEndpointTone(endpoint);
+          const telemetry = endpoint.telemetry || {};
+          const tone = endpoint.agent_mode === "paused" ? "amber" : endpoint.status === "Online" ? endpoint.riskTone : "red";
           return (
-            <div key={endpoint.endpoint_id} className={`topology-node topology-node-${index + 1} topology-${tone}`}>
-              <span>{endpoint.pc_name}</span>
+            <div key={endpoint.endpoint_id} className={`soc-topology-node soc-topology-node-${index + 1} topology-${tone}`}>
+              <div className={`soc-topology-line soc-topology-line-${index + 1}`} />
+              <div className="relative z-10">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate font-semibold">{endpoint.pc_name}</span>
+                  <i className={`h-2.5 w-2.5 rounded-full ${endpoint.status === "Online" ? "bg-cyber-green" : endpoint.agent_mode === "paused" ? "bg-cyber-amber" : "bg-slate-500"}`} />
+                </div>
+                <div className="mt-1 text-[11px] uppercase tracking-[0.12em] opacity-75">{endpoint.agentModeLabel}</div>
+                <div className="mt-3 grid grid-cols-3 gap-2 text-[11px]">
+                  <b>CPU {Math.round(telemetry.cpu || 0)}%</b>
+                  <b>RAM {Math.round(telemetry.ram || 0)}%</b>
+                  <b>H {endpoint.healthScore}%</b>
+                </div>
+                <div className={`mt-2 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${toneClasses(endpoint.riskTone)}`}>
+                  Risk {endpoint.riskScore} {endpoint.riskLevel}
+                </div>
+              </div>
             </div>
           );
         })}
@@ -656,6 +646,200 @@ function RealTimeActivityFeed({ alerts, latestTelemetry, endpoints, summary, tel
   );
 }
 
+function telemetryChartData(history) {
+  return history.slice(-36).map((row) => ({
+    name: row.label || formatDate(row.timestamp),
+    endpoint: row.pc_name,
+    cpu: Math.round(Number(row.cpu || 0)),
+    ram: Math.round(Number(row.ram || 0)),
+    disk: Math.round(Number(row.disk || 0)),
+  }));
+}
+
+function threatEventData(alerts) {
+  const buckets = alerts.slice(0, 12).reverse().map((alert, index) => ({
+    name: `A${index + 1}`,
+    risk: Number(alert.risk_score || 0),
+    threats: isThreat(alert) ? 1 : 0,
+  }));
+  return buckets;
+}
+
+function endpointActivityData(endpoints) {
+  return endpoints.map((endpoint) => ({
+    name: endpoint.pc_name,
+    health: endpoint.healthScore,
+    risk: endpoint.riskScore,
+    activity: endpoint.status === "Online" ? Math.max(20, 100 - endpoint.riskScore) : 8,
+  }));
+}
+
+function ChartPanel({ title, icon: Icon, children, empty }) {
+  return (
+    <div className="glass cyber-border hover-glow-card static-visual-surface rounded-2xl p-5">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
+          <Icon className="h-4 w-4 text-cyber-cyan" />
+          {title}
+        </div>
+        <span className="text-xs text-slate-500">5s refresh</span>
+      </div>
+      {empty ? <EmptyState text="Waiting for live telemetry from endpoint agents." /> : <div className="h-56">{children}</div>}
+    </div>
+  );
+}
+
+function RealTimeTelemetryCharts({ history, alerts, endpoints }) {
+  const telemetryData = telemetryChartData(history);
+  const threatData = threatEventData(alerts);
+  const activityData = endpointActivityData(endpoints);
+  const tooltipStyle = { background: "rgba(15,23,42,.94)", border: "1px solid rgba(56,189,248,.22)", borderRadius: "12px", color: "#e5f2ff" };
+
+  return (
+    <div className="grid gap-6 xl:grid-cols-2">
+      <ChartPanel title="CPU Usage" icon={Activity} empty={!telemetryData.length}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={telemetryData} margin={{ left: -18, right: 8, top: 8, bottom: 0 }}>
+            <CartesianGrid stroke="rgba(148,163,184,.12)" vertical={false} />
+            <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 10 }} />
+            <YAxis stroke="#64748b" tick={{ fontSize: 10 }} domain={[0, 100]} />
+            <Tooltip contentStyle={tooltipStyle} />
+            <Line type="monotone" dataKey="cpu" stroke="#38bdf8" strokeWidth={2.6} dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </ChartPanel>
+      <ChartPanel title="Memory Usage" icon={DatabaseZap} empty={!telemetryData.length}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={telemetryData} margin={{ left: -18, right: 8, top: 8, bottom: 0 }}>
+            <CartesianGrid stroke="rgba(148,163,184,.12)" vertical={false} />
+            <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 10 }} />
+            <YAxis stroke="#64748b" tick={{ fontSize: 10 }} domain={[0, 100]} />
+            <Tooltip contentStyle={tooltipStyle} />
+            <Line type="monotone" dataKey="ram" stroke="#39ff88" strokeWidth={2.6} dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </ChartPanel>
+      <ChartPanel title="Threat Events" icon={Siren} empty={!threatData.length}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={threatData} margin={{ left: -18, right: 8, top: 8, bottom: 0 }}>
+            <CartesianGrid stroke="rgba(148,163,184,.12)" vertical={false} />
+            <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 10 }} />
+            <YAxis stroke="#64748b" tick={{ fontSize: 10 }} domain={[0, 100]} />
+            <Tooltip contentStyle={tooltipStyle} />
+            <Bar dataKey="risk" fill="#0ea5e9" radius={[6, 6, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </ChartPanel>
+      <ChartPanel title="Endpoint Activity" icon={Network} empty={!activityData.length}>
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={activityData} margin={{ left: -18, right: 8, top: 8, bottom: 0 }}>
+            <CartesianGrid stroke="rgba(148,163,184,.12)" vertical={false} />
+            <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 10 }} />
+            <YAxis stroke="#64748b" tick={{ fontSize: 10 }} domain={[0, 100]} />
+            <Tooltip contentStyle={tooltipStyle} />
+            <Area type="monotone" dataKey="activity" stroke="#38bdf8" fill="#38bdf8" fillOpacity={0.18} />
+            <Area type="monotone" dataKey="risk" stroke="#fb7185" fill="#fb7185" fillOpacity={0.1} />
+          </AreaChart>
+        </ResponsiveContainer>
+      </ChartPanel>
+    </div>
+  );
+}
+
+function EndpointRiskBoard({ endpoints }) {
+  const ranked = endpoints.slice().sort((a, b) => b.riskScore - a.riskScore).slice(0, 5);
+  return (
+    <div className="glass cyber-border hover-glow-card rounded-2xl p-5">
+      <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-200">
+        <Gauge className="h-4 w-4 text-cyber-cyan" />
+        Endpoint Risk Scoring
+      </div>
+      {ranked.length ? (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          {ranked.map((endpoint) => (
+            <div key={endpoint.endpoint_id} className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
+              <div className="truncate text-sm font-semibold text-white">{endpoint.pc_name}</div>
+              <div className={`mt-3 text-3xl font-semibold ${toneText(endpoint.riskTone)}`}>{endpoint.riskScore}</div>
+              <div className={`mt-1 inline-flex rounded-full border px-2 py-1 text-xs font-semibold ${toneClasses(endpoint.riskTone)}`}>{endpoint.riskLevel}</div>
+              <ul className="mt-3 space-y-1 text-xs text-slate-400">
+                {endpoint.riskReasons.slice(0, 3).map((reason) => <li key={reason}>- {reason}</li>)}
+              </ul>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <EmptyState text="Risk scoring starts after endpoints register or send telemetry." />
+      )}
+    </div>
+  );
+}
+
+function incidentStage(alert) {
+  const action = String(alert.action_taken || "").toLowerCase();
+  if (action.includes("restored") || action.includes("resolved")) return "Resolved";
+  if (action.includes("quarantine")) return "Quarantined";
+  return Number(alert.risk_score || 0) >= 45 ? "Alert Generated" : "Detection";
+}
+
+function IncidentWorkflow({ alerts }) {
+  const [overrides, setOverrides] = useState({});
+  const incidents = alerts.filter(isThreat).slice(0, 5);
+  const stages = ["Detection", "Alert Generated", "Investigation Started", "Quarantined", "Resolved"];
+
+  return (
+    <div className="glass cyber-border hover-glow-card rounded-2xl p-5">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
+          <RadioTower className="h-4 w-4 text-cyber-green" />
+          Incident Investigation Workflow
+        </div>
+        <span className="rounded-full border border-cyber-cyan/25 bg-cyber-cyan/10 px-2.5 py-1 text-xs text-cyber-cyan">
+          {incidents.length} active incident(s)
+        </span>
+      </div>
+      {incidents.length ? (
+        <div className="space-y-4">
+          {incidents.map((alert) => {
+            const activeStage = overrides[alert.id] || incidentStage(alert);
+            const activeIndex = stages.indexOf(activeStage);
+            return (
+              <div key={alert.id} className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
+                <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+                  <div className="min-w-0">
+                    <div className="truncate font-semibold text-white">{alert.filename}</div>
+                    <div className="mt-1 text-sm text-slate-400">{alert.pc_name} - {alert.prediction} - Severity {alert.risk_score}</div>
+                    <div className="mt-1 text-xs text-slate-500">Path {alert.file_path || `Downloads/${alert.filename}`} - {formatDate(alert.created_at)}</div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button onClick={() => setOverrides((current) => ({ ...current, [alert.id]: "Investigation Started" }))} className="hover-glow-button rounded-md border border-cyber-amber/30 px-3 py-2 text-xs text-cyber-amber">Mark Investigating</button>
+                    <button onClick={() => setOverrides((current) => ({ ...current, [alert.id]: "Resolved" }))} className="hover-glow-button rounded-md border border-cyber-green/30 px-3 py-2 text-xs text-cyber-green">Mark Resolved</button>
+                    <a href={`/alerts/${alert.id}`} className="hover-glow-button rounded-md border border-cyber-cyan/30 px-3 py-2 text-xs text-cyber-cyan">View Details</a>
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-2 md:grid-cols-5">
+                  {stages.map((stage, index) => (
+                    <div key={stage} className={`rounded-lg border px-3 py-2 text-xs ${index <= activeIndex ? toneClasses(index >= 3 ? "green" : "cyan") : "border-white/10 bg-white/[0.03] text-slate-500"}`}>
+                      <div className="font-semibold">{stage}</div>
+                      <div className="mt-1 opacity-80">{index <= activeIndex ? formatDate(alert.created_at) : "Pending"}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 grid gap-2 text-xs text-slate-400 md:grid-cols-3">
+                  <span>Threat type: {alert.prediction}</span>
+                  <span>Action: {alert.action_taken || "Monitoring"}</span>
+                  <span>Quarantine: {String(alert.action_taken || "").toLowerCase().includes("quarantine") ? "Complete" : "Not required"}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <EmptyState text="No active incidents. New malicious or suspicious detections will appear here." />
+      )}
+    </div>
+  );
+}
+
 function EmptyState({ text }) {
   return (
     <div className="empty-state rounded-xl border border-white/10 bg-white/[0.03] p-5 text-sm text-slate-400">
@@ -667,7 +851,7 @@ function EmptyState({ text }) {
 export default function Dashboard() {
   const { alerts, loading, offline } = useAlerts();
   const { settings } = useSettings();
-  const { summary, endpointStatus, latestTelemetry, offline: telemetryOffline } = useTelemetry();
+  const { summary, endpointStatus, latestTelemetry, history, offline: telemetryOffline } = useTelemetry();
   const endpoints = buildEndpointRows(endpointStatus, latestTelemetry, alerts);
   const totalThreats = alerts.filter(isThreat).length;
   const activeAlerts = alerts.filter((alert) => Number(alert.risk_score) >= 45).length;
@@ -731,6 +915,10 @@ export default function Dashboard() {
 
       <AiThreatIntelligence alerts={alerts} summary={summary} endpoints={endpoints} />
 
+      <RealTimeTelemetryCharts history={history} alerts={alerts} endpoints={endpoints} />
+
+      <EndpointRiskBoard endpoints={endpoints} />
+
       <div className="grid gap-6 xl:grid-cols-[1.1fr_.9fr]">
         <EndpointSecurityMatrix endpoints={endpoints} />
         <SocNeuralVisualization endpoints={endpoints} alerts={alerts} />
@@ -743,6 +931,8 @@ export default function Dashboard() {
       </div>
 
       <ThreatTimeline alerts={alerts} />
+
+      <IncidentWorkflow alerts={alerts} />
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_.9fr]">
         <div className="glass cyber-border hover-glow-card static-visual-surface rounded-2xl p-5 xl:col-span-2">

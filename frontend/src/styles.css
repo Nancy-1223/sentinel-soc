@@ -885,6 +885,73 @@ select.bg-white\/\[0\.04\] {
 .topology-node-9 { right: 36%; top: 26%; }
 .topology-node-9::before { left: auto; right: 50%; transform-origin: right center; transform: rotate(-8deg); }
 
+.soc-topology-map {
+  position: relative;
+  min-height: 430px;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid rgba(34, 211, 238, 0.14);
+  background:
+    radial-gradient(circle at 50% 50%, rgba(34, 211, 238, 0.13), transparent 25%),
+    radial-gradient(circle at 50% 100%, rgba(14, 165, 233, 0.16), transparent 36%),
+    linear-gradient(145deg, rgba(22, 57, 95, 0.64), rgba(11, 29, 53, 0.7));
+}
+
+.soc-topology-map::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.55;
+  background-image:
+    linear-gradient(rgba(34, 211, 238, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.055) 1px, transparent 1px);
+  background-size: 30px 30px;
+  animation: cyber-grid-drift 22s linear infinite;
+}
+
+.soc-topology-node {
+  position: absolute;
+  width: 190px;
+  min-height: 112px;
+  border-radius: 16px;
+  padding: 12px;
+  border: 1px solid rgba(34, 211, 238, 0.24);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.12), transparent 35%),
+    linear-gradient(145deg, rgba(22, 57, 95, 0.75), rgba(11, 29, 53, 0.8));
+  color: #e2e8f0;
+  box-shadow: 0 0 20px rgba(34, 211, 238, 0.1);
+}
+
+.soc-topology-line {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 0;
+  height: 2px;
+  width: 180px;
+  transform-origin: left center;
+  background: linear-gradient(90deg, rgba(34, 211, 238, 0.65), transparent);
+  animation: connection-flow 2.4s linear infinite;
+}
+
+.soc-topology-node-1 { left: 7%; top: 9%; }
+.soc-topology-node-1 .soc-topology-line { transform: rotate(24deg); }
+.soc-topology-node-2 { left: 6%; top: 39%; }
+.soc-topology-node-2 .soc-topology-line { transform: rotate(-3deg); }
+.soc-topology-node-3 { left: 13%; bottom: 8%; }
+.soc-topology-node-3 .soc-topology-line { transform: rotate(-30deg); }
+.soc-topology-node-4 { right: 7%; top: 9%; }
+.soc-topology-node-4 .soc-topology-line { left: auto; right: 50%; transform-origin: right center; transform: rotate(-24deg); }
+.soc-topology-node-5 { right: 6%; top: 39%; }
+.soc-topology-node-5 .soc-topology-line { left: auto; right: 50%; transform-origin: right center; transform: rotate(3deg); }
+.soc-topology-node-6 { right: 13%; bottom: 8%; }
+.soc-topology-node-6 .soc-topology-line { left: auto; right: 50%; transform-origin: right center; transform: rotate(30deg); }
+.soc-topology-node-7 { left: 36%; top: 5%; }
+.soc-topology-node-7 .soc-topology-line { transform: rotate(74deg); }
+.soc-topology-node-8 { left: 37%; bottom: 5%; }
+.soc-topology-node-8 .soc-topology-line { transform: rotate(-74deg); }
+
 .threat-timeline {
   display: grid;
   grid-auto-flow: column;
@@ -1134,6 +1201,285 @@ html[data-theme="light"] .hover\:bg-white\/\[0\.03\]:hover {
   background-color: rgba(14, 165, 233, 0.08) !important;
 }
 
+/* Dark SOC: midnight-blue command center theme */
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+html[data-theme="dark"] body {
+  background:
+    radial-gradient(circle at 50% 118%, rgba(14, 165, 233, 0.5), transparent 44%),
+    radial-gradient(circle at 50% 92%, rgba(56, 189, 248, 0.28), transparent 34%),
+    radial-gradient(circle at 16% 20%, rgba(8, 47, 73, 0.55), transparent 34%),
+    radial-gradient(circle at 88% 12%, rgba(12, 74, 110, 0.28), transparent 30%),
+    linear-gradient(180deg, #020617 0%, #061426 38%, #0f172a 66%, #082f49 100%);
+  color: #e5f2ff;
+}
+
+html[data-theme="dark"] body::before {
+  opacity: 0.28;
+  background-image:
+    linear-gradient(rgba(56, 189, 248, 0.075) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.075) 1px, transparent 1px),
+    radial-gradient(circle, rgba(148, 163, 184, 0.09) 0 1px, transparent 1.5px);
+  background-size: 58px 58px, 58px 58px, 140px 140px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0.34) 56%, transparent 92%);
+}
+
+html[data-theme="dark"] .cyber-background {
+  background:
+    radial-gradient(circle at 50% 104%, rgba(14, 165, 233, 0.44), transparent 38%),
+    radial-gradient(circle at 50% 86%, rgba(56, 189, 248, 0.22), transparent 30%),
+    radial-gradient(circle at 14% 18%, rgba(8, 47, 73, 0.58), transparent 32%),
+    radial-gradient(circle at 86% 14%, rgba(14, 165, 233, 0.16), transparent 28%);
+}
+
+html[data-theme="dark"] .cyber-background::before,
+html[data-theme="dark"] .cyber-background::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(54px);
+  opacity: 0.58;
+}
+
+html[data-theme="dark"] .cyber-background::before {
+  left: 8%;
+  bottom: 4%;
+  width: 26rem;
+  height: 18rem;
+  background: rgba(14, 165, 233, 0.22);
+}
+
+html[data-theme="dark"] .cyber-background::after {
+  right: 12%;
+  bottom: -4%;
+  width: 32rem;
+  height: 22rem;
+  background: rgba(56, 189, 248, 0.2);
+}
+
+html[data-theme="dark"] .cyber-grid-layer {
+  opacity: 0.16;
+  background-image:
+    linear-gradient(rgba(56, 189, 248, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.1) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+html[data-theme="dark"] .cyber-particle-layer {
+  opacity: 0.12;
+  background-image:
+    radial-gradient(circle, rgba(56, 189, 248, 0.42) 0 1px, transparent 1.8px),
+    radial-gradient(circle, rgba(14, 165, 233, 0.28) 0 1px, transparent 1.8px);
+}
+
+html[data-theme="dark"] .cyber-sweep-layer {
+  opacity: 0.18;
+  background: linear-gradient(112deg, transparent 0%, transparent 43%, rgba(56, 189, 248, 0.07) 49%, transparent 55%, transparent 100%);
+}
+
+html[data-theme="dark"] .glass,
+html[data-theme="dark"] .ai-meter,
+html[data-theme="dark"] .dna-panel,
+html[data-theme="dark"] .neural-panel,
+html[data-theme="dark"] .topology-panel,
+html[data-theme="dark"] .vault-panel,
+html[data-theme="dark"] .static-visual-surface.glass {
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(56, 189, 248, 0.08), transparent 34%),
+    linear-gradient(145deg, rgba(15, 23, 42, 0.78), rgba(6, 20, 38, 0.74));
+  border-color: rgba(56, 189, 248, 0.18);
+  box-shadow:
+    0 18px 46px rgba(2, 6, 23, 0.42),
+    0 0 34px rgba(14, 165, 233, 0.1),
+    inset 0 1px 0 rgba(229, 242, 255, 0.045);
+  backdrop-filter: blur(10px);
+}
+
+html[data-theme="dark"] .cyber-border::after {
+  border-color: rgba(56, 189, 248, 0.14);
+}
+
+html[data-theme="dark"] .hover-glow-card:hover,
+html[data-theme="dark"] .hover-glow-card:focus-within {
+  border-color: rgba(56, 189, 248, 0.32);
+  box-shadow:
+    0 22px 54px rgba(2, 6, 23, 0.46),
+    0 0 0 1px rgba(56, 189, 248, 0.16),
+    0 0 34px rgba(14, 165, 233, 0.16),
+    inset 0 1px 0 rgba(229, 242, 255, 0.05);
+}
+
+html[data-theme="dark"] .hover-glow-card::before {
+  background:
+    radial-gradient(circle at calc(100% - 18px) 18px, rgba(56, 189, 248, 0.2), transparent 9px),
+    linear-gradient(118deg, transparent 0%, rgba(56, 189, 248, 0.045) 44%, transparent 58%),
+    linear-gradient(135deg, rgba(14, 165, 233, 0.08), transparent 22%, transparent 82%, rgba(56, 189, 248, 0.07));
+}
+
+html[data-theme="dark"] .hover-glow-button:hover,
+html[data-theme="dark"] .hover-glow-button:focus-visible {
+  background-color: rgba(14, 165, 233, 0.11);
+  border-color: rgba(56, 189, 248, 0.36);
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.16), 0 0 18px rgba(14, 165, 233, 0.14);
+}
+
+html[data-theme="dark"] .premium-sidebar {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(14, 165, 233, 0.15), transparent 32%),
+    linear-gradient(180deg, rgba(2, 6, 23, 0.88), rgba(6, 20, 38, 0.92) 48%, rgba(8, 47, 73, 0.76));
+  border-color: rgba(56, 189, 248, 0.14);
+  box-shadow: 18px 0 58px rgba(2, 6, 23, 0.4), 0 0 34px rgba(14, 165, 233, 0.08);
+  backdrop-filter: blur(14px);
+}
+
+html[data-theme="dark"] .sidebar-link {
+  color: #94a3b8;
+}
+
+html[data-theme="dark"] .sidebar-link svg {
+  color: #38bdf8;
+}
+
+html[data-theme="dark"] .sidebar-link:hover {
+  background: rgba(14, 165, 233, 0.08) !important;
+  border-color: rgba(56, 189, 248, 0.16) !important;
+  color: #e5f2ff;
+}
+
+html[data-theme="dark"] .sidebar-link-active {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.18), rgba(8, 47, 73, 0.32)) !important;
+  border-color: rgba(56, 189, 248, 0.38) !important;
+  color: #7dd3fc !important;
+  box-shadow:
+    0 0 24px rgba(14, 165, 233, 0.17),
+    inset 0 0 22px rgba(56, 189, 248, 0.06);
+}
+
+html[data-theme="dark"] .premium-topbar {
+  background: linear-gradient(90deg, rgba(2, 6, 23, 0.72), rgba(6, 20, 38, 0.7), rgba(8, 47, 73, 0.5));
+  border-color: rgba(56, 189, 248, 0.13);
+  box-shadow: 0 16px 44px rgba(2, 6, 23, 0.34), 0 0 26px rgba(14, 165, 233, 0.06);
+  backdrop-filter: blur(16px);
+}
+
+html[data-theme="dark"] .ai-core-panel {
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 50% 112%, rgba(14, 165, 233, 0.36), transparent 42%),
+    radial-gradient(circle at 18% 18%, rgba(56, 189, 248, 0.13), transparent 34%),
+    linear-gradient(135deg, rgba(15, 23, 42, 0.82), rgba(6, 20, 38, 0.78) 54%, rgba(8, 47, 73, 0.7));
+  border-color: rgba(56, 189, 248, 0.22);
+  box-shadow: 0 24px 68px rgba(2, 6, 23, 0.46), 0 0 46px rgba(14, 165, 233, 0.13);
+}
+
+html[data-theme="dark"] .ai-core-panel::before {
+  opacity: 0.16;
+  background-image:
+    linear-gradient(rgba(56, 189, 248, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.08) 1px, transparent 1px);
+}
+
+html[data-theme="dark"] .ai-core-inner,
+html[data-theme="dark"] .neural-core,
+html[data-theme="dark"] .topology-core,
+html[data-theme="dark"] .dna-reticle {
+  background:
+    radial-gradient(circle, rgba(14, 165, 233, 0.18), rgba(2, 6, 23, 0.84) 68%),
+    linear-gradient(145deg, rgba(15, 23, 42, 0.86), rgba(8, 47, 73, 0.58));
+  border-color: rgba(56, 189, 248, 0.3);
+  box-shadow: 0 0 38px rgba(14, 165, 233, 0.18), inset 0 0 24px rgba(56, 189, 248, 0.055);
+}
+
+html[data-theme="dark"] .neural-canvas,
+html[data-theme="dark"] .topology-canvas,
+html[data-theme="dark"] .soc-topology-map {
+  background:
+    radial-gradient(circle at 50% 88%, rgba(14, 165, 233, 0.18), transparent 32%),
+    radial-gradient(circle at 14% 18%, rgba(56, 189, 248, 0.1), transparent 30%),
+    linear-gradient(145deg, rgba(15, 23, 42, 0.76), rgba(6, 20, 38, 0.72));
+  border-color: rgba(56, 189, 248, 0.16);
+}
+
+html[data-theme="dark"] .endpoint-cell,
+html[data-theme="dark"] .topology-node,
+html[data-theme="dark"] .soc-topology-node,
+html[data-theme="dark"] .timeline-item,
+html[data-theme="dark"] .activity-line,
+html[data-theme="dark"] .vault-container,
+html[data-theme="dark"] .empty-state,
+html[data-theme="dark"] .bg-white\/\[0\.03\],
+html[data-theme="dark"] .bg-white\/\[0\.035\],
+html[data-theme="dark"] .bg-white\/\[0\.04\] {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(56, 189, 248, 0.075), transparent 34%),
+    linear-gradient(145deg, rgba(15, 23, 42, 0.74), rgba(6, 20, 38, 0.64));
+  border-color: rgba(56, 189, 248, 0.14);
+  color: #e5f2ff;
+  box-shadow: 0 12px 30px rgba(2, 6, 23, 0.24);
+}
+
+html[data-theme="dark"] input,
+html[data-theme="dark"] select,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] input.bg-white\/\[0\.04\],
+html[data-theme="dark"] textarea.bg-white\/\[0\.04\],
+html[data-theme="dark"] select.bg-white\/\[0\.04\] {
+  background: rgba(2, 6, 23, 0.42) !important;
+  border-color: rgba(56, 189, 248, 0.18) !important;
+  color: #e5f2ff !important;
+}
+
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder {
+  color: #64748b !important;
+}
+
+html[data-theme="dark"] .text-white,
+html[data-theme="dark"] .text-slate-100,
+html[data-theme="dark"] .text-slate-200 {
+  color: #e5f2ff !important;
+}
+
+html[data-theme="dark"] .text-slate-300 {
+  color: #cbd5e1 !important;
+}
+
+html[data-theme="dark"] .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+html[data-theme="dark"] .text-slate-500 {
+  color: #64748b !important;
+}
+
+html[data-theme="dark"] .text-cyber-cyan {
+  color: #38bdf8 !important;
+}
+
+html[data-theme="dark"] .border-white\/10 {
+  border-color: rgba(56, 189, 248, 0.14) !important;
+}
+
+html[data-theme="dark"] .divide-white\/10 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(56, 189, 248, 0.12) !important;
+}
+
+html[data-theme="dark"] .bg-black\/25 {
+  background-color: rgba(2, 6, 23, 0.36) !important;
+}
+
+html[data-theme="dark"] .hover\:bg-white\/\[0\.04\]:hover,
+html[data-theme="dark"] .hover\:bg-white\/\[0\.03\]:hover {
+  background-color: rgba(14, 165, 233, 0.1) !important;
+}
+
+html[data-theme="dark"] .thin-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(56, 189, 248, 0.34);
+}
+
 html[data-theme="light"] .thin-scrollbar::-webkit-scrollbar-thumb {
   background: rgba(2, 132, 199, 0.36);
 }
@@ -1322,7 +1668,8 @@ textarea {
 }
 
 .neural-canvas,
-.topology-canvas {
+.topology-canvas,
+.soc-topology-map {
   background:
     radial-gradient(circle at 50% 50%, rgba(14, 165, 233, 0.12), transparent 26%),
     radial-gradient(circle at 14% 20%, rgba(124, 58, 237, 0.09), transparent 30%),
@@ -1333,6 +1680,7 @@ textarea {
 
 .endpoint-cell,
 .topology-node,
+.soc-topology-node,
 .timeline-item,
 .activity-line,
 .vault-container,

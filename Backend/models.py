@@ -66,6 +66,8 @@ class Telemetry(Base):
     network_received = Column(Integer, nullable=False)
     hostname = Column(String, nullable=False)
     timestamp = Column(DateTime, nullable=False)
+    agent_version = Column(String, default="unknown", nullable=False)
+    uptime_seconds = Column(Float, default=0, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     endpoint = relationship("Endpoint", back_populates="telemetry")

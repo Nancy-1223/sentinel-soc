@@ -82,6 +82,8 @@ load_env_file()
 BACKEND_URL = os.getenv("SOC_BACKEND_URL", "http://10.170.117.155:8000")
 ENDPOINT_ID = int(os.getenv("SOC_ENDPOINT_ID", "1"))
 PC_NAME = os.getenv("SOC_PC_NAME", socket.gethostname())
+AGENT_VERSION = "1.3.0"
+AGENT_STARTED_AT = time.monotonic()
 
 DOWNLOADS_DIR = Path.home() / "Downloads"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -298,6 +300,8 @@ def collect_system_info() -> Dict[str, object]:
         "network_received": network.bytes_recv,
         "hostname": hostname,
         "timestamp": datetime.utcnow().isoformat() + "Z",
+        "agent_version": AGENT_VERSION,
+        "uptime_seconds": round(time.monotonic() - AGENT_STARTED_AT),
     }
 
 

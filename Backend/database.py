@@ -88,6 +88,14 @@ def _add_missing_sqlite_columns(base) -> None:
                     connection.exec_driver_sql(
                         f"ALTER TABLE {table.name} ADD COLUMN {column.name} BOOLEAN NOT NULL DEFAULT 1"
                     )
+                elif column.name == "agent_version":
+                    connection.exec_driver_sql(
+                        f"ALTER TABLE {table.name} ADD COLUMN {column.name} VARCHAR NOT NULL DEFAULT 'unknown'"
+                    )
+                elif column.name == "uptime_seconds":
+                    connection.exec_driver_sql(
+                        f"ALTER TABLE {table.name} ADD COLUMN {column.name} FLOAT NOT NULL DEFAULT 0"
+                    )
 
 
 def init_database(base) -> None:

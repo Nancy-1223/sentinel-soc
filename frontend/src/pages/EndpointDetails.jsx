@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Download, Pause, Play, Power } from "lucide-react";
 import { createApiClient, getApiErrorMessage } from "../api/client";
 import { useAlerts } from "../context/AlertsContext";
+import { useSettings } from "../context/SettingsContext";
 import { useTelemetry } from "../context/TelemetryContext";
 import { formatBytes, formatDate } from "../utils/format";
 
@@ -39,6 +40,7 @@ function endpointBadges(endpoint) {
 
 export default function EndpointDetails() {
   const { alerts, refreshAlerts } = useAlerts();
+  const { settings } = useSettings();
   const { endpointStatus, offline: telemetryOffline, refreshTelemetry } = useTelemetry();
   const [pcName, setPcName] = useState("");
   const [registeredEndpoint, setRegisteredEndpoint] = useState(null);
@@ -292,7 +294,7 @@ export default function EndpointDetails() {
       <div className="glass cyber-border hover-glow-card rounded-lg p-4 text-sm text-slate-300">
         Download and run Sentinel Agent once. After that, monitoring starts automatically. No Swagger or terminal commands are needed for normal endpoint onboarding.
       </div>
-      <div className="glass cyber-border hover-glow-card flex flex-wrap gap-3 rounded-lg p-4">
+      {!settings.presentationMode && <div className="glass cyber-border hover-glow-card flex flex-wrap gap-3 rounded-lg p-4">
         <button
           onClick={clearOfflineEndpoints}
           disabled={busyAction === "clear-offline"}
@@ -307,7 +309,7 @@ export default function EndpointDetails() {
         >
           {busyAction === "demo-reset" ? "Resetting..." : "Clear All Test Data"}
         </button>
-      </div>
+      </div>}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {endpoints.map((endpoint) => {
           const agentMode = String(endpoint.agent_mode || "running").toLowerCase();
@@ -395,13 +397,13 @@ export default function EndpointDetails() {
               <Download className="h-4 w-4" />
               {busyAction === `download-${endpoint.endpoint_id}` ? "Preparing..." : "Download Agent"}
             </button>
-            <button
+            {!settings.presentationMode && <button
               onClick={() => deleteEndpoint(endpoint)}
               disabled={busyAction === `delete-${endpoint.endpoint_id}`}
               className="hover-glow-button mt-4 w-full rounded-md border border-cyber-red/30 px-3 py-2 text-sm font-semibold text-cyber-red transition hover:bg-cyber-red/10 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {busyAction === `delete-${endpoint.endpoint_id}` ? "Deleting..." : "Delete Endpoint"}
-            </button>
+            </button>}
           </div>
           );
         })}

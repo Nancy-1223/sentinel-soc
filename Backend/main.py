@@ -201,6 +201,8 @@ def serialize_telemetry(row: Telemetry):
         "network_received": row.network_received,
         "hostname": row.hostname,
         "timestamp": serialize_datetime(row.timestamp),
+        "agent_version": row.agent_version,
+        "uptime_seconds": row.uptime_seconds,
         "created_at": serialize_datetime(row.created_at),
     }
 
@@ -564,6 +566,25 @@ async def receive_telemetry(request: Request, db: Session = Depends(get_db)):
             if endpoint.agent_mode != "stopped":
                 endpoint.agent_mode = "running"
                 endpoint.status = "Online"
+            timestamp_value = payload.get("timestamp")
+            try:
+                telemetry_timestamp = datetime.fromisoformat(str(timestamp_value).replace("Z", "+00:00")).replace(tzinfo=None)
+            except (TypeError, ValueError):
+                telemetry_timestamp = datetime.utcnow()
+            telemetry = Telemetry(
+                endpoint_id=endpoint.id,
+                pc_name=str(payload.get("pc_name") or endpoint.pc_name),
+                cpu=float(payload.get("cpu") or 0),
+                ram=float(payload.get("ram") or 0),
+                disk=float(payload.get("disk") or 0),
+                network_sent=int(payload.get("network_sent") or 0),
+                network_received=int(payload.get("network_received") or 0),
+                hostname=str(payload.get("hostname") or endpoint.pc_name),
+                timestamp=telemetry_timestamp,
+                agent_version=str(payload.get("agent_version") or "unknown"),
+                uptime_seconds=float(payload.get("uptime_seconds") or 0),
+            )
+            db.add(telemetry)
             db.commit()
 
     return {"message": "Telemetry received"}
