@@ -92,6 +92,7 @@ SCAN_DELAY_SECONDS = 0.5
 REQUEST_TIMEOUT_SECONDS = 8
 TELEMETRY_INTERVAL_SECONDS = 5
 TELEMETRY_API_PATH = "/telemetry"
+CONTROL_POLL_INTERVAL_SECONDS = 3
 MAX_TEXT_READ_BYTES = 1_000_000
 HASH_CACHE_SECONDS = 60
 DUPLICATE_ALERT_SECONDS = 30
@@ -159,6 +160,12 @@ files_in_progress: set[str] = set()
 recent_path_events: Dict[str, float] = {}
 malicious_hashes: set[str] = set()
 cache_lock = threading.Lock()
+control_lock = threading.Lock()
+control_state = {
+    "detection_enabled": True,
+    "agent_mode": "running",
+    "heartbeat_enabled": True,
+}
 
 
 def log(level: str, message: str) -> None:
@@ -169,6 +176,52 @@ def log(level: str, message: str) -> None:
         except OSError:
             pass
     append_log_file(level, message)
+
+
+def get_control_state() -> Dict[str, object]:
+    with control_lock:
+        return dict(control_state)
+
+
+def apply_control_state(next_state: Dict[str, object]) -> None:
+    with control_lock:
+        previous = dict(control_state)
+        control_state["detection_enabled"] = bool(next_state.get("detection_enabled", True))
+        control_state["agent_mode"] = str(next_state.get("agent_mode") or "running").lower()
+        control_state["heartbeat_enabled"] = bool(next_state.get("heartbeat_enabled", True))
+        current = dict(control_state)
+
+    if previous != current:
+        log(
+            "INFO",
+            (
+                "Control updated: "
+                f"detection_enabled={current['detection_enabled']}, "
+                f"agent_mode={current['agent_mode']}, "
+                f"heartbeat_enabled={current['heartbeat_enabled']}"
+            ),
+        )
+
+
+def poll_control_status() -> Dict[str, object]:
+    try:
+        response = requests.get(
+            f"{BACKEND_URL}/endpoints/{ENDPOINT_ID}/control/status",
+            timeout=REQUEST_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        apply_control_state(response.json())
+    except RequestException as exc:
+        log("WARNING", f"Could not poll endpoint control status: {exc}")
+    except ValueError:
+        log("WARNING", "Endpoint control status returned invalid JSON")
+
+    return get_control_state()
+
+
+def detection_is_active() -> bool:
+    state = get_control_state()
+    return state.get("agent_mode") == "running" and bool(state.get("detection_enabled"))
 
 
 def ensure_agent_folders() -> None:
@@ -266,9 +319,42 @@ def send_telemetry_once() -> None:
         write_status("error", f"Telemetry collection failed: {exc}")
 
 
+def send_heartbeat_once(agent_mode: str) -> None:
+    payload = {
+        "endpoint_id": ENDPOINT_ID,
+        "pc_name": PC_NAME,
+        "agent_mode": agent_mode,
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+    }
+
+    try:
+        response = requests.post(
+            f"{BACKEND_URL}/heartbeat",
+            json=payload,
+            timeout=REQUEST_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        write_status("paused" if agent_mode == "paused" else "running", "Heartbeat sent successfully")
+    except RequestException as exc:
+        log("WARNING", f"Heartbeat backend is offline or unreachable: {exc}")
+        write_status("heartbeat_offline", f"Heartbeat backend is offline or unreachable: {exc}")
+
+
 def telemetry_loop(stop_event: threading.Event) -> None:
     while not stop_event.is_set():
-        send_telemetry_once()
+        state = get_control_state()
+        agent_mode = str(state.get("agent_mode") or "running")
+
+        if agent_mode == "stopped":
+            break
+
+        if not bool(state.get("heartbeat_enabled", True)):
+            write_status("heartbeat_disabled", "Heartbeat disabled by dashboard control")
+        elif agent_mode == "paused":
+            send_heartbeat_once("paused")
+        else:
+            send_telemetry_once()
+
         stop_event.wait(TELEMETRY_INTERVAL_SECONDS)
 
 
@@ -783,6 +869,10 @@ def scan_file(file_path: Path) -> None:
     file_hash = None
     processing_started = False
     try:
+        if not detection_is_active():
+            log("INFO", f"Detection paused; skipping scan for {file_path.name}")
+            return
+
         if not file_path.is_file():
             return
 
@@ -880,6 +970,7 @@ def start_monitoring() -> None:
     log("INFO", f"PC Name: {PC_NAME}")
     log("INFO", f"Backend URL: {BACKEND_URL}")
     log("INFO", f"Monitoring Downloads folder: {DOWNLOADS_DIR}")
+    poll_control_status()
 
     observer = Observer()
     observer.schedule(DownloadsEventHandler(), str(DOWNLOADS_DIR), recursive=False)
@@ -891,7 +982,12 @@ def start_monitoring() -> None:
 
     try:
         while True:
-            time.sleep(1)
+            state = poll_control_status()
+            if state.get("agent_mode") == "stopped":
+                log("INFO", "Full Stop Agent command received; exiting agent process")
+                write_status("stopping", "Full Stop Agent command received")
+                break
+            time.sleep(CONTROL_POLL_INTERVAL_SECONDS)
     except KeyboardInterrupt:
         log("INFO", "Stopping endpoint agent...")
         write_status("stopping", "Sentinel SOC Agent is stopping")

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from database import Base
@@ -25,6 +25,9 @@ class Endpoint(Base):
     pc_name = Column(String, nullable=False)
     status = Column(String, default="active")
     last_seen = Column(DateTime, default=datetime.utcnow)
+    detection_enabled = Column(Boolean, default=True, nullable=False)
+    agent_mode = Column(String, default="running", nullable=False)
+    heartbeat_enabled = Column(Boolean, default=True, nullable=False)
 
     user = relationship("User", back_populates="endpoints")
     alerts = relationship("Alert", back_populates="endpoint")

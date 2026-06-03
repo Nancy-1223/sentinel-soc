@@ -59,6 +59,37 @@ def _schema_matches_models(base) -> bool:
     return True
 
 
+def _add_missing_sqlite_columns(base) -> None:
+    if engine.dialect.name != "sqlite":
+        return
+
+    inspector = inspect(engine)
+    existing_tables = set(inspector.get_table_names())
+
+    with engine.begin() as connection:
+        for table in base.metadata.sorted_tables:
+            if table.name not in existing_tables:
+                continue
+
+            existing_columns = {column["name"] for column in inspector.get_columns(table.name)}
+            for column in table.columns:
+                if column.name in existing_columns:
+                    continue
+
+                if column.name == "detection_enabled":
+                    connection.exec_driver_sql(
+                        f"ALTER TABLE {table.name} ADD COLUMN {column.name} BOOLEAN NOT NULL DEFAULT 1"
+                    )
+                elif column.name == "agent_mode":
+                    connection.exec_driver_sql(
+                        f"ALTER TABLE {table.name} ADD COLUMN {column.name} VARCHAR NOT NULL DEFAULT 'running'"
+                    )
+                elif column.name == "heartbeat_enabled":
+                    connection.exec_driver_sql(
+                        f"ALTER TABLE {table.name} ADD COLUMN {column.name} BOOLEAN NOT NULL DEFAULT 1"
+                    )
+
+
 def init_database(base) -> None:
     """Create tables, replacing a corrupted or incompatible SQLite database."""
     if not _sqlite_file_is_healthy():
@@ -66,6 +97,7 @@ def init_database(base) -> None:
 
     try:
         base.metadata.create_all(bind=engine)
+        _add_missing_sqlite_columns(base)
         if not _schema_matches_models(base):
             engine.dispose()
             _backup_database("old_schema")

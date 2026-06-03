@@ -182,6 +182,13 @@ class TelemetryRequest(BaseModel):
     timestamp: datetime
 
 
+class HeartbeatRequest(BaseModel):
+    endpoint_id: int
+    pc_name: str = Field(..., min_length=1)
+    agent_mode: str = "running"
+    timestamp: datetime | None = None
+
+
 def serialize_telemetry(row: Telemetry):
     return {
         "id": row.id,
@@ -296,6 +303,39 @@ def get_endpoint_or_404(endpoint_id: int, db: Session) -> Endpoint:
     return endpoint
 
 
+def serialize_endpoint_control(endpoint: Endpoint) -> dict:
+    return {
+        "endpoint_id": endpoint.id,
+        "pc_name": endpoint.pc_name,
+        "detection_enabled": bool(endpoint.detection_enabled),
+        "agent_mode": endpoint.agent_mode or "running",
+        "heartbeat_enabled": bool(endpoint.heartbeat_enabled),
+        "status": endpoint_live_status(endpoint),
+        "last_seen": serialize_datetime(endpoint.last_seen),
+    }
+
+
+def update_endpoint_control(
+    endpoint_id: int,
+    db: Session,
+    *,
+    detection_enabled: bool | None = None,
+    agent_mode: str | None = None,
+    heartbeat_enabled: bool | None = None,
+) -> dict:
+    endpoint = get_endpoint_or_404(endpoint_id, db)
+    if detection_enabled is not None:
+        endpoint.detection_enabled = detection_enabled
+    if agent_mode is not None:
+        endpoint.agent_mode = agent_mode
+        endpoint.status = agent_mode.title()
+    if heartbeat_enabled is not None:
+        endpoint.heartbeat_enabled = heartbeat_enabled
+    db.commit()
+    db.refresh(endpoint)
+    return serialize_endpoint_control(endpoint)
+
+
 @app.post("/register", status_code=status.HTTP_201_CREATED)
 @safe_endpoint
 def register(request: RegisterRequest, db: Session = Depends(get_db)):
@@ -369,6 +409,9 @@ def register_endpoint(
         pc_name=pc_name,
         status="Registered",
         last_seen=None,
+        detection_enabled=True,
+        agent_mode="running",
+        heartbeat_enabled=True,
     )
     db.add(endpoint)
     db.commit()
@@ -470,6 +513,7 @@ def upload_alert(request: AlertUploadRequest, db: Session = Depends(get_db)):
     endpoint.pc_name = request.pc_name
     endpoint.last_seen = datetime.utcnow()
     endpoint.status = "Online"
+    endpoint.agent_mode = "running"
 
     alert = Alert(
         endpoint_id=request.endpoint_id,
@@ -489,6 +533,23 @@ def upload_alert(request: AlertUploadRequest, db: Session = Depends(get_db)):
     return {"message": "Alert stored successfully", "alert_id": alert.id}
 
 
+@app.post("/heartbeat")
+@safe_endpoint
+def receive_heartbeat(request: HeartbeatRequest, db: Session = Depends(get_db)):
+    endpoint = db.get(Endpoint, request.endpoint_id)
+    if not endpoint:
+        raise HTTPException(status_code=404, detail="Endpoint not found")
+
+    endpoint.pc_name = request.pc_name
+    endpoint.last_seen = datetime.utcnow()
+    if request.agent_mode in {"running", "paused"}:
+        endpoint.agent_mode = request.agent_mode
+        endpoint.status = "Paused" if request.agent_mode == "paused" else "Online"
+    db.commit()
+
+    return {"message": "Heartbeat received", **serialize_endpoint_control(endpoint)}
+
+
 @app.post("/telemetry")
 async def receive_telemetry(request: Request, db: Session = Depends(get_db)):
     payload = await request.json()
@@ -500,6 +561,9 @@ async def receive_telemetry(request: Request, db: Session = Depends(get_db)):
         endpoint = db.get(Endpoint, int(endpoint_id))
         if endpoint:
             endpoint.last_seen = datetime.utcnow()
+            if endpoint.agent_mode != "stopped":
+                endpoint.agent_mode = "running"
+                endpoint.status = "Online"
             db.commit()
 
     return {"message": "Telemetry received"}
@@ -566,12 +630,57 @@ def get_endpoint_status(db: Session = Depends(get_db)):
             "status": endpoint_live_status(endpoint),
             "protection_status": alert_protection_status(latest_alerts.get(endpoint.id)),
             "last_seen": serialize_datetime(endpoint.last_seen),
+            "detection_enabled": bool(endpoint.detection_enabled),
+            "agent_mode": endpoint.agent_mode or "running",
+            "heartbeat_enabled": bool(endpoint.heartbeat_enabled),
             "telemetry": serialize_telemetry(latest_by_endpoint[endpoint.id]) if endpoint.id in latest_by_endpoint else None,
             "total_alerts": stats_by_endpoint.get(endpoint.id, {}).get("total_alerts", 0),
             "max_risk_score": stats_by_endpoint.get(endpoint.id, {}).get("max_risk_score", 0),
         }
         for endpoint in endpoints
     ]
+
+
+@app.get("/endpoints/{endpoint_id}/control/status")
+@safe_endpoint
+def get_endpoint_control_status(endpoint_id: int, db: Session = Depends(get_db)):
+    return serialize_endpoint_control(get_endpoint_or_404(endpoint_id, db))
+
+
+@app.post("/endpoints/{endpoint_id}/detection/pause")
+@safe_endpoint
+def pause_detection(endpoint_id: int, db: Session = Depends(get_db)):
+    return update_endpoint_control(endpoint_id, db, detection_enabled=False)
+
+
+@app.post("/endpoints/{endpoint_id}/detection/resume")
+@safe_endpoint
+def resume_detection(endpoint_id: int, db: Session = Depends(get_db)):
+    return update_endpoint_control(endpoint_id, db, detection_enabled=True)
+
+
+@app.post("/endpoints/{endpoint_id}/agent/pause")
+@safe_endpoint
+def pause_agent(endpoint_id: int, db: Session = Depends(get_db)):
+    return update_endpoint_control(endpoint_id, db, agent_mode="paused", heartbeat_enabled=True)
+
+
+@app.post("/endpoints/{endpoint_id}/agent/resume")
+@safe_endpoint
+def resume_agent(endpoint_id: int, db: Session = Depends(get_db)):
+    return update_endpoint_control(endpoint_id, db, agent_mode="running", heartbeat_enabled=True)
+
+
+@app.post("/endpoints/{endpoint_id}/agent/stop")
+@safe_endpoint
+def stop_agent(endpoint_id: int, db: Session = Depends(get_db)):
+    return update_endpoint_control(
+        endpoint_id,
+        db,
+        detection_enabled=False,
+        agent_mode="stopped",
+        heartbeat_enabled=False,
+    )
 
 
 @app.delete("/endpoints/{endpoint_id}")

@@ -1,10 +1,41 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Download } from "lucide-react";
+import { Download, Pause, Play, Power } from "lucide-react";
 import { createApiClient, getApiErrorMessage } from "../api/client";
 import { useAlerts } from "../context/AlertsContext";
 import { useTelemetry } from "../context/TelemetryContext";
 import { formatBytes, formatDate } from "../utils/format";
+
+function controlBadgeClass(tone) {
+  const tones = {
+    green: "border-cyber-green/40 bg-cyber-green/10 text-cyber-green",
+    amber: "border-cyber-amber/40 bg-cyber-amber/10 text-cyber-amber",
+    red: "border-cyber-red/40 bg-cyber-red/10 text-cyber-red",
+    slate: "border-slate-500/30 bg-slate-500/10 text-slate-300",
+  };
+  return tones[tone] || tones.slate;
+}
+
+function endpointBadges(endpoint) {
+  const online = endpoint.status === "Online";
+  const agentMode = String(endpoint.agent_mode || "running").toLowerCase();
+  const detectionEnabled = endpoint.detection_enabled !== false;
+
+  return [
+    {
+      label: online ? "Online" : "Offline",
+      tone: online ? "green" : "slate",
+    },
+    {
+      label: detectionEnabled && agentMode === "running" ? "Detection Active" : "Detection Paused",
+      tone: detectionEnabled && agentMode === "running" ? "green" : "amber",
+    },
+    {
+      label: agentMode === "stopped" ? "Agent Stopped" : agentMode === "paused" ? "Agent Paused" : "Agent Running",
+      tone: agentMode === "stopped" ? "red" : agentMode === "paused" ? "amber" : "green",
+    },
+  ];
+}
 
 export default function EndpointDetails() {
   const { alerts, refreshAlerts } = useAlerts();
@@ -38,6 +69,9 @@ export default function EndpointDetails() {
       status: endpoint.status,
       protectionStatus: endpoint.protection_status || existing.protectionStatus || "Protected",
       lastSeen: endpoint.last_seen || existing.lastSeen,
+      detection_enabled: endpoint.detection_enabled,
+      agent_mode: endpoint.agent_mode || existing.agent_mode || "running",
+      heartbeat_enabled: endpoint.heartbeat_enabled,
       telemetry: endpoint.telemetry,
     };
     return acc;
@@ -129,6 +163,49 @@ export default function EndpointDetails() {
     } finally {
       setBusyAction("");
     }
+  }
+
+  async function runEndpointControl(endpoint, path, successText, confirmText = "") {
+    if (confirmText && !window.confirm(confirmText)) return;
+
+    setBusyAction(`${path}-${endpoint.endpoint_id}`);
+    try {
+      const api = createApiClient();
+      await api.post(`/endpoints/${endpoint.endpoint_id}${path}`);
+      showToast("success", successText);
+      await refreshAll();
+    } catch (exc) {
+      showToast("error", getApiErrorMessage(exc, "Could not update endpoint control."));
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  function toggleDetection(endpoint) {
+    const paused = endpoint.detection_enabled === false;
+    runEndpointControl(
+      endpoint,
+      paused ? "/detection/resume" : "/detection/pause",
+      paused ? "Detection resumed." : "Detection paused."
+    );
+  }
+
+  function toggleAgentPause(endpoint) {
+    const agentMode = String(endpoint.agent_mode || "running").toLowerCase();
+    runEndpointControl(
+      endpoint,
+      agentMode === "paused" ? "/agent/resume" : "/agent/pause",
+      agentMode === "paused" ? "Agent resumed." : "Agent paused."
+    );
+  }
+
+  function stopAgent(endpoint) {
+    runEndpointControl(
+      endpoint,
+      "/agent/stop",
+      "Full Stop Agent command sent.",
+      `Fully stop ${endpoint.pc_name || "this endpoint"}? The dashboard cannot restart it remotely unless a local launcher/service/watchdog is installed.`
+    );
   }
 
   async function clearOfflineEndpoints() {
@@ -232,16 +309,27 @@ export default function EndpointDetails() {
         </button>
       </div>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {endpoints.map((endpoint) => (
+        {endpoints.map((endpoint) => {
+          const agentMode = String(endpoint.agent_mode || "running").toLowerCase();
+          const detectionPaused = endpoint.detection_enabled === false;
+          const agentStopped = agentMode === "stopped";
+          const detectionPath = detectionPaused ? "/detection/resume" : "/detection/pause";
+          const agentPath = agentMode === "paused" ? "/agent/resume" : "/agent/pause";
+
+          return (
           <div key={endpoint.endpoint_id} className="glass cyber-border hover-glow-card rounded-lg p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Endpoint #{endpoint.endpoint_id}</div>
                 <div className="mt-2 text-lg font-semibold text-white">{endpoint.pc_name}</div>
               </div>
-              <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${endpoint.status === "Online" ? "border-cyber-green/40 bg-cyber-green/10 text-cyber-green" : "border-slate-500/30 bg-slate-500/10 text-slate-300"}`}>
-                {endpoint.status || "Offline"}
-              </span>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {endpointBadges(endpoint).map((badge) => (
+                <span key={badge.label} className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${controlBadgeClass(badge.tone)}`}>
+                  {badge.label}
+                </span>
+              ))}
             </div>
             <div
               className={`mt-3 inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${
@@ -263,6 +351,42 @@ export default function EndpointDetails() {
               <div><div className="text-slate-500">Network</div><div className="text-cyber-cyan">{formatBytes(endpoint.telemetry?.network_sent || 0)} / {formatBytes(endpoint.telemetry?.network_received || 0)}</div></div>
             </div>
             <div className="mt-4 text-xs text-slate-500">Last seen {formatDate(endpoint.lastSeen)}</div>
+            <div className="mt-4 grid gap-2">
+              <button
+                onClick={() => toggleDetection(endpoint)}
+                disabled={agentStopped || busyAction === `${detectionPath}-${endpoint.endpoint_id}`}
+                className="hover-glow-button inline-flex w-full items-center justify-center gap-2 rounded-md border border-cyber-cyan/30 px-3 py-2 text-sm font-semibold text-cyber-cyan transition hover:bg-cyber-cyan/10 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {detectionPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+                {busyAction === `${detectionPath}-${endpoint.endpoint_id}`
+                  ? "Updating..."
+                  : detectionPaused
+                    ? "Resume Detection"
+                    : "Pause Detection"}
+              </button>
+              <button
+                onClick={() => toggleAgentPause(endpoint)}
+                disabled={agentStopped || busyAction === `${agentPath}-${endpoint.endpoint_id}`}
+                className="hover-glow-button inline-flex w-full items-center justify-center gap-2 rounded-md border border-cyber-amber/30 px-3 py-2 text-sm font-semibold text-cyber-amber transition hover:bg-cyber-amber/10 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {agentMode === "paused" ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+                {agentStopped
+                  ? "Agent Stopped"
+                  : busyAction === `${agentPath}-${endpoint.endpoint_id}`
+                    ? "Updating..."
+                    : agentMode === "paused"
+                      ? "Resume Agent"
+                      : "Pause Agent"}
+              </button>
+              <button
+                onClick={() => stopAgent(endpoint)}
+                disabled={agentStopped || busyAction === `/agent/stop-${endpoint.endpoint_id}`}
+                className="hover-glow-button inline-flex w-full items-center justify-center gap-2 rounded-md border border-cyber-red/30 px-3 py-2 text-sm font-semibold text-cyber-red transition hover:bg-cyber-red/10 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Power className="h-4 w-4" />
+                {busyAction === `/agent/stop-${endpoint.endpoint_id}` ? "Stopping..." : "Full Stop Agent"}
+              </button>
+            </div>
             <button
               onClick={() => downloadAgent(endpoint)}
               disabled={busyAction === `download-${endpoint.endpoint_id}`}
@@ -279,7 +403,8 @@ export default function EndpointDetails() {
               {busyAction === `delete-${endpoint.endpoint_id}` ? "Deleting..." : "Delete Endpoint"}
             </button>
           </div>
-        ))}
+          );
+        })}
         {endpoints.length === 0 && <div className="glass cyber-border hover-glow-card rounded-lg p-5 text-sm text-slate-400">No endpoint alerts have been reported yet.</div>}
       </div>
       <AnimatePresence>
