@@ -6,6 +6,7 @@ import AlertsPanel from "./pages/AlertsPanel";
 import Dashboard from "./pages/Dashboard";
 import EndpointDetails from "./pages/EndpointDetails";
 import IncidentInvestigation from "./pages/IncidentInvestigation";
+import LandingPage from "./pages/LandingPage";
 import Login from "./pages/Login";
 import Quarantine from "./pages/Quarantine";
 import Register from "./pages/Register";
@@ -18,6 +19,7 @@ export default function App() {
   return (
     <SettingsProvider>
       <Routes>
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route element={<AppShell />}>
@@ -32,7 +34,7 @@ export default function App() {
           <Route path="/about" element={<AboutUs />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </SettingsProvider>
   );
