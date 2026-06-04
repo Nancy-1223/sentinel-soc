@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 import {
   Activity,
   Bell,
+  CircleHelp,
   Gauge,
   HardDrive,
   LockKeyhole,
@@ -19,6 +20,7 @@ const navItems = [
   { to: "/quarantine", label: "Quarantine", icon: LockKeyhole },
   { to: "/health", label: "System Health", icon: Activity },
   { to: "/incidents", label: "Incident Investigation", icon: Search },
+  { to: "/about", label: "About Us", icon: CircleHelp },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 

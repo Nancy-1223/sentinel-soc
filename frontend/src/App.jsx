@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "./components/layout/AppShell";
 import { SettingsProvider } from "./context/SettingsContext";
+import AboutUs from "./pages/AboutUs";
 import AlertsPanel from "./pages/AlertsPanel";
 import Dashboard from "./pages/Dashboard";
 import EndpointDetails from "./pages/EndpointDetails";
@@ -28,6 +29,7 @@ export default function App() {
           <Route path="/quarantine" element={<Quarantine />} />
           <Route path="/health" element={<SystemHealth />} />
           <Route path="/incidents" element={<IncidentInvestigation />} />
+          <Route path="/about" element={<AboutUs />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
