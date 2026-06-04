@@ -3,8 +3,8 @@ import AppShell from "./components/layout/AppShell";
 import { SettingsProvider } from "./context/SettingsContext";
 import AlertsPanel from "./pages/AlertsPanel";
 import Dashboard from "./pages/Dashboard";
-import DemoChecklist from "./pages/DemoChecklist";
 import EndpointDetails from "./pages/EndpointDetails";
+import IncidentInvestigation from "./pages/IncidentInvestigation";
 import Login from "./pages/Login";
 import Quarantine from "./pages/Quarantine";
 import Register from "./pages/Register";
@@ -27,7 +27,7 @@ export default function App() {
           <Route path="/endpoints" element={<EndpointDetails />} />
           <Route path="/quarantine" element={<Quarantine />} />
           <Route path="/health" element={<SystemHealth />} />
-          <Route path="/checklist" element={<DemoChecklist />} />
+          <Route path="/incidents" element={<IncidentInvestigation />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

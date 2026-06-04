@@ -65,7 +65,7 @@ export default function Topbar() {
             </Button>
           )}
           <Link
-            to="/alerts"
+            to="/incidents"
             className="hover-glow-button rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-300 hover:bg-white/[0.04]"
           >
             Investigate

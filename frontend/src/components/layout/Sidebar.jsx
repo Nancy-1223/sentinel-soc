@@ -2,10 +2,10 @@ import { NavLink } from "react-router-dom";
 import {
   Activity,
   Bell,
-  CheckSquare,
   Gauge,
   HardDrive,
   LockKeyhole,
+  Search,
   Settings,
   Shield,
   UserRoundCog,
@@ -18,7 +18,7 @@ const navItems = [
   { to: "/endpoints", label: "Endpoint Details", icon: HardDrive },
   { to: "/quarantine", label: "Quarantine", icon: LockKeyhole },
   { to: "/health", label: "System Health", icon: Activity },
-  { to: "/checklist", label: "Demo Checklist", icon: CheckSquare },
+  { to: "/incidents", label: "Incident Investigation", icon: Search },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -57,8 +57,8 @@ export default function Sidebar() {
         })}
       </nav>
       <div className="absolute bottom-5 left-5 right-5 rounded-2xl border border-cyber-green/20 bg-cyber-green/5 p-4">
-        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Agent Mode</div>
-        <div className="mt-2 text-sm text-cyber-green">Endpoint telemetry active</div>
+        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">SOC Mode</div>
+        <div className="mt-2 text-sm text-cyber-green">Investigation workspace ready</div>
       </div>
     </aside>
   );
