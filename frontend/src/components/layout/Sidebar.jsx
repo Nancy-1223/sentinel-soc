@@ -32,7 +32,7 @@ export default function Sidebar() {
         <div>
           <div className="text-xs uppercase tracking-[0.28em] text-cyber-cyan">Sentinel</div>
           <div className="mt-1 text-lg font-semibold text-white">AI SOC Platform</div>
-          <div className="mt-1 text-xs text-slate-500">Endpoint Defense Mesh</div>
+          <div className="mt-1 text-xs font-medium text-slate-400">Endpoint Defense Mesh</div>
         </div>
       </div>
       <nav className="space-y-2">
@@ -43,10 +43,10 @@ export default function Sidebar() {
             key={item.to}
             to={item.to}
             className={({ isActive }) =>
-              `sidebar-link flex items-center gap-3 rounded-xl border px-4 py-3 text-sm transition ${
+              `sidebar-link flex items-center gap-3 rounded-xl border px-4 py-3 text-sm font-medium transition ${
                 isActive
-                  ? "sidebar-link-active border-cyber-cyan/40 bg-cyber-cyan/10 text-cyber-cyan"
-                  : "border-transparent text-slate-400 hover:border-white/10 hover:bg-white/[0.04] hover:text-slate-100"
+                  ? "sidebar-link-active border-cyber-cyan/40 bg-cyber-cyan/10 text-white"
+                  : "border-transparent text-slate-100 hover:border-white/10 hover:bg-white/[0.04] hover:text-white"
               }`
             }
           >
@@ -57,7 +57,7 @@ export default function Sidebar() {
         })}
       </nav>
       <div className="absolute bottom-5 left-5 right-5 rounded-2xl border border-cyber-green/20 bg-cyber-green/5 p-4">
-        <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Agent Mode</div>
+        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Agent Mode</div>
         <div className="mt-2 text-sm text-cyber-green">Endpoint telemetry active</div>
       </div>
     </aside>

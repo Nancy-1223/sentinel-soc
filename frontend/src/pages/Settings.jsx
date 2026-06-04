@@ -9,7 +9,7 @@ function Toggle({ label, checked, onChange, description }) {
     <label className="hover-glow-card flex items-start justify-between gap-4 rounded-lg border border-white/10 bg-white/[0.03] p-4">
       <span>
         <span className="block text-sm text-slate-300">{label}</span>
-        {description && <span className="mt-1 block text-xs leading-relaxed text-slate-500">{description}</span>}
+        {description && <span className="settings-description mt-1 block text-xs leading-relaxed text-slate-400">{description}</span>}
       </span>
       <button
         type="button"
@@ -52,7 +52,7 @@ export default function Settings() {
           {!settings.presentationMode && (
             <>
               <label className="space-y-2 md:col-span-2">
-                <span className="text-sm text-slate-300">Backend URL</span>
+                <span className="text-sm font-semibold text-white">Backend URL</span>
                 <input
                   className="w-full rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-sm outline-none focus:border-cyber-cyan/60"
                   value={API_BASE_URL}
@@ -60,7 +60,7 @@ export default function Settings() {
                 />
               </label>
               <label className="space-y-2">
-                <span className="text-sm text-slate-300">Refresh Interval</span>
+                <span className="text-sm font-semibold text-white">Refresh Interval</span>
                 <select
                   className="w-full rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-sm outline-none focus:border-cyber-cyan/60"
                   value={settings.refreshInterval}
@@ -75,7 +75,7 @@ export default function Settings() {
             </>
           )}
           <label className="space-y-2">
-            <span className="text-sm text-slate-300">Theme</span>
+            <span className="text-sm font-semibold text-white">Theme</span>
             <select
               className="w-full rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-sm outline-none focus:border-cyber-cyan/60"
               value={settings.theme}

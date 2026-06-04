@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { createApiClient, getApiErrorMessage } from "../api/client";
@@ -9,6 +9,33 @@ export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem("soc_token");
+    if (!token) return;
+
+    let cancelled = false;
+
+    async function validateExistingSession() {
+      try {
+        const api = createApiClient();
+        const response = await api.get("/me");
+        if (cancelled) return;
+        const existingUser = JSON.parse(localStorage.getItem("soc_user") || "{}");
+        localStorage.setItem("soc_user", JSON.stringify({ ...existingUser, ...response.data, token }));
+        navigate("/dashboard", { replace: true });
+      } catch {
+        localStorage.removeItem("soc_token");
+        localStorage.removeItem("soc_user");
+      }
+    }
+
+    validateExistingSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate]);
 
   async function submit(event) {
     event.preventDefault();

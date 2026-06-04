@@ -14,7 +14,7 @@ from models import User
 # The fallback keeps the existing local demo working for beginners.
 SECRET_KEY = os.getenv("SECRET_KEY", "soc-demo-secret-key")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", str(60 * 24 * 30)))
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
@@ -60,7 +60,10 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-    user = db.get(User, int(user_id))
+    try:
+        user = db.get(User, int(user_id))
+    except (TypeError, ValueError):
+        raise credentials_exception
     if user is None:
         raise credentials_exception
     return user
