@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { createApiClient } from "../api/client";
+import { useSettings } from "./SettingsContext";
 
 const TelemetryContext = createContext(null);
 
@@ -10,6 +11,7 @@ function timeLabel(value) {
 }
 
 export function TelemetryProvider({ children }) {
+  const { settings } = useSettings();
   const [latestTelemetry, setLatestTelemetry] = useState([]);
   const [endpointStatus, setEndpointStatus] = useState([]);
   const [history, setHistory] = useState([]);
@@ -37,8 +39,10 @@ export function TelemetryProvider({ children }) {
         return [...current, ...nextPoints].slice(-160);
       });
       setOffline(false);
+      return true;
     } catch {
       setOffline(true);
+      return false;
     } finally {
       setLoading(false);
     }
@@ -46,9 +50,9 @@ export function TelemetryProvider({ children }) {
 
   useEffect(() => {
     fetchTelemetry();
-    const timer = window.setInterval(fetchTelemetry, 5000);
+    const timer = window.setInterval(fetchTelemetry, Number(settings.refreshInterval) || 5000);
     return () => window.clearInterval(timer);
-  }, [fetchTelemetry]);
+  }, [fetchTelemetry, settings.refreshInterval]);
 
   const summary = useMemo(() => {
     const online = endpointStatus.filter((endpoint) => endpoint.status === "Online").length;

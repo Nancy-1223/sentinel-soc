@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { createApiClient, getApiErrorMessage } from "../api/client";
+import Button from "../components/Button";
 import { RiskBadge } from "../components/StatusBadge";
 import { useAlerts } from "../context/AlertsContext";
 import { useSettings } from "../context/SettingsContext";
@@ -120,20 +121,24 @@ export default function Quarantine() {
               </div>
               {!settings.presentationMode && (
                 <div className="flex gap-2">
-                  <button
-                    disabled={isBusy}
+                  <Button
                     onClick={() => restoreFile(alert)}
-                    className="hover-glow-button rounded-md border border-cyber-green/30 px-3 py-2 text-sm text-cyber-green hover:bg-cyber-green/10 disabled:cursor-not-allowed disabled:opacity-50"
+                    loading={isBusy}
+                    loadingText="Working..."
+                    tone="green"
+                    size="sm"
                   >
-                    {isBusy ? "Working..." : "Restore"}
-                  </button>
-                  <button
-                    disabled={isBusy}
+                    Restore
+                  </Button>
+                  <Button
                     onClick={() => deleteFile(alert)}
-                    className="hover-glow-button rounded-md border border-cyber-red/30 px-3 py-2 text-sm text-cyber-red hover:bg-cyber-red/10 disabled:cursor-not-allowed disabled:opacity-50"
+                    loading={isBusy}
+                    loadingText="Working..."
+                    tone="red"
+                    size="sm"
                   >
-                    {isBusy ? "Working..." : "Delete"}
-                  </button>
+                    Delete
+                  </Button>
                 </div>
               )}
             </div>

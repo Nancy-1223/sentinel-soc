@@ -10,6 +10,55 @@
   box-sizing: border-box;
 }
 
+button,
+[role="button"],
+a,
+select,
+input[type="checkbox"],
+input[type="range"],
+summary {
+  cursor: pointer;
+}
+
+input,
+textarea,
+select {
+  cursor: text;
+}
+
+select,
+input[type="checkbox"],
+input[type="range"] {
+  cursor: pointer;
+}
+
+button:disabled,
+select:disabled,
+input:disabled,
+textarea:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="switch"]:focus-visible {
+  outline: 2px solid rgba(56, 189, 248, 0.9);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.16);
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -147,6 +196,21 @@ body::before {
     border-color 180ms ease,
     box-shadow 180ms ease,
     background-color 180ms ease;
+}
+
+.hover-glow-button {
+  cursor: pointer;
+  min-height: 2.25rem;
+  user-select: none;
+}
+
+.hover-glow-button:active:not(:disabled) {
+  transform: translateY(0) scale(0.985);
+}
+
+.hover-glow-button:disabled {
+  transform: none;
+  box-shadow: none;
 }
 
 .hover-glow-card {

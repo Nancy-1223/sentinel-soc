@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { FileWarning, ShieldCheck, Siren } from "lucide-react";
 import { formatBytes, formatDate } from "../utils/format";
+import Button from "./Button";
 import { PredictionBadge, RiskBadge } from "./StatusBadge";
 
 function alertRowTone(alert) {
@@ -61,21 +62,24 @@ export default function AlertTable({ alerts, onDeleteAlert, deletingAlertId, onG
                     Details
                   </Link>
                   {onDeleteAlert && (
-                    <button
+                    <Button
                       onClick={() => onDeleteAlert(alert)}
-                      disabled={deletingAlertId === alert.id}
-                      className="hover-glow-button rounded-md border border-cyber-red/30 px-3 py-1.5 text-xs font-medium text-cyber-red hover:bg-cyber-red/10 disabled:cursor-not-allowed disabled:opacity-60"
+                      loading={deletingAlertId === alert.id}
+                      loadingText="Deleting..."
+                      tone="red"
+                      size="xs"
                     >
-                      {deletingAlertId === alert.id ? "Deleting..." : "Delete"}
-                    </button>
+                      Delete
+                    </Button>
                   )}
                   {onGenerateReport && (
-                    <button
+                    <Button
                       onClick={() => onGenerateReport(alert)}
-                      className="hover-glow-button rounded-md border border-cyber-green/30 px-3 py-1.5 text-xs font-medium text-cyber-green hover:bg-cyber-green/10"
+                      tone="green"
+                      size="xs"
                     >
                       Report
-                    </button>
+                    </Button>
                   )}
                 </div>
               </td>

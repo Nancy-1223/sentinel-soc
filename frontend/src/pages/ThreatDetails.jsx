@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import Button from "../components/Button";
 import { PredictionBadge, RiskBadge } from "../components/StatusBadge";
 import { useAlerts } from "../context/AlertsContext";
 import { useTelemetry } from "../context/TelemetryContext";
@@ -47,12 +48,13 @@ export default function ThreatDetails() {
           <p className="mt-1 text-sm text-slate-400">{alert.filename} on {alert.pc_name}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button
+          <Button
             onClick={() => downloadIncidentReport(alert, telemetry)}
-            className="hover-glow-button rounded-md border border-cyber-green/30 px-3 py-1.5 text-xs font-semibold text-cyber-green hover:bg-cyber-green/10"
+            tone="green"
+            size="xs"
           >
             Generate Report
-          </button>
+          </Button>
           <PredictionBadge value={alert.prediction} />
           <RiskBadge score={alert.risk_score} />
         </div>
@@ -102,9 +104,9 @@ export default function ThreatDetails() {
               onChange={(event) => setNotes(event.target.value)}
             />
             <div className="mt-3 flex items-center gap-3">
-              <button onClick={saveNotes} className="hover-glow-button rounded-md bg-cyber-cyan px-4 py-2 text-sm font-semibold text-slate-950">
+              <Button onClick={saveNotes} tone="solidCyan">
                 Save Notes
-              </button>
+              </Button>
               {noteSaved && <span className="text-sm text-cyber-green">Notes saved locally.</span>}
             </div>
           </div>

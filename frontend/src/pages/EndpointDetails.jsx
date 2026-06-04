@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Download, Pause, Play, Power } from "lucide-react";
 import { createApiClient, getApiErrorMessage } from "../api/client";
+import Button from "../components/Button";
 import { useAlerts } from "../context/AlertsContext";
 import { useSettings } from "../context/SettingsContext";
 import { useTelemetry } from "../context/TelemetryContext";
@@ -262,9 +263,9 @@ export default function EndpointDetails() {
       )}
       <form onSubmit={registerEndpoint} className="glass cyber-border hover-glow-card grid gap-3 rounded-lg p-4 md:grid-cols-[1fr_auto]">
         <input className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-sm outline-none focus:border-cyber-cyan/60" placeholder="PC name" value={pcName} onChange={(e) => setPcName(e.target.value)} />
-        <button disabled={busyAction === "register"} className="hover-glow-button rounded-md bg-cyber-cyan px-4 py-2 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-60">
-          {busyAction === "register" ? "Registering..." : "Register Endpoint"}
-        </button>
+        <Button type="submit" loading={busyAction === "register"} loadingText="Registering..." tone="solidCyan">
+          Register Endpoint
+        </Button>
         {message && <div className="text-sm text-cyber-cyan md:col-span-2">{message}</div>}
       </form>
       {registeredEndpoint && (
@@ -280,14 +281,15 @@ export default function EndpointDetails() {
                 Download and run Sentinel Agent once. After that, monitoring starts automatically.
               </div>
             </div>
-            <button
+            <Button
               onClick={() => downloadAgent(registeredEndpoint)}
-              disabled={busyAction === `download-${registeredEndpoint.endpoint_id}`}
-              className="hover-glow-button inline-flex items-center justify-center gap-2 rounded-md bg-cyber-green px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
+              loading={busyAction === `download-${registeredEndpoint.endpoint_id}`}
+              loadingText="Preparing..."
+              tone="solidGreen"
             >
               <Download className="h-4 w-4" />
-              {busyAction === `download-${registeredEndpoint.endpoint_id}` ? "Preparing..." : "Download Agent"}
-            </button>
+              Download Agent
+            </Button>
           </div>
         </div>
       )}
@@ -295,20 +297,22 @@ export default function EndpointDetails() {
         Download and run Sentinel Agent once. After that, monitoring starts automatically. No Swagger or terminal commands are needed for normal endpoint onboarding.
       </div>
       {!settings.presentationMode && <div className="glass cyber-border hover-glow-card flex flex-wrap gap-3 rounded-lg p-4">
-        <button
+        <Button
           onClick={clearOfflineEndpoints}
-          disabled={busyAction === "clear-offline"}
-          className="hover-glow-button rounded-md border border-cyber-amber/30 px-4 py-2 text-sm font-semibold text-cyber-amber transition hover:bg-cyber-amber/10 disabled:cursor-not-allowed disabled:opacity-60"
+          loading={busyAction === "clear-offline"}
+          loadingText="Clearing..."
+          tone="amber"
         >
-          {busyAction === "clear-offline" ? "Clearing..." : "Clear Offline Endpoints"}
-        </button>
-        <button
+          Clear Offline Endpoints
+        </Button>
+        <Button
           onClick={clearAllTestData}
-          disabled={busyAction === "demo-reset"}
-          className="hover-glow-button rounded-md border border-cyber-red/30 px-4 py-2 text-sm font-semibold text-cyber-red transition hover:bg-cyber-red/10 disabled:cursor-not-allowed disabled:opacity-60"
+          loading={busyAction === "demo-reset"}
+          loadingText="Resetting..."
+          tone="red"
         >
-          {busyAction === "demo-reset" ? "Resetting..." : "Clear All Test Data"}
-        </button>
+          Clear All Test Data
+        </Button>
       </div>}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {endpoints.map((endpoint) => {
@@ -354,56 +358,59 @@ export default function EndpointDetails() {
             </div>
             <div className="mt-4 text-xs text-slate-500">Last seen {formatDate(endpoint.lastSeen)}</div>
             <div className="mt-4 grid gap-2">
-              <button
+              <Button
                 onClick={() => toggleDetection(endpoint)}
                 disabled={agentStopped || busyAction === `${detectionPath}-${endpoint.endpoint_id}`}
-                className="hover-glow-button inline-flex w-full items-center justify-center gap-2 rounded-md border border-cyber-cyan/30 px-3 py-2 text-sm font-semibold text-cyber-cyan transition hover:bg-cyber-cyan/10 disabled:cursor-not-allowed disabled:opacity-50"
+                loading={busyAction === `${detectionPath}-${endpoint.endpoint_id}`}
+                loadingText="Updating..."
+                tone="cyan"
+                className="w-full"
               >
                 {detectionPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-                {busyAction === `${detectionPath}-${endpoint.endpoint_id}`
-                  ? "Updating..."
-                  : detectionPaused
-                    ? "Resume Detection"
-                    : "Pause Detection"}
-              </button>
-              <button
+                {detectionPaused ? "Resume Detection" : "Pause Detection"}
+              </Button>
+              <Button
                 onClick={() => toggleAgentPause(endpoint)}
                 disabled={agentStopped || busyAction === `${agentPath}-${endpoint.endpoint_id}`}
-                className="hover-glow-button inline-flex w-full items-center justify-center gap-2 rounded-md border border-cyber-amber/30 px-3 py-2 text-sm font-semibold text-cyber-amber transition hover:bg-cyber-amber/10 disabled:cursor-not-allowed disabled:opacity-50"
+                loading={busyAction === `${agentPath}-${endpoint.endpoint_id}`}
+                loadingText="Updating..."
+                tone="amber"
+                className="w-full"
               >
                 {agentMode === "paused" ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-                {agentStopped
-                  ? "Agent Stopped"
-                  : busyAction === `${agentPath}-${endpoint.endpoint_id}`
-                    ? "Updating..."
-                    : agentMode === "paused"
-                      ? "Resume Agent"
-                      : "Pause Agent"}
-              </button>
-              <button
+                {agentStopped ? "Agent Stopped" : agentMode === "paused" ? "Resume Agent" : "Pause Agent"}
+              </Button>
+              <Button
                 onClick={() => stopAgent(endpoint)}
                 disabled={agentStopped || busyAction === `/agent/stop-${endpoint.endpoint_id}`}
-                className="hover-glow-button inline-flex w-full items-center justify-center gap-2 rounded-md border border-cyber-red/30 px-3 py-2 text-sm font-semibold text-cyber-red transition hover:bg-cyber-red/10 disabled:cursor-not-allowed disabled:opacity-50"
+                loading={busyAction === `/agent/stop-${endpoint.endpoint_id}`}
+                loadingText="Stopping..."
+                tone="red"
+                className="w-full"
               >
                 <Power className="h-4 w-4" />
-                {busyAction === `/agent/stop-${endpoint.endpoint_id}` ? "Stopping..." : "Full Stop Agent"}
-              </button>
+                Full Stop Agent
+              </Button>
             </div>
-            <button
+            <Button
               onClick={() => downloadAgent(endpoint)}
-              disabled={busyAction === `download-${endpoint.endpoint_id}`}
-              className="hover-glow-button mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md border border-cyber-green/30 px-3 py-2 text-sm font-semibold text-cyber-green transition hover:bg-cyber-green/10 disabled:cursor-not-allowed disabled:opacity-60"
+              loading={busyAction === `download-${endpoint.endpoint_id}`}
+              loadingText="Preparing..."
+              tone="green"
+              className="mt-4 w-full"
             >
               <Download className="h-4 w-4" />
-              {busyAction === `download-${endpoint.endpoint_id}` ? "Preparing..." : "Download Agent"}
-            </button>
-            {!settings.presentationMode && <button
+              Download Agent
+            </Button>
+            {!settings.presentationMode && <Button
               onClick={() => deleteEndpoint(endpoint)}
-              disabled={busyAction === `delete-${endpoint.endpoint_id}`}
-              className="hover-glow-button mt-4 w-full rounded-md border border-cyber-red/30 px-3 py-2 text-sm font-semibold text-cyber-red transition hover:bg-cyber-red/10 disabled:cursor-not-allowed disabled:opacity-60"
+              loading={busyAction === `delete-${endpoint.endpoint_id}`}
+              loadingText="Deleting..."
+              tone="red"
+              className="mt-4 w-full"
             >
-              {busyAction === `delete-${endpoint.endpoint_id}` ? "Deleting..." : "Delete Endpoint"}
-            </button>}
+              Delete Endpoint
+            </Button>}
           </div>
           );
         })}

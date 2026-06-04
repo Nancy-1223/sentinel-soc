@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import {
   Activity,
   Bot,
@@ -813,7 +814,7 @@ function IncidentWorkflow({ alerts }) {
                   <div className="flex flex-wrap gap-2">
                     <button onClick={() => setOverrides((current) => ({ ...current, [alert.id]: "Investigation Started" }))} className="hover-glow-button rounded-md border border-cyber-amber/30 px-3 py-2 text-xs text-cyber-amber">Mark Investigating</button>
                     <button onClick={() => setOverrides((current) => ({ ...current, [alert.id]: "Resolved" }))} className="hover-glow-button rounded-md border border-cyber-green/30 px-3 py-2 text-xs text-cyber-green">Mark Resolved</button>
-                    <a href={`/alerts/${alert.id}`} className="hover-glow-button rounded-md border border-cyber-cyan/30 px-3 py-2 text-xs text-cyber-cyan">View Details</a>
+                    <Link to={`/alerts/${alert.id}`} className="hover-glow-button inline-flex items-center rounded-md border border-cyber-cyan/30 px-3 py-2 text-xs font-semibold text-cyber-cyan hover:bg-cyber-cyan/10">View Details</Link>
                   </div>
                 </div>
                 <div className="mt-4 grid gap-2 md:grid-cols-5">

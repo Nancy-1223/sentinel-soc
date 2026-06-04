@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { createApiClient, getApiErrorMessage } from "../api/client";
 import BackendStatus from "../components/BackendStatus";
+import Button from "../components/Button";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -76,6 +77,9 @@ export default function Login() {
           <input
             className="w-full rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-sm outline-none focus:border-cyber-cyan/60"
             placeholder="Email"
+            type="email"
+            autoComplete="email"
+            required
             value={form.email}
             onChange={(event) => setForm({ ...form, email: event.target.value })}
           />
@@ -83,17 +87,16 @@ export default function Login() {
             className="w-full rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-sm outline-none focus:border-cyber-cyan/60"
             placeholder="Password"
             type="password"
+            autoComplete="current-password"
+            required
             value={form.password}
             onChange={(event) => setForm({ ...form, password: event.target.value })}
           />
         </div>
         {error && <div className="mt-4 rounded-md border border-cyber-red/30 bg-cyber-red/10 p-3 text-sm text-cyber-red">{error}</div>}
-        <button
-          disabled={loading}
-          className="hover-glow-button mt-6 w-full rounded-md bg-cyber-cyan px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-cyan-300 disabled:opacity-60"
-        >
-          {loading ? "Authenticating..." : "Login"}
-        </button>
+        <Button type="submit" loading={loading} loadingText="Authenticating..." tone="solidCyan" size="lg" className="mt-6 w-full">
+          Login
+        </Button>
         <div className="mt-5 text-center text-sm text-slate-400">
           New SOC user? <Link className="text-cyber-cyan" to="/register">Create account</Link>
         </div>

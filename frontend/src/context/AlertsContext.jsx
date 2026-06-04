@@ -32,8 +32,10 @@ export function AlertsProvider({ children }) {
       initialized.current = true;
       setAlerts(nextAlerts);
       setOffline(false);
+      return true;
     } catch {
       setOffline(true);
+      return false;
     } finally {
       setLoading(false);
     }
