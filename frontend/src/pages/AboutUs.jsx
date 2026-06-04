@@ -1,14 +1,24 @@
 import { useMemo, useState } from "react";
 import { Globe, HeartHandshake, LinkIcon, Mail, ShieldCheck } from "lucide-react";
-import Button from "../components/Button";
 
 const contactLinks = {
   owner: "Nancy",
-  email: "nancy@example.com",
+  email: "nancynataz@gmail.com",
   github: "https://github.com/Nancy-1223/sentinel-soc",
   frontend: "https://sentinel-soc-nine.vercel.app",
   backend: "https://sentinel-soc-backend-fxb8.onrender.com",
 };
+
+const featureLabels = [
+  "Multi-PC Monitoring",
+  "AI Malware Detection",
+  "Silent Endpoint Agent",
+  "Real-Time Telemetry",
+  "Quarantine Vault",
+  "Endpoint Health",
+  "Risk Scoring",
+  "Incident Investigation",
+];
 
 const aboutTranslations = {
   en: {
@@ -32,16 +42,6 @@ const aboutTranslations = {
       "Check quarantine and incident investigation pages.",
     ],
     featuresTitle: "Key Features",
-    features: [
-      "Multi-PC Monitoring",
-      "AI Malware Detection",
-      "Silent Endpoint Agent",
-      "Real-Time Telemetry",
-      "Quarantine Vault",
-      "Endpoint Health",
-      "Risk Scoring",
-      "Incident Investigation",
-    ],
     safetyTitle: "Safety Notes",
     safetyNotes: [
       "Use EICAR test file only for safe malware testing.",
@@ -50,26 +50,21 @@ const aboutTranslations = {
       "Pause Detection can be used during safe testing.",
       "Full Stop Agent stops monitoring completely.",
     ],
-    contactTitle: "Contact",
+    contactTitle: "Contact Information",
+    contactSubtitle: "Sentinel SOC project links and team contact information.",
     owner: "Project Owner",
     email: "Email",
     github: "GitHub",
     frontend: "Frontend",
     backend: "Backend",
-    formTitle: "Send a Message",
-    name: "Name",
-    message: "Message",
-    submit: "Submit",
-    submitting: "Saving...",
-    saved: "Message saved locally for the Sentinel SOC team.",
   },
   ta: {
     languageLabel: "மொழி",
     title: "எங்களை பற்றி",
-    subtitle: "Sentinel SOC endpoint PCs-ஐ எப்படி பாதுகாக்கிறது மற்றும் dashboard-ஐ பாதுகாப்பாக எப்படி பயன்படுத்துவது என்பதை அறிக.",
+    subtitle: "Sentinel SOC endpoint கணினிகளை எப்படி பாதுகாக்கிறது மற்றும் dashboard-ஐ பாதுகாப்பாக எப்படி பயன்படுத்துவது என்பதை அறிக.",
     aboutTitle: "Sentinel SOC பற்றி",
     aboutBody:
-      "Sentinel SOC என்பது AI அடிப்படையிலான Multi-PC Threat Detection Platform. இது endpoint PCs-ஐ கண்காணிக்கிறது, தீங்கு விளைவிக்கும் files-ஐ கண்டறிகிறது, telemetry-ஐ dashboard-க்கு அனுப்புகிறது, சந்தேகமான files-ஐ quarantine செய்கிறது, மேலும் endpoint health மற்றும் alerts-ஐ ஒரே SOC dashboard-ல் பார்க்க உதவுகிறது.",
+      "Sentinel SOC என்பது AI அடிப்படையிலான Multi-PC Threat Detection Platform. இது endpoint கணினிகளை கண்காணிக்கிறது, தீங்கு விளைவிக்கும் files-ஐ கண்டறிகிறது, telemetry-ஐ dashboard-க்கு அனுப்புகிறது, சந்தேகமான files-ஐ quarantine செய்கிறது, மேலும் endpoint health மற்றும் alerts-ஐ ஒரே SOC dashboard-ல் பார்க்க உதவுகிறது.",
     howTitle: "எப்படி பயன்படுத்துவது",
     howSteps: [
       "Dashboard-ல் login செய்யவும்.",
@@ -84,16 +79,6 @@ const aboutTranslations = {
       "Quarantine மற்றும் Incident Investigation pages-ஐ பார்க்கவும்.",
     ],
     featuresTitle: "முக்கிய அம்சங்கள்",
-    features: [
-      "Multi-PC Monitoring",
-      "AI Malware Detection",
-      "Silent Endpoint Agent",
-      "Real-Time Telemetry",
-      "Quarantine Vault",
-      "Endpoint Health",
-      "Risk Scoring",
-      "Incident Investigation",
-    ],
     safetyTitle: "பாதுகாப்பு குறிப்புகள்",
     safetyNotes: [
       "Safe malware testing-க்கு EICAR test file மட்டும் பயன்படுத்தவும்.",
@@ -102,18 +87,13 @@ const aboutTranslations = {
       "Safe testing நேரத்தில் Pause Detection பயன்படுத்தலாம்.",
       "Full Stop Agent monitoring-ஐ முழுமையாக நிறுத்தும்.",
     ],
-    contactTitle: "தொடர்பு",
+    contactTitle: "தொடர்பு தகவல்",
+    contactSubtitle: "Sentinel SOC project links மற்றும் team contact information.",
     owner: "Project Owner",
     email: "Email",
     github: "GitHub",
     frontend: "Frontend",
     backend: "Backend",
-    formTitle: "செய்தி அனுப்பவும்",
-    name: "பெயர்",
-    message: "செய்தி",
-    submit: "Submit",
-    submitting: "Saving...",
-    saved: "உங்கள் செய்தி Sentinel SOC team-க்காக local storage-ல் save செய்யப்பட்டது.",
   },
   hi: {
     languageLabel: "भाषा",
@@ -136,16 +116,6 @@ const aboutTranslations = {
       "Quarantine और Incident Investigation pages देखें.",
     ],
     featuresTitle: "मुख्य विशेषताएं",
-    features: [
-      "Multi-PC Monitoring",
-      "AI Malware Detection",
-      "Silent Endpoint Agent",
-      "Real-Time Telemetry",
-      "Quarantine Vault",
-      "Endpoint Health",
-      "Risk Scoring",
-      "Incident Investigation",
-    ],
     safetyTitle: "सुरक्षा नोट्स",
     safetyNotes: [
       "Safe malware testing के लिए केवल EICAR test file का उपयोग करें.",
@@ -154,18 +124,13 @@ const aboutTranslations = {
       "Safe testing के दौरान Pause Detection का उपयोग किया जा सकता है.",
       "Full Stop Agent monitoring को पूरी तरह रोक देता है.",
     ],
-    contactTitle: "संपर्क",
+    contactTitle: "संपर्क जानकारी",
+    contactSubtitle: "Sentinel SOC project links और team contact information.",
     owner: "Project Owner",
     email: "Email",
     github: "GitHub",
     frontend: "Frontend",
     backend: "Backend",
-    formTitle: "संदेश भेजें",
-    name: "नाम",
-    message: "संदेश",
-    submit: "Submit",
-    submitting: "Saving...",
-    saved: "Message Sentinel SOC team के लिए local storage में save किया गया.",
   },
 };
 
@@ -180,26 +145,14 @@ function savedLanguage() {
   return aboutTranslations[language] ? language : "en";
 }
 
-function savedMessages() {
-  try {
-    const messages = JSON.parse(localStorage.getItem("sentinel_contact_messages") || "[]");
-    return Array.isArray(messages) ? messages : [];
-  } catch {
-    return [];
-  }
-}
-
 export default function AboutUs() {
   const [language, setLanguage] = useState(savedLanguage);
-  const [form, setForm] = useState({ name: "", email: "", message: "" });
-  const [saving, setSaving] = useState(false);
-  const [notice, setNotice] = useState("");
   const t = aboutTranslations[language];
 
   const contactCards = useMemo(
     () => [
       { label: t.owner, value: contactLinks.owner, icon: HeartHandshake },
-      { label: t.email, value: contactLinks.email, icon: Mail },
+      { label: t.email, value: contactLinks.email, icon: Mail, href: `mailto:${contactLinks.email}` },
       { label: t.github, value: contactLinks.github, icon: LinkIcon, href: contactLinks.github },
       { label: t.frontend, value: contactLinks.frontend, icon: Globe, href: contactLinks.frontend },
       { label: t.backend, value: contactLinks.backend, icon: ShieldCheck, href: contactLinks.backend },
@@ -211,23 +164,6 @@ export default function AboutUs() {
     const nextLanguage = event.target.value;
     setLanguage(nextLanguage);
     localStorage.setItem("sentinel_about_language", nextLanguage);
-  }
-
-  function submitContact(event) {
-    event.preventDefault();
-    setSaving(true);
-    const nextMessage = {
-      ...form,
-      language,
-      createdAt: new Date().toISOString(),
-    };
-    const messages = savedMessages();
-    localStorage.setItem("sentinel_contact_messages", JSON.stringify([nextMessage, ...messages].slice(0, 25)));
-    window.setTimeout(() => {
-      setSaving(false);
-      setNotice(t.saved);
-      setForm({ name: "", email: "", message: "" });
-    }, 250);
   }
 
   return (
@@ -286,7 +222,7 @@ export default function AboutUs() {
       <section className="glass cyber-border hover-glow-card rounded-lg p-5">
         <div className="text-sm font-semibold uppercase tracking-[0.16em] text-cyber-cyan">{t.featuresTitle}</div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {t.features.map((feature) => (
+          {featureLabels.map((feature) => (
             <div key={feature} className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
               <div className="text-sm font-semibold text-white">{feature}</div>
             </div>
@@ -294,77 +230,42 @@ export default function AboutUs() {
         </div>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[.9fr_1.1fr]">
-        <div className="glass cyber-border hover-glow-card rounded-lg p-5">
+      <section className="glass cyber-border hover-glow-card rounded-lg p-5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div className="text-sm font-semibold uppercase tracking-[0.16em] text-cyber-cyan">{t.contactTitle}</div>
-          <div className="mt-4 space-y-3">
-            {contactCards.map((card) => {
-              const Icon = card.icon;
-              const content = (
-                <>
-                  <Icon className="h-4 w-4 shrink-0 text-cyber-cyan" />
-                  <span className="min-w-28 text-slate-400">{card.label}</span>
-                  <span className="break-all font-semibold text-slate-100">{card.value}</span>
-                </>
-              );
-              return card.href ? (
-                <a
-                  key={card.label}
-                  href={card.href}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="hover-glow-button flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] p-3 text-sm"
-                >
-                  {content}
-                </a>
-              ) : (
-                <div key={card.label} className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] p-3 text-sm">
-                  {content}
-                </div>
-              );
-            })}
-          </div>
+          <div className="text-sm text-slate-400">{t.contactSubtitle}</div>
         </div>
-
-        <form onSubmit={submitContact} className="glass cyber-border hover-glow-card rounded-lg p-5">
-          <div className="text-sm font-semibold uppercase tracking-[0.16em] text-cyber-cyan">{t.formTitle}</div>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <label className="space-y-2">
-              <span className="text-sm font-semibold text-white">{t.name}</span>
-              <input
-                className="w-full rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-sm outline-none focus:border-cyber-cyan/60"
-                value={form.name}
-                required
-                onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-              />
-            </label>
-            <label className="space-y-2">
-              <span className="text-sm font-semibold text-white">{t.email}</span>
-              <input
-                className="w-full rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-sm outline-none focus:border-cyber-cyan/60"
-                type="email"
-                value={form.email}
-                required
-                onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
-              />
-            </label>
-            <label className="space-y-2 sm:col-span-2">
-              <span className="text-sm font-semibold text-white">{t.message}</span>
-              <textarea
-                className="min-h-32 w-full rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-sm outline-none focus:border-cyber-cyan/60"
-                value={form.message}
-                required
-                onChange={(event) => setForm((current) => ({ ...current, message: event.target.value }))}
-              />
-            </label>
-          </div>
-          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Button type="submit" tone="solidCyan" loading={saving} loadingText={t.submitting}>
-              {t.submit}
-            </Button>
-            {notice && <div className="text-sm text-cyber-green">{notice}</div>}
-          </div>
-        </form>
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          {contactCards.map((card) => {
+            const Icon = card.icon;
+            const content = (
+              <>
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-cyber-cyan/20 bg-cyber-cyan/10">
+                  <Icon className="h-4 w-4 text-cyber-cyan" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">{card.label}</div>
+                  <div className="mt-1 break-all text-sm font-semibold text-slate-100">{card.value}</div>
+                </div>
+              </>
+            );
+            return card.href ? (
+              <a
+                key={card.label}
+                href={card.href}
+                target={card.href.startsWith("mailto:") ? undefined : "_blank"}
+                rel={card.href.startsWith("mailto:") ? undefined : "noreferrer"}
+                className="hover-glow-button flex min-h-24 items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] p-4"
+              >
+                {content}
+              </a>
+            ) : (
+              <div key={card.label} className="flex min-h-24 items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] p-4">
+                {content}
+              </div>
+            );
+          })}
+        </div>
       </section>
     </div>
   );
