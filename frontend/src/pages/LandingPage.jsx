@@ -9,7 +9,6 @@ import {
   Radar,
   ShieldCheck,
   Siren,
-  Sparkles,
 } from "lucide-react";
 
 const particles = Array.from({ length: 30 }, (_, index) => ({
@@ -41,7 +40,7 @@ const steps = [
 export default function LandingPage() {
   const isLoggedIn = Boolean(localStorage.getItem("soc_token"));
   const ctaTarget = isLoggedIn ? "/dashboard" : "/login";
-  const ctaLabel = isLoggedIn ? "Go to Dashboard" : "Login to Dashboard";
+  const ctaLabel = "Enter SOC Dashboard";
 
   return (
     <div className="landing-page">
@@ -81,23 +80,36 @@ export default function LandingPage() {
           <a href="#contact">Contact</a>
         </nav>
         <Link to={ctaTarget} className="landing-nav-cta">
-          {ctaLabel}
+          Enter SOC
           <ArrowRight className="h-4 w-4" />
         </Link>
       </header>
 
       <main>
         <section className="landing-hero">
-          <div className="landing-hero-copy">
-            <div className="landing-kicker reveal-up">
-              <Sparkles className="h-4 w-4" />
-              Multi-PC endpoint protection
+          <div className="landing-cyber-core" aria-hidden="true">
+            <div className="landing-hud-grid" />
+            <div className="landing-energy-ring landing-energy-ring-outer" />
+            <div className="landing-energy-ring landing-energy-ring-mid" />
+            <div className="landing-energy-ring landing-energy-ring-inner" />
+            <div className="landing-ring-scanline" />
+            <div className="landing-ring-particles">
+              {particles.slice(0, 18).map((particle, index) => (
+                <span key={particle.id} style={{ "--i": index, animationDelay: particle.delay }} />
+              ))}
             </div>
-            <h1 className="landing-title reveal-up reveal-delay-1">
-              AI-Based SOC Dashboard for Real-Time Threat Detection
+            <div className="landing-shield-core">
+              <ShieldCheck className="h-14 w-14" />
+            </div>
+          </div>
+
+          <div className="landing-hero-copy landing-hero-center">
+            <div className="landing-kicker reveal-up">A Living Interface</div>
+            <h1 className="landing-title landing-glitch-title reveal-up reveal-delay-1" data-text="Sentinel SOC">
+              Sentinel SOC
             </h1>
-            <p className="landing-subtitle reveal-up reveal-delay-2">
-              Sentinel SOC monitors endpoint PCs, detects suspicious files, streams telemetry, supports quarantine workflows, and keeps investigations organized from one professional dashboard.
+            <p className="landing-subtitle landing-platform-line reveal-up reveal-delay-2">
+              AI-Based Multi-PC Threat Detection Platform
             </p>
             <div className="landing-actions reveal-up reveal-delay-3">
               <Link to={ctaTarget} className="landing-primary-button">
@@ -105,35 +117,8 @@ export default function LandingPage() {
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <a href="#features" className="landing-secondary-button">
-                Explore Features
+                View Features
               </a>
-            </div>
-          </div>
-
-          <div className="landing-visual reveal-up reveal-delay-2">
-            <div className="landing-orbit-ring" />
-            <div className="landing-dashboard-card">
-              <div className="landing-dashboard-header">
-                <span />
-                <span />
-                <span />
-              </div>
-              <div className="landing-scan-card">
-                <BrainCircuit className="h-8 w-8 text-cyan-500" />
-                <div>
-                  <div className="landing-mini-label">AI Threat Engine</div>
-                  <div className="landing-mini-value">Risk analysis active</div>
-                </div>
-              </div>
-              <div className="landing-meter">
-                <div />
-              </div>
-              <div className="landing-mini-grid">
-                <span>Endpoints 12</span>
-                <span>Alerts 08</span>
-                <span>Telemetry Live</span>
-                <span>Vault Ready</span>
-              </div>
             </div>
           </div>
         </section>
