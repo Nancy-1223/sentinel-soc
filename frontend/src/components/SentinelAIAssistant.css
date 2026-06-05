@@ -1,11 +1,12 @@
 .sentinel-ai-assistant {
   position: fixed;
-  right: 20px;
-  bottom: 20px;
+  right: 22px;
+  bottom: 22px;
   z-index: 70;
   display: grid;
   justify-items: end;
   gap: 12px;
+  font-family: Inter, Geist, "SF Pro Display", system-ui, sans-serif;
   pointer-events: none;
 }
 
@@ -18,30 +19,31 @@
 .sentinel-ai-orb {
   position: relative;
   display: grid;
-  width: 62px;
-  height: 62px;
+  width: 58px;
+  height: 58px;
   place-items: center;
-  border: 1px solid rgba(103, 232, 249, 0.45);
+  border: 1px solid rgba(103, 232, 249, 0.42);
   border-radius: 999px;
-  color: #67e8f9;
+  color: #b8f7ff;
   background:
-    radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.22), transparent 24%),
-    radial-gradient(circle, rgba(14, 165, 233, 0.28), rgba(2, 6, 23, 0.9) 68%);
+    radial-gradient(circle at 35% 24%, rgba(255, 255, 255, 0.2), transparent 23%),
+    radial-gradient(circle at 50% 58%, rgba(34, 211, 238, 0.34), rgba(8, 47, 73, 0.86) 42%, rgba(2, 6, 23, 0.94) 74%);
   box-shadow:
     0 0 0 1px rgba(103, 232, 249, 0.12),
-    0 0 26px rgba(56, 189, 248, 0.36),
-    0 18px 42px rgba(2, 6, 23, 0.34);
+    0 0 26px rgba(34, 211, 238, 0.38),
+    0 18px 40px rgba(2, 6, 23, 0.38);
   cursor: pointer;
-  animation: sentinel-ai-idle 2.8s ease-in-out infinite;
-  transition: transform 180ms ease, box-shadow 180ms ease;
+  animation: sentinel-ai-idle 3s ease-in-out infinite;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
 }
 
 .sentinel-ai-orb:hover {
-  transform: translateY(-3px) scale(1.03);
+  transform: translateY(-3px) scale(1.04);
+  border-color: rgba(125, 249, 255, 0.68);
   box-shadow:
     0 0 0 1px rgba(103, 232, 249, 0.22),
-    0 0 34px rgba(56, 189, 248, 0.5),
-    0 22px 48px rgba(2, 6, 23, 0.38);
+    0 0 36px rgba(34, 211, 238, 0.55),
+    0 22px 46px rgba(2, 6, 23, 0.42);
 }
 
 .sentinel-ai-orb::before,
@@ -58,61 +60,137 @@
   animation-delay: 1.4s;
 }
 
+.sentinel-ai-orb[data-tooltip]::selection {
+  background: transparent;
+}
+
+.sentinel-ai-orb[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  right: 68px;
+  top: 50%;
+  width: max-content;
+  padding: 7px 10px;
+  border: 1px solid rgba(103, 232, 249, 0.22);
+  border-radius: 999px;
+  color: #ecfeff;
+  background: rgba(2, 6, 23, 0.92);
+  box-shadow: 0 12px 28px rgba(2, 6, 23, 0.32), 0 0 18px rgba(34, 211, 238, 0.16);
+  font-size: 0.76rem;
+  transform: translateY(-50%);
+  animation: sentinel-ai-tooltip 150ms ease both;
+}
+
 .sentinel-ai-mini-shield {
   position: absolute;
-  right: 12px;
-  bottom: 12px;
-  color: #39ff88;
-  filter: drop-shadow(0 0 8px rgba(57, 255, 136, 0.55));
+  right: 11px;
+  bottom: 11px;
+  color: #5eead4;
+  filter: drop-shadow(0 0 8px rgba(45, 212, 191, 0.58));
 }
 
 .sentinel-ai-panel {
-  width: min(360px, calc(100vw - 32px));
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  width: min(430px, calc(100vw - 32px));
+  height: min(650px, calc(100vh - 112px));
+  min-height: 500px;
+  overflow: hidden;
   border: 1px solid rgba(103, 232, 249, 0.22);
-  border-radius: 18px;
-  padding: 15px;
-  color: #dbeafe;
+  border-radius: 24px;
+  color: #e0f2fe;
   background:
-    radial-gradient(circle at 100% 0%, rgba(56, 189, 248, 0.13), transparent 36%),
-    linear-gradient(145deg, rgba(2, 6, 23, 0.94), rgba(8, 22, 43, 0.9));
+    linear-gradient(rgba(103, 232, 249, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(103, 232, 249, 0.035) 1px, transparent 1px),
+    radial-gradient(circle at 88% 8%, rgba(34, 211, 238, 0.16), transparent 34%),
+    radial-gradient(circle at 12% 18%, rgba(20, 184, 166, 0.12), transparent 38%),
+    linear-gradient(145deg, rgba(2, 6, 23, 0.96), rgba(8, 24, 46, 0.94));
+  background-size: 22px 22px, 22px 22px, auto, auto, auto;
   box-shadow:
-    0 24px 70px rgba(2, 6, 23, 0.42),
-    0 0 32px rgba(56, 189, 248, 0.12),
+    0 26px 80px rgba(2, 6, 23, 0.52),
+    0 0 42px rgba(34, 211, 238, 0.14),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(18px);
-  animation: sentinel-ai-panel-in 180ms ease both;
+  backdrop-filter: blur(20px);
+  animation: sentinel-ai-panel-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .sentinel-ai-panel-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 14px;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid rgba(103, 232, 249, 0.12);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.62), rgba(15, 23, 42, 0.18));
+}
+
+.sentinel-ai-identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 11px;
+}
+
+.sentinel-ai-avatar {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgba(103, 232, 249, 0.28);
+  border-radius: 14px;
+  color: #a5f3fc;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.2), rgba(15, 23, 42, 0.72));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 18px rgba(34, 211, 238, 0.16);
 }
 
 .sentinel-ai-panel-header span {
   display: block;
-  color: #67e8f9;
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+  color: #f8fafc;
+  font-size: 0.94rem;
+  font-weight: 650;
+  letter-spacing: 0;
 }
 
 .sentinel-ai-panel-header strong {
   display: block;
-  margin-top: 4px;
-  color: #f8fafc;
-  font-size: 1rem;
-  font-weight: 650;
+  margin-top: 2px;
+  color: rgba(203, 213, 225, 0.86);
+  font-size: 0.78rem;
+  font-weight: 450;
+}
+
+.sentinel-ai-panel-header small {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+  color: rgba(186, 230, 253, 0.82);
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+.sentinel-ai-panel-header small i {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.78);
+}
+
+.sentinel-ai-window-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
 }
 
 .sentinel-ai-panel-header button,
 .sentinel-ai-options button,
-.sentinel-ai-tutorial-actions button {
-  border: 1px solid rgba(103, 232, 249, 0.18);
+.sentinel-ai-tutorial-actions button,
+.sentinel-ai-quick-toggle {
+  border: 1px solid rgba(103, 232, 249, 0.16);
   color: #dbeafe;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.045);
   cursor: pointer;
 }
 
@@ -122,18 +200,37 @@
   height: 32px;
   place-items: center;
   border-radius: 999px;
+  transition: transform 160ms ease, border-color 160ms ease, background-color 160ms ease;
+}
+
+.sentinel-ai-panel-header button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(103, 232, 249, 0.34);
+  background: rgba(103, 232, 249, 0.08);
+}
+
+.sentinel-ai-context {
+  margin: 12px 16px 0;
+  width: fit-content;
+  border: 1px solid rgba(103, 232, 249, 0.16);
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: rgba(186, 230, 253, 0.82);
+  background: rgba(15, 23, 42, 0.58);
+  font-size: 0.72rem;
+  font-weight: 550;
 }
 
 .sentinel-ai-chat {
   display: flex;
-  max-height: 230px;
-  margin-top: 14px;
-  padding: 2px 4px 2px 0;
+  min-height: 0;
+  margin: 12px 0 0;
+  padding: 0 16px 14px;
   flex-direction: column;
-  gap: 9px;
+  gap: 12px;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(103, 232, 249, 0.45) transparent;
+  scrollbar-color: rgba(103, 232, 249, 0.42) transparent;
   scroll-behavior: smooth;
 }
 
@@ -147,46 +244,73 @@
 }
 
 .sentinel-ai-bubble {
-  max-width: 88%;
-  border: 1px solid rgba(103, 232, 249, 0.14);
-  border-radius: 14px;
-  padding: 10px 11px;
+  max-width: 86%;
+  border-radius: 18px;
+  padding: 11px 13px;
   white-space: pre-line;
-  color: #dbeafe;
-  font-size: 0.84rem;
-  line-height: 1.5;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  color: #e2e8f0;
+  font-size: 0.88rem;
+  line-height: 1.55;
 }
 
 .sentinel-ai-bubble-bot {
   align-self: flex-start;
-  border-color: rgba(57, 255, 136, 0.18);
-  color: #d9f99d;
-  background: rgba(57, 255, 136, 0.07);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-bottom-left-radius: 6px;
+  background: rgba(15, 23, 42, 0.76);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .sentinel-ai-bubble-user {
   align-self: flex-end;
-  border-color: rgba(103, 232, 249, 0.24);
+  border: 1px solid rgba(103, 232, 249, 0.18);
+  border-bottom-right-radius: 6px;
   color: #f8fafc;
-  background: linear-gradient(135deg, rgba(14, 165, 233, 0.22), rgba(20, 184, 166, 0.14));
+  background: linear-gradient(135deg, rgba(8, 145, 178, 0.76), rgba(20, 184, 166, 0.58));
+  box-shadow: 0 12px 28px rgba(8, 145, 178, 0.14);
+}
+
+.sentinel-ai-quick {
+  margin: 0 16px 10px;
+  border-top: 1px solid rgba(103, 232, 249, 0.08);
+  padding-top: 10px;
+}
+
+.sentinel-ai-quick-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 12px;
+  padding: 9px 11px;
+  color: rgba(226, 232, 240, 0.92);
+  font-size: 0.83rem;
+  font-weight: 600;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.sentinel-ai-quick-toggle:hover {
+  border-color: rgba(103, 232, 249, 0.32);
+  background: rgba(103, 232, 249, 0.07);
 }
 
 .sentinel-ai-options {
   display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
-  margin-top: 14px;
+  margin-top: 9px;
+  animation: sentinel-ai-actions-in 180ms ease both;
 }
 
 .sentinel-ai-options button {
   display: inline-flex;
+  min-height: 36px;
   align-items: center;
   justify-content: flex-start;
   gap: 8px;
-  min-height: 38px;
   border-radius: 12px;
   padding: 8px 10px;
-  font-size: 0.84rem;
+  font-size: 0.78rem;
   text-align: left;
   transition: transform 160ms ease, border-color 160ms ease, background-color 160ms ease;
 }
@@ -202,12 +326,21 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 12px;
+  margin: 0 16px 16px;
   border: 1px solid rgba(103, 232, 249, 0.18);
-  border-radius: 999px;
-  padding: 6px;
-  background: rgba(15, 23, 42, 0.62);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  border-radius: 20px;
+  padding: 8px 8px 8px 13px;
+  background: rgba(2, 6, 23, 0.74);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 0 24px rgba(34, 211, 238, 0.08);
+}
+
+.sentinel-ai-chat-form:focus-within {
+  border-color: rgba(103, 232, 249, 0.36);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 28px rgba(34, 211, 238, 0.16);
 }
 
 .sentinel-ai-chat-form input {
@@ -215,36 +348,38 @@
   flex: 1;
   border: 0;
   outline: 0;
-  padding: 8px 10px;
+  padding: 9px 0;
   color: #f8fafc;
   background: transparent;
-  font-size: 0.86rem;
+  font-size: 0.92rem;
 }
 
 .sentinel-ai-chat-form input::placeholder {
-  color: rgba(203, 213, 225, 0.64);
+  color: rgba(203, 213, 225, 0.58);
 }
 
 .sentinel-ai-chat-form button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 34px;
-  border: 1px solid rgba(103, 232, 249, 0.24);
-  border-radius: 999px;
-  padding: 0 12px;
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 14px;
   color: #ecfeff;
-  background: linear-gradient(135deg, rgba(8, 145, 178, 0.82), rgba(20, 184, 166, 0.72));
-  font-size: 0.78rem;
-  font-weight: 650;
+  background: linear-gradient(135deg, rgba(8, 145, 178, 0.92), rgba(20, 184, 166, 0.78));
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.2);
   cursor: pointer;
   transition: transform 160ms ease, box-shadow 160ms ease;
 }
 
 .sentinel-ai-chat-form button:hover {
   transform: translateY(-1px);
-  box-shadow: 0 0 18px rgba(56, 189, 248, 0.28);
+  box-shadow: 0 0 22px rgba(56, 189, 248, 0.32);
+}
+
+.sentinel-ai-chat-form button span {
+  display: none;
 }
 
 .sentinel-ai-highlight {
@@ -261,24 +396,38 @@
 .sentinel-ai-tutorial {
   position: fixed;
   z-index: 75;
-  width: min(320px, calc(100vw - 32px));
+  width: min(360px, calc(100vw - 32px));
   border: 1px solid rgba(103, 232, 249, 0.26);
-  border-radius: 16px;
-  padding: 14px;
+  border-radius: 18px;
+  padding: 15px;
   color: #dbeafe;
   background:
-    radial-gradient(circle at 100% 0%, rgba(56, 189, 248, 0.14), transparent 34%),
-    rgba(2, 6, 23, 0.94);
+    radial-gradient(circle at 100% 0%, rgba(56, 189, 248, 0.16), transparent 34%),
+    rgba(2, 6, 23, 0.95);
   box-shadow: 0 22px 62px rgba(2, 6, 23, 0.44), 0 0 28px rgba(56, 189, 248, 0.16);
   backdrop-filter: blur(16px);
 }
 
-.sentinel-ai-tutorial-title {
+.sentinel-ai-tutorial-kicker,
+.sentinel-ai-tutorial-progress {
   color: #67e8f9;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+.sentinel-ai-tutorial-progress {
+  margin-top: 4px;
+  color: rgba(186, 230, 253, 0.72);
+  letter-spacing: 0.08em;
+}
+
+.sentinel-ai-tutorial-title {
+  margin-top: 10px;
+  color: #f8fafc;
+  font-size: 0.98rem;
+  font-weight: 650;
 }
 
 .sentinel-ai-tutorial p {
@@ -288,17 +437,31 @@
   line-height: 1.55;
 }
 
+.sentinel-ai-tutorial small {
+  display: block;
+  margin-top: 9px;
+  color: rgba(186, 230, 253, 0.74);
+  font-size: 0.78rem;
+}
+
 .sentinel-ai-tutorial-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 13px;
 }
 
 .sentinel-ai-tutorial-actions button {
   border-radius: 999px;
   padding: 7px 12px;
   font-size: 0.78rem;
+}
+
+.sentinel-ai-tutorial-actions button:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+  transform: none;
 }
 
 @keyframes sentinel-ai-idle {
@@ -326,11 +489,33 @@
 @keyframes sentinel-ai-panel-in {
   from {
     opacity: 0;
-    transform: translateY(10px) scale(0.97);
+    transform: translateY(12px) scale(0.97);
   }
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes sentinel-ai-actions-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes sentinel-ai-tooltip {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) translateX(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
   }
 }
 
@@ -341,21 +526,37 @@
   }
 
   .sentinel-ai-orb {
-    width: 56px;
-    height: 56px;
+    width: 54px;
+    height: 54px;
+  }
+
+  .sentinel-ai-orb[data-tooltip]:hover::after {
+    display: none;
   }
 
   .sentinel-ai-panel {
-    max-height: calc(100vh - 104px);
-    overflow: hidden;
+    width: calc(100vw - 24px);
+    height: min(640px, calc(100vh - 92px));
+    min-height: 460px;
+    border-radius: 22px;
   }
 
-  .sentinel-ai-chat {
-    max-height: 190px;
+  .sentinel-ai-panel-header {
+    padding: 14px;
   }
 
-  .sentinel-ai-chat-form button span {
-    display: none;
+  .sentinel-ai-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+  }
+
+  .sentinel-ai-options {
+    grid-template-columns: 1fr;
+  }
+
+  .sentinel-ai-bubble {
+    max-width: 92%;
   }
 
   .sentinel-ai-tutorial {
