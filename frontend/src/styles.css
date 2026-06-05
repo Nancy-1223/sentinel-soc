@@ -4251,7 +4251,8 @@ textarea {
 }
 
 .sentinel-cyber-landing .landing-cyber-core {
-  top: 48%;
+  top: 47%;
+  width: min(78vw, 720px);
   opacity: 1;
   transform: translate(-50%, -50%);
   transform-style: flat;
@@ -4266,11 +4267,11 @@ textarea {
 }
 
 .sentinel-cyber-landing .landing-hud-grid {
-  inset: 5%;
-  opacity: 0.42;
+  inset: 12%;
+  opacity: 0.22;
   background-image:
-    linear-gradient(rgba(103, 232, 249, 0.11) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(103, 232, 249, 0.11) 1px, transparent 1px);
+    linear-gradient(rgba(103, 232, 249, 0.075) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(103, 232, 249, 0.075) 1px, transparent 1px);
   transform: none;
 }
 
@@ -4289,50 +4290,50 @@ textarea {
 }
 
 .sentinel-cyber-landing .landing-energy-ring {
-  border-color: rgba(103, 232, 249, 0.38);
+  border-color: rgba(103, 232, 249, 0.34);
   background:
-    conic-gradient(from 90deg, transparent 0 8%, rgba(103, 232, 249, 0.38) 9% 11%, transparent 12% 23%, rgba(45, 212, 191, 0.32) 24% 27%, transparent 28% 50%, rgba(56, 189, 248, 0.34) 51% 53%, transparent 54% 100%);
+    repeating-conic-gradient(from 0deg, rgba(103, 232, 249, 0.42) 0 2deg, transparent 2deg 18deg),
+    radial-gradient(circle, transparent 64%, rgba(103, 232, 249, 0.08) 65% 66%, transparent 67%);
   box-shadow:
-    0 0 30px rgba(56, 189, 248, 0.3),
+    0 0 24px rgba(56, 189, 248, 0.22),
     inset 0 0 32px rgba(20, 184, 166, 0.1);
 }
 
 .sentinel-cyber-landing .landing-energy-ring-outer {
-  inset: 3%;
+  inset: 4%;
   transform: none;
-  animation: landing-front-ring-spin 22s linear infinite, landing-ring-flicker 4.2s ease-in-out infinite;
+  animation: landing-front-ring-spin 28s linear infinite, landing-hud-soft-pulse 4.8s ease-in-out infinite;
 }
 
 .sentinel-cyber-landing .landing-energy-ring-mid {
-  inset: 15%;
+  inset: 18%;
   transform: none;
-  animation: landing-front-ring-spin-reverse 16s linear infinite, landing-ring-pulse 3.4s ease-in-out infinite;
+  opacity: 0.78;
+  animation: landing-front-ring-spin-reverse 22s linear infinite, landing-hud-soft-pulse 5.4s ease-in-out infinite;
 }
 
 .sentinel-cyber-landing .landing-energy-ring-inner {
-  inset: 28%;
+  inset: 33%;
   transform: none;
-  animation: landing-front-ring-spin 10s linear infinite, landing-ring-flicker 3.2s ease-in-out infinite;
+  opacity: 0.72;
+  animation: landing-front-ring-spin 16s linear infinite, landing-hud-soft-pulse 4.2s ease-in-out infinite;
 }
 
 .sentinel-cyber-landing .landing-energy-ring::before,
-.sentinel-cyber-landing .landing-energy-ring::after,
-.sentinel-cyber-landing .landing-segment-ring {
-  filter: drop-shadow(0 0 12px rgba(103, 232, 249, 0.54));
+.sentinel-cyber-landing .landing-energy-ring::after {
+  border-width: 1px;
+  filter: drop-shadow(0 0 8px rgba(103, 232, 249, 0.42));
 }
 
 .sentinel-cyber-landing .landing-ring-scanline {
-  background: linear-gradient(90deg, rgba(103, 232, 249, 0), rgba(103, 232, 249, 0.9), rgba(45, 212, 191, 0));
-  box-shadow: 0 0 20px rgba(103, 232, 249, 0.58);
-  transform: none;
-  animation: landing-front-scan-rotate 7s linear infinite;
+  display: none;
 }
 
 .sentinel-cyber-landing .landing-ring-particles span {
   background: #67e8f9;
   box-shadow: 0 0 15px rgba(103, 232, 249, 0.78);
-  transform: rotate(var(--angle)) translateX(min(31vw, 300px));
-  animation: landing-front-orbit-dot 8s ease-in-out infinite, landing-dot-twinkle 2.8s ease-in-out infinite;
+  transform: rotate(var(--angle)) translateX(min(29vw, 280px));
+  animation: landing-front-orbit-dot 10s ease-in-out infinite, landing-dot-twinkle 3s ease-in-out infinite;
 }
 
 .sentinel-cyber-landing .landing-ring-particles span:nth-child(3n) {
@@ -4341,7 +4342,103 @@ textarea {
 }
 
 .sentinel-cyber-landing .landing-shield-core {
-  width: min(14vw, 104px);
+  display: none;
+}
+
+.sentinel-cyber-landing .landing-hud-label {
+  position: absolute;
+  top: 50%;
+  z-index: 3;
+  display: grid;
+  min-width: 132px;
+  gap: 0.18rem;
+  padding: 0.62rem 0.72rem;
+  border: 1px solid rgba(103, 232, 249, 0.2);
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.54);
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.1), inset 0 0 18px rgba(103, 232, 249, 0.035);
+  transform: translateY(-50%);
+  backdrop-filter: blur(10px);
+}
+
+.sentinel-cyber-landing .landing-hud-label::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 54px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(103, 232, 249, 0.64));
+}
+
+.sentinel-cyber-landing .landing-hud-label span {
+  color: rgba(219, 234, 254, 0.58);
+  font-size: 0.58rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.sentinel-cyber-landing .landing-hud-label strong {
+  color: #67e8f9;
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sentinel-cyber-landing .landing-hud-label-left {
+  left: 8%;
+  text-align: right;
+}
+
+.sentinel-cyber-landing .landing-hud-label-left::before {
+  left: 100%;
+}
+
+.sentinel-cyber-landing .landing-hud-label-right {
+  right: 8%;
+  text-align: left;
+}
+
+.sentinel-cyber-landing .landing-hud-label-right::before {
+  right: 100%;
+  transform: rotate(180deg);
+}
+
+.sentinel-cyber-landing .landing-segment-ring,
+.sentinel-cyber-landing .landing-scan-disc {
+  pointer-events: none;
+}
+
+.sentinel-cyber-landing .landing-segment-ring {
+  opacity: 0.38;
+  background:
+    repeating-conic-gradient(from 0deg, rgba(103, 232, 249, 0.62) 0 2deg, transparent 2deg 16deg);
+  mask-image: radial-gradient(circle, transparent 0 60%, black 61% 64%, transparent 65%);
+  filter: none;
+}
+
+.sentinel-cyber-landing .landing-segment-ring-one {
+  width: 70%;
+  height: 70%;
+}
+
+.sentinel-cyber-landing .landing-segment-ring-two {
+  width: 54%;
+  height: 54%;
+  opacity: 0.32;
+}
+
+.sentinel-cyber-landing .landing-scan-disc {
+  opacity: 0.16;
+  background:
+    linear-gradient(rgba(103, 232, 249, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(45, 212, 191, 0.035) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Kept for inactive legacy markup; hidden in the active hero center. */
+.sentinel-cyber-landing .landing-shield-core {
   color: #67e8f9;
   background:
     radial-gradient(circle at 40% 32%, rgba(255, 255, 255, 0.3), transparent 18%),
@@ -4355,8 +4452,7 @@ textarea {
 
 .sentinel-cyber-landing .landing-holo-depth-front,
 .sentinel-cyber-landing .landing-scan-disc,
-.sentinel-cyber-landing .landing-segment-ring,
-.sentinel-cyber-landing .landing-shield-core {
+.sentinel-cyber-landing .landing-segment-ring {
   transform: translate(-50%, -50%);
 }
 
@@ -4520,5 +4616,30 @@ textarea {
   50% {
     opacity: 1;
     transform: rotate(calc(var(--angle) + 34deg)) translateX(min(33vw, 320px)) scale(1.12);
+  }
+}
+
+@keyframes landing-hud-soft-pulse {
+  0%, 100% {
+    opacity: 0.72;
+    filter: brightness(0.95);
+  }
+  50% {
+    opacity: 1;
+    filter: brightness(1.16);
+  }
+}
+
+@media (max-width: 760px) {
+  .sentinel-cyber-landing .landing-hud-label {
+    display: none;
+  }
+
+  .sentinel-cyber-landing .landing-cyber-core {
+    width: min(112vw, 540px);
+  }
+
+  .sentinel-cyber-landing .landing-ring-particles span {
+    transform: rotate(var(--angle)) translateX(min(42vw, 210px));
   }
 }

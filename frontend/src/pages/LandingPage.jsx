@@ -111,6 +111,14 @@ export default function LandingPage() {
           <div className="landing-cyber-core" aria-hidden="true">
             <div className="landing-hud-grid" />
             <div className="landing-holo-depth landing-holo-depth-back" />
+            <div className="landing-hud-label landing-hud-label-left">
+              <span>Threat Scan</span>
+              <strong>Status Protected</strong>
+            </div>
+            <div className="landing-hud-label landing-hud-label-right">
+              <span>AI Model</span>
+              <strong>Endpoints Active</strong>
+            </div>
             <div className="landing-energy-ring landing-energy-ring-outer" />
             <div className="landing-energy-ring landing-energy-ring-mid" />
             <div className="landing-energy-ring landing-energy-ring-inner" />
