@@ -18,7 +18,7 @@ import zipfile
 
 from database import Base, get_db, init_database
 from models import User, Team, Endpoint, Alert, Telemetry
-from auth import get_password_hash, verify_password, get_user_by_email, create_access_token, get_current_user, normalize_role, require_admin, endpoint_access_filter
+from auth import get_password_hash, verify_password, get_user_by_email, create_access_token, get_current_user, normalize_role, require_admin, require_endpoint_user
 from detector import predict_file
 
 init_database(Base)
@@ -140,6 +140,7 @@ class LoginRequest(BaseModel):
 
 
 class LoginResponse(BaseModel):
+    access_token: str
     token: str
     user: dict
 
@@ -210,6 +211,23 @@ def serialize_telemetry(row: Telemetry):
     }
 
 
+def serialize_alert(alert: Alert) -> dict:
+    return {
+        "id": alert.id,
+        "endpoint_id": alert.endpoint_id,
+        "pc_name": alert.pc_name,
+        "filename": alert.filename,
+        "file_extension": alert.file_extension,
+        "keyword_count": alert.keyword_count,
+        "file_size": alert.file_size,
+        "prediction": alert.prediction,
+        "risk_score": alert.risk_score,
+        "action_taken": alert.action_taken,
+        "suspicious_content": alert.suspicious_content,
+        "created_at": serialize_datetime(alert.created_at),
+    }
+
+
 def serialize_datetime(value: datetime | None):
     if not value:
         return None
@@ -275,6 +293,59 @@ def latest_telemetry_rows(db: Session):
         .order_by(Telemetry.endpoint_id.asc())
         .all()
     )
+
+
+def endpoint_status_rows(db: Session, allowed_ids: set[int] | None = None):
+    alert_stats = (
+        db.query(
+            Alert.endpoint_id,
+            func.count(Alert.id).label("total_alerts"),
+            func.max(Alert.risk_score).label("max_risk_score"),
+        )
+        .group_by(Alert.endpoint_id)
+        .all()
+    )
+    stats_by_endpoint = {
+        row.endpoint_id: {
+            "total_alerts": row.total_alerts or 0,
+            "max_risk_score": row.max_risk_score or 0,
+        }
+        for row in alert_stats
+    }
+    latest_alert_ids = (
+        db.query(func.max(Alert.id).label("id"))
+        .group_by(Alert.endpoint_id)
+        .subquery()
+    )
+    latest_alerts = {
+        alert.endpoint_id: alert
+        for alert in db.query(Alert).join(latest_alert_ids, Alert.id == latest_alert_ids.c.id).all()
+    }
+    latest_by_endpoint = {row.endpoint_id: row for row in latest_telemetry_rows(db)}
+    endpoint_query = db.query(Endpoint).order_by(Endpoint.id.asc())
+    if allowed_ids is not None:
+        if not allowed_ids:
+            return []
+        endpoint_query = endpoint_query.filter(Endpoint.id.in_(allowed_ids))
+    endpoints = endpoint_query.all()
+
+    return [
+        {
+            "endpoint_id": endpoint.id,
+            "pc_name": latest_by_endpoint.get(endpoint.id, endpoint).pc_name,
+            "status": endpoint_live_status(endpoint),
+            "protection_status": alert_protection_status(latest_alerts.get(endpoint.id)),
+            "last_seen": serialize_datetime(endpoint.last_seen),
+            "detection_enabled": bool(endpoint.detection_enabled),
+            "agent_mode": endpoint.agent_mode or "running",
+            "heartbeat_enabled": bool(endpoint.heartbeat_enabled),
+            "removed_at": serialize_datetime(endpoint.removed_at),
+            "telemetry": serialize_telemetry(latest_by_endpoint[endpoint.id]) if endpoint.id in latest_by_endpoint else None,
+            "total_alerts": stats_by_endpoint.get(endpoint.id, {}).get("total_alerts", 0),
+            "max_risk_score": stats_by_endpoint.get(endpoint.id, {}).get("max_risk_score", 0),
+        }
+        for endpoint in endpoints
+    ]
 
 
 def endpoint_live_status(endpoint: Endpoint) -> str:
@@ -487,6 +558,7 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
         "admin_id": user.admin_id,
     })
     return {
+        "access_token": token,
         "token": token,
         "user": serialize_user(user),
     }
@@ -577,7 +649,7 @@ def get_agent_config(endpoint_id: int, request: Request, db: Session = Depends(g
 
 @app.get("/download-agent/{endpoint_id}")
 @safe_endpoint
-def download_agent(endpoint_id: int, request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def download_agent(endpoint_id: int, request: Request, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     ensure_endpoint_visible(db, current_user, endpoint_id)
     endpoint = get_endpoint_or_404(endpoint_id, db)
     required_files = [
@@ -737,7 +809,7 @@ async def receive_telemetry(request: Request, db: Session = Depends(get_db)):
 
 @app.get("/telemetry")
 @safe_endpoint
-def get_latest_telemetry(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_latest_telemetry(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     allowed_ids = visible_endpoint_ids(db, current_user)
     rows = latest_telemetry_rows(db)
     if allowed_ids is not None:
@@ -747,7 +819,7 @@ def get_latest_telemetry(db: Session = Depends(get_db), current_user: User = Dep
 
 @app.get("/telemetry/{endpoint_id}")
 @safe_endpoint
-def get_endpoint_telemetry(endpoint_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_endpoint_telemetry(endpoint_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     ensure_endpoint_visible(db, current_user, endpoint_id)
     endpoint = db.get(Endpoint, endpoint_id)
     if not endpoint:
@@ -765,58 +837,9 @@ def get_endpoint_telemetry(endpoint_id: int, db: Session = Depends(get_db), curr
 
 @app.get("/endpoints/status")
 @safe_endpoint
-def get_endpoint_status(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_endpoint_status(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     allowed_ids = visible_endpoint_ids(db, current_user)
-    alert_stats = (
-        db.query(
-            Alert.endpoint_id,
-            func.count(Alert.id).label("total_alerts"),
-            func.max(Alert.risk_score).label("max_risk_score"),
-        )
-        .group_by(Alert.endpoint_id)
-        .all()
-    )
-    stats_by_endpoint = {
-        row.endpoint_id: {
-            "total_alerts": row.total_alerts or 0,
-            "max_risk_score": row.max_risk_score or 0,
-        }
-        for row in alert_stats
-    }
-    latest_alert_ids = (
-        db.query(func.max(Alert.id).label("id"))
-        .group_by(Alert.endpoint_id)
-        .subquery()
-    )
-    latest_alerts = {
-        alert.endpoint_id: alert
-        for alert in db.query(Alert).join(latest_alert_ids, Alert.id == latest_alert_ids.c.id).all()
-    }
-    latest_by_endpoint = {row.endpoint_id: row for row in latest_telemetry_rows(db)}
-    endpoint_query = db.query(Endpoint).order_by(Endpoint.id.asc())
-    if allowed_ids is not None:
-        if not allowed_ids:
-            return []
-        endpoint_query = endpoint_query.filter(Endpoint.id.in_(allowed_ids))
-    endpoints = endpoint_query.all()
-
-    return [
-        {
-            "endpoint_id": endpoint.id,
-            "pc_name": latest_by_endpoint.get(endpoint.id, endpoint).pc_name,
-            "status": endpoint_live_status(endpoint),
-            "protection_status": alert_protection_status(latest_alerts.get(endpoint.id)),
-            "last_seen": serialize_datetime(endpoint.last_seen),
-            "detection_enabled": bool(endpoint.detection_enabled),
-            "agent_mode": endpoint.agent_mode or "running",
-            "heartbeat_enabled": bool(endpoint.heartbeat_enabled),
-            "removed_at": serialize_datetime(endpoint.removed_at),
-            "telemetry": serialize_telemetry(latest_by_endpoint[endpoint.id]) if endpoint.id in latest_by_endpoint else None,
-            "total_alerts": stats_by_endpoint.get(endpoint.id, {}).get("total_alerts", 0),
-            "max_risk_score": stats_by_endpoint.get(endpoint.id, {}).get("max_risk_score", 0),
-        }
-        for endpoint in endpoints
-    ]
+    return endpoint_status_rows(db, allowed_ids)
 
 
 @app.get("/endpoints/{endpoint_id}/control/status")
@@ -931,31 +954,121 @@ def reset_demo_data(db: Session = Depends(get_db), current_user: User = Depends(
 
 @app.get("/get-alerts")
 @safe_endpoint
-def get_alerts(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_alerts(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     allowed_ids = visible_endpoint_ids(db, current_user)
     query = db.query(Alert).order_by(Alert.created_at.desc())
     if allowed_ids is not None:
         if not allowed_ids:
             return []
         query = query.filter(Alert.endpoint_id.in_(allowed_ids))
-    alerts = query.all()
-    return [
-        {
-            "id": alert.id,
-            "endpoint_id": alert.endpoint_id,
-            "pc_name": alert.pc_name,
-            "filename": alert.filename,
-            "file_extension": alert.file_extension,
-            "keyword_count": alert.keyword_count,
-            "file_size": alert.file_size,
-            "prediction": alert.prediction,
-            "risk_score": alert.risk_score,
-            "action_taken": alert.action_taken,
-            "suspicious_content": alert.suspicious_content,
-            "created_at": alert.created_at,
-        }
-        for alert in alerts
-    ]
+    return [serialize_alert(alert) for alert in query.all()]
+
+
+@app.get("/users")
+@safe_endpoint
+def get_users(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    query = db.query(User).order_by(User.created_at.desc())
+    if current_user.team_id is not None:
+        query = query.filter(User.team_id == current_user.team_id)
+    return [serialize_user(user) for user in query.all()]
+
+
+@app.get("/my/endpoint")
+@safe_endpoint
+def get_my_endpoint(db: Session = Depends(get_db), current_user: User = Depends(require_endpoint_user)):
+    require_team_for_endpoint_user(current_user)
+    endpoint_id = current_user.endpoint_id
+    if endpoint_id is None:
+        return None
+    rows = endpoint_status_rows(db, {int(endpoint_id)})
+    return rows[0] if rows else None
+
+
+@app.get("/my/endpoint/status")
+@safe_endpoint
+def get_my_endpoint_status(db: Session = Depends(get_db), current_user: User = Depends(require_endpoint_user)):
+    require_team_for_endpoint_user(current_user)
+    if current_user.endpoint_id is None:
+        return []
+    return endpoint_status_rows(db, {int(current_user.endpoint_id)})
+
+
+@app.get("/my/telemetry")
+@safe_endpoint
+def get_my_telemetry(db: Session = Depends(get_db), current_user: User = Depends(require_endpoint_user)):
+    require_team_for_endpoint_user(current_user)
+    if current_user.endpoint_id is None:
+        return []
+    rows = [row for row in latest_telemetry_rows(db) if int(row.endpoint_id) == int(current_user.endpoint_id)]
+    return [serialize_telemetry(row) for row in rows]
+
+
+@app.get("/my/behavior")
+@safe_endpoint
+def get_my_behavior(db: Session = Depends(get_db), current_user: User = Depends(require_endpoint_user)):
+    require_team_for_endpoint_user(current_user)
+    if current_user.endpoint_id is None:
+        return []
+    rows = (
+        db.query(Telemetry)
+        .filter(Telemetry.endpoint_id == int(current_user.endpoint_id))
+        .order_by(Telemetry.timestamp.desc())
+        .limit(120)
+        .all()
+    )
+    return [serialize_telemetry(row) for row in rows]
+
+
+@app.get("/my/alerts")
+@safe_endpoint
+def get_my_alerts(db: Session = Depends(get_db), current_user: User = Depends(require_endpoint_user)):
+    require_team_for_endpoint_user(current_user)
+    if current_user.endpoint_id is None:
+        return []
+    alerts = (
+        db.query(Alert)
+        .filter(Alert.endpoint_id == int(current_user.endpoint_id))
+        .order_by(Alert.created_at.desc())
+        .all()
+    )
+    return [serialize_alert(alert) for alert in alerts]
+
+
+@app.get("/my/quarantine")
+@safe_endpoint
+def get_my_quarantine(db: Session = Depends(get_db), current_user: User = Depends(require_endpoint_user)):
+    require_team_for_endpoint_user(current_user)
+    if current_user.endpoint_id is None:
+        return []
+    alerts = (
+        db.query(Alert)
+        .filter(Alert.endpoint_id == int(current_user.endpoint_id), Alert.action_taken.ilike("%quarantine%"))
+        .order_by(Alert.created_at.desc())
+        .all()
+    )
+    return [serialize_alert(alert) for alert in alerts]
+
+
+@app.get("/my/health")
+@safe_endpoint
+def get_my_health(db: Session = Depends(get_db), current_user: User = Depends(require_endpoint_user)):
+    require_team_for_endpoint_user(current_user)
+    if current_user.endpoint_id is None:
+        return {"endpoint": None, "telemetry": None, "alerts": 0, "quarantine": 0}
+    endpoint_rows = endpoint_status_rows(db, {int(current_user.endpoint_id)})
+    alerts_count = db.query(Alert).filter(Alert.endpoint_id == int(current_user.endpoint_id)).count()
+    quarantine_count = (
+        db.query(Alert)
+        .filter(Alert.endpoint_id == int(current_user.endpoint_id), Alert.action_taken.ilike("%quarantine%"))
+        .count()
+    )
+    endpoint = endpoint_rows[0] if endpoint_rows else None
+    return {
+        "endpoint": endpoint,
+        "telemetry": endpoint.get("telemetry") if endpoint else None,
+        "alerts": alerts_count,
+        "quarantine": quarantine_count,
+    }
 
 
 @app.delete("/alerts/{alert_id}")

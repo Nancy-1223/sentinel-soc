@@ -18,8 +18,10 @@ const adminNavItems = [
   { to: "/alerts", label: "Alerts Panel", icon: Bell },
   { to: "/behavior", label: "User Behavior", icon: UserRoundCog },
   { to: "/endpoints", label: "Endpoint Details", icon: HardDrive },
+  { to: "/endpoint-management", label: "Endpoint Management", icon: Shield },
   { to: "/quarantine", label: "Quarantine", icon: LockKeyhole },
   { to: "/health", label: "System Health", icon: Activity },
+  { to: "/users", label: "Users", icon: UserRoundCog },
   { to: "/incidents", label: "Incident Investigation", icon: Search },
   { to: "/about", label: "About Us", icon: CircleHelp },
   { to: "/settings", label: "Settings", icon: Settings },
@@ -27,8 +29,10 @@ const adminNavItems = [
 
 const endpointNavItems = [
   { to: "/endpoint-portal", label: "My Endpoint", icon: HardDrive },
-  { to: "/endpoint-portal#alerts", label: "My Alerts", icon: Bell },
-  { to: "/endpoint-portal#quarantine", label: "My Quarantine", icon: LockKeyhole },
+  { to: "/my-dashboard", label: "My Dashboard", icon: Gauge },
+  { to: "/my-behavior", label: "My Behavior", icon: UserRoundCog },
+  { to: "/my-alerts", label: "My Alerts", icon: Bell },
+  { to: "/my-quarantine", label: "My Quarantine", icon: LockKeyhole },
   { to: "/about", label: "About Us", icon: CircleHelp },
 ];
 

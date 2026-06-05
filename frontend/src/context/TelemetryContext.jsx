@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { createApiClient } from "../api/client";
+import { getStoredUser, getUserRole } from "../utils/auth";
 import { useSettings } from "./SettingsContext";
 
 const TelemetryContext = createContext(null);
@@ -20,11 +21,15 @@ export function TelemetryProvider({ children }) {
 
   const fetchTelemetry = useCallback(async () => {
     const api = createApiClient();
+    const user = getStoredUser();
+    const isEndpoint = getUserRole(user) === "endpoint";
+    const telemetryPath = isEndpoint ? "/my/telemetry" : "/telemetry";
+    const statusPath = isEndpoint ? "/my/endpoint/status" : "/endpoints/status";
 
     try {
       const [telemetryResponse, statusResponse] = await Promise.all([
-        api.get("/telemetry"),
-        api.get("/endpoints/status"),
+        api.get(telemetryPath),
+        api.get(statusPath),
       ]);
       const telemetryRows = Array.isArray(telemetryResponse.data) ? telemetryResponse.data : [];
       const statusRows = Array.isArray(statusResponse.data) ? statusResponse.data : [];

@@ -1,6 +1,6 @@
+import os
 import shutil
 import sqlite3
-import os
 from datetime import datetime
 from pathlib import Path
 
@@ -8,21 +8,33 @@ from sqlalchemy import create_engine, inspect
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-# Local default keeps SQLite beside this file. Render can override it with
-# DATABASE_PATH=/var/data/soc_backend.db on a persistent disk.
+# Render should set DATABASE_URL to a persistent hosted database such as Render
+# PostgreSQL. Local development falls back to SQLite beside this file, and older
+# Render deployments can still use DATABASE_PATH on a mounted persistent disk.
 BASE_DIR = Path(__file__).resolve().parent
+DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 DB_PATH = Path(os.getenv("DATABASE_PATH", str(BASE_DIR / "soc_backend.db"))).resolve()
-DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-SQLALCHEMY_DATABASE_URL = f"sqlite:///{DB_PATH.as_posix()}"
+
+if DATABASE_URL:
+    SQLALCHEMY_DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+else:
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    SQLALCHEMY_DATABASE_URL = f"sqlite:///{DB_PATH.as_posix()}"
+
+connect_args = {"check_same_thread": False} if SQLALCHEMY_DATABASE_URL.startswith("sqlite") else {}
 
 engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+    SQLALCHEMY_DATABASE_URL,
+    connect_args=connect_args,
+    pool_pre_ping=True,
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
 def _backup_database(reason: str) -> None:
+    if engine.dialect.name != "sqlite":
+        return
     if not DB_PATH.exists():
         return
 
@@ -32,6 +44,8 @@ def _backup_database(reason: str) -> None:
 
 
 def _sqlite_file_is_healthy() -> bool:
+    if engine.dialect.name != "sqlite":
+        return True
     if not DB_PATH.exists():
         return True
 
@@ -122,7 +136,7 @@ def init_database(base) -> None:
     try:
         base.metadata.create_all(bind=engine)
         _add_missing_sqlite_columns(base)
-        if not _schema_matches_models(base):
+        if engine.dialect.name == "sqlite" and not _schema_matches_models(base):
             engine.dispose()
             _backup_database("old_schema")
             base.metadata.create_all(bind=engine)

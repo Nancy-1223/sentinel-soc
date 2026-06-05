@@ -4,3 +4,4 @@ SQLAlchemy
 scikit-learn
 joblib
 python-jose[cryptography]
+psycopg2-binary

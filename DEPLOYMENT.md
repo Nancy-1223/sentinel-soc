@@ -79,18 +79,12 @@ Environment variables:
 
 ```text
 PYTHON_VERSION=3.11.9
-DATABASE_PATH=/var/data/soc_backend.db
+DATABASE_URL=<Render PostgreSQL internal connection string>
 SECRET_KEY=<generate a long random value>
 ALLOWED_ORIGINS=https://your-project.vercel.app,http://localhost:5173,http://127.0.0.1:5173
 ```
 
-Persistent disk:
-
-```text
-Name: sentinel-soc-data
-Mount Path: /var/data
-Size: 1 GB
-```
+Use a persistent hosted database for deployed accounts. The included `render.yaml` provisions Render PostgreSQL and injects `DATABASE_URL` automatically when deployed as a Blueprint.
 
 After deployment, test:
 
@@ -173,9 +167,8 @@ The deployed backend keeps the same API routes used locally:
 - `POST /predict`
 - `POST /upload-alert`
 - `POST /telemetry`
-- `GET /telemetry`
-- `GET /endpoints/status`
-- `GET /get-alerts`
+- Admin-only: `GET /telemetry`, `GET /endpoints/status`, `GET /get-alerts`, `GET /users`
+- Endpoint-only: `GET /my/endpoint`, `GET /my/alerts`, `GET /my/quarantine`, `GET /my/behavior`, `GET /my/health`
 - quarantine restore/delete routes
 
 ## Local Development
@@ -202,7 +195,7 @@ VITE_API_URL=http://127.0.0.1:8000
 
 ## Notes
 
-- SQLite is kept for the current architecture. On Render, it is stored at `/var/data/soc_backend.db` using a persistent disk.
+- SQLite is kept for local development. Render should use `DATABASE_URL` with persistent PostgreSQL so registered users survive restarts and redeploys.
 - Free Render services may sleep when idle. The first request after sleep can take longer.
 - Keep `SECRET_KEY` stable after users log in, or existing tokens will become invalid.
 - Keep `ALLOWED_ORIGINS` updated with your final Vercel production URL.

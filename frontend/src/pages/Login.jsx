@@ -50,8 +50,9 @@ export default function Login() {
         email: form.email.trim(),
         password: form.password,
       });
-      localStorage.setItem("soc_token", response.data.token);
-      localStorage.setItem("soc_user", JSON.stringify({ ...response.data.user, token: response.data.token }));
+      const token = response.data.access_token || response.data.token;
+      localStorage.setItem("soc_token", token);
+      localStorage.setItem("soc_user", JSON.stringify({ ...response.data.user, token }));
       navigate(getRoleHome(response.data.user));
     } catch (exc) {
       setError(getApiErrorMessage(exc, "Login failed. Check backend and credentials."));

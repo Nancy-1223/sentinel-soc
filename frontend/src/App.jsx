@@ -17,6 +17,7 @@ import Settings from "./pages/Settings";
 import SystemHealth from "./pages/SystemHealth";
 import ThreatDetails from "./pages/ThreatDetails";
 import UserBehavior from "./pages/UserBehavior";
+import Users from "./pages/Users";
 
 export default function App() {
   return (
@@ -32,13 +33,19 @@ export default function App() {
           <Route path="/behavior" element={<ProtectedRoute roles={["admin"]}><UserBehavior /></ProtectedRoute>} />
           <Route path="/endpoints" element={<ProtectedRoute roles={["admin"]}><EndpointDetails /></ProtectedRoute>} />
           <Route path="/endpoint-details" element={<ProtectedRoute roles={["admin"]}><EndpointDetails /></ProtectedRoute>} />
+          <Route path="/endpoint-management" element={<ProtectedRoute roles={["admin"]}><EndpointDetails /></ProtectedRoute>} />
           <Route path="/quarantine" element={<ProtectedRoute roles={["admin"]}><Quarantine /></ProtectedRoute>} />
           <Route path="/health" element={<ProtectedRoute roles={["admin"]}><SystemHealth /></ProtectedRoute>} />
           <Route path="/incidents" element={<ProtectedRoute roles={["admin"]}><IncidentInvestigation /></ProtectedRoute>} />
           <Route path="/about" element={<ProtectedRoute roles={["admin", "endpoint"]}><AboutUs /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute roles={["admin"]}><Settings /></ProtectedRoute>} />
+          <Route path="/users" element={<ProtectedRoute roles={["admin"]}><Users /></ProtectedRoute>} />
           <Route path="/connect-team" element={<ProtectedRoute roles={["endpoint"]}><ConnectTeam /></ProtectedRoute>} />
           <Route path="/endpoint-portal" element={<ProtectedRoute roles={["endpoint"]}><EndpointPortal /></ProtectedRoute>} />
+          <Route path="/my-dashboard" element={<ProtectedRoute roles={["endpoint"]}><EndpointPortal /></ProtectedRoute>} />
+          <Route path="/my-behavior" element={<ProtectedRoute roles={["endpoint"]}><EndpointPortal /></ProtectedRoute>} />
+          <Route path="/my-alerts" element={<ProtectedRoute roles={["endpoint"]}><EndpointPortal /></ProtectedRoute>} />
+          <Route path="/my-quarantine" element={<ProtectedRoute roles={["endpoint"]}><EndpointPortal /></ProtectedRoute>} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
