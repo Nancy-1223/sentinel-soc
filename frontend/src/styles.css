@@ -4251,10 +4251,14 @@ textarea {
 }
 
 .sentinel-cyber-landing .landing-cyber-core {
+  top: 48%;
   opacity: 1;
+  transform: translate(-50%, -50%);
+  transform-style: flat;
   filter:
     drop-shadow(0 0 30px rgba(56, 189, 248, 0.38))
     drop-shadow(0 28px 60px rgba(2, 6, 23, 0.36));
+  animation: landing-front-hud-arrive 900ms cubic-bezier(.2,.8,.2,1) both, landing-front-hud-pulse 5.6s ease-in-out 900ms infinite;
 }
 
 .sentinel-cyber-landing .landing-hero-copy::before {
@@ -4262,13 +4266,17 @@ textarea {
 }
 
 .sentinel-cyber-landing .landing-hud-grid {
+  inset: 5%;
   opacity: 0.42;
   background-image:
     linear-gradient(rgba(103, 232, 249, 0.11) 1px, transparent 1px),
     linear-gradient(90deg, rgba(103, 232, 249, 0.11) 1px, transparent 1px);
+  transform: none;
 }
 
 .sentinel-cyber-landing .landing-holo-depth-back {
+  width: 88%;
+  height: 88%;
   opacity: 0.94;
   background:
     radial-gradient(circle, rgba(103, 232, 249, 0.26), transparent 35%),
@@ -4289,6 +4297,24 @@ textarea {
     inset 0 0 32px rgba(20, 184, 166, 0.1);
 }
 
+.sentinel-cyber-landing .landing-energy-ring-outer {
+  inset: 3%;
+  transform: none;
+  animation: landing-front-ring-spin 22s linear infinite, landing-ring-flicker 4.2s ease-in-out infinite;
+}
+
+.sentinel-cyber-landing .landing-energy-ring-mid {
+  inset: 15%;
+  transform: none;
+  animation: landing-front-ring-spin-reverse 16s linear infinite, landing-ring-pulse 3.4s ease-in-out infinite;
+}
+
+.sentinel-cyber-landing .landing-energy-ring-inner {
+  inset: 28%;
+  transform: none;
+  animation: landing-front-ring-spin 10s linear infinite, landing-ring-flicker 3.2s ease-in-out infinite;
+}
+
 .sentinel-cyber-landing .landing-energy-ring::before,
 .sentinel-cyber-landing .landing-energy-ring::after,
 .sentinel-cyber-landing .landing-segment-ring {
@@ -4298,11 +4324,15 @@ textarea {
 .sentinel-cyber-landing .landing-ring-scanline {
   background: linear-gradient(90deg, rgba(103, 232, 249, 0), rgba(103, 232, 249, 0.9), rgba(45, 212, 191, 0));
   box-shadow: 0 0 20px rgba(103, 232, 249, 0.58);
+  transform: none;
+  animation: landing-front-scan-rotate 7s linear infinite;
 }
 
 .sentinel-cyber-landing .landing-ring-particles span {
   background: #67e8f9;
   box-shadow: 0 0 15px rgba(103, 232, 249, 0.78);
+  transform: rotate(var(--angle)) translateX(min(31vw, 300px));
+  animation: landing-front-orbit-dot 8s ease-in-out infinite, landing-dot-twinkle 2.8s ease-in-out infinite;
 }
 
 .sentinel-cyber-landing .landing-ring-particles span:nth-child(3n) {
@@ -4311,6 +4341,7 @@ textarea {
 }
 
 .sentinel-cyber-landing .landing-shield-core {
+  width: min(14vw, 104px);
   color: #67e8f9;
   background:
     radial-gradient(circle at 40% 32%, rgba(255, 255, 255, 0.3), transparent 18%),
@@ -4320,6 +4351,29 @@ textarea {
   box-shadow:
     0 0 36px rgba(56, 189, 248, 0.3),
     inset 0 0 32px rgba(20, 184, 166, 0.1);
+}
+
+.sentinel-cyber-landing .landing-holo-depth-front,
+.sentinel-cyber-landing .landing-scan-disc,
+.sentinel-cyber-landing .landing-segment-ring,
+.sentinel-cyber-landing .landing-shield-core {
+  transform: translate(-50%, -50%);
+}
+
+.sentinel-cyber-landing .landing-segment-ring-one {
+  animation: landing-front-ring-spin 9s linear infinite;
+}
+
+.sentinel-cyber-landing .landing-segment-ring-two {
+  animation: landing-front-ring-spin-reverse 7.5s linear infinite;
+}
+
+.sentinel-cyber-landing .landing-scan-disc-one {
+  animation: landing-disc-pulse 3s ease-in-out infinite;
+}
+
+.sentinel-cyber-landing .landing-scan-disc-two {
+  animation: landing-disc-pulse 3s ease-in-out infinite reverse;
 }
 
 .sentinel-cyber-landing .landing-shield-core svg {
@@ -4416,4 +4470,55 @@ textarea {
 .sentinel-cyber-landing .landing-contact-links a {
   border-color: rgba(103, 232, 249, 0.18);
   background: rgba(2, 6, 23, 0.54);
+}
+
+@keyframes landing-front-hud-arrive {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+    filter: blur(6px) drop-shadow(0 0 0 rgba(56, 189, 248, 0));
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    filter: blur(0) drop-shadow(0 0 30px rgba(56, 189, 248, 0.38));
+  }
+}
+
+@keyframes landing-front-hud-pulse {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.025);
+  }
+}
+
+@keyframes landing-front-ring-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes landing-front-ring-spin-reverse {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes landing-front-scan-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes landing-front-orbit-dot {
+  0%, 100% {
+    opacity: 0.45;
+    transform: rotate(var(--angle)) translateX(min(29vw, 280px)) scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: rotate(calc(var(--angle) + 34deg)) translateX(min(33vw, 320px)) scale(1.12);
+  }
 }
