@@ -4643,3 +4643,172 @@ textarea {
     transform: rotate(var(--angle)) translateX(min(42vw, 210px));
   }
 }
+
+/* Clean premium HUD center: no spokes, beams, or text-crossing effects */
+.sentinel-cyber-landing .landing-cyber-core {
+  width: min(74vw, 660px);
+  opacity: 0.92;
+  filter: drop-shadow(0 0 28px rgba(56, 189, 248, 0.22));
+}
+
+.sentinel-cyber-landing .landing-hero-center {
+  position: relative;
+  z-index: 5;
+}
+
+.sentinel-cyber-landing .landing-hero-center::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  z-index: -1;
+  width: min(620px, 82vw);
+  height: min(210px, 28vw);
+  border-radius: 999px;
+  background: radial-gradient(ellipse, rgba(2, 6, 23, 0.78), rgba(2, 6, 23, 0.5) 52%, transparent 72%);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.sentinel-cyber-landing .landing-hud-grid,
+.sentinel-cyber-landing .landing-ring-scanline,
+.sentinel-cyber-landing .landing-segment-ring,
+.sentinel-cyber-landing .landing-scan-disc,
+.sentinel-cyber-landing .landing-holo-depth-front {
+  display: none;
+}
+
+.sentinel-cyber-landing .landing-holo-depth-back {
+  width: 74%;
+  height: 74%;
+  opacity: 0.42;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.18), transparent 58%);
+  filter: blur(18px);
+}
+
+.sentinel-cyber-landing .landing-energy-ring {
+  background: transparent;
+  border-width: 1px;
+  box-shadow:
+    0 0 18px rgba(56, 189, 248, 0.14),
+    inset 0 0 18px rgba(45, 212, 191, 0.045);
+}
+
+.sentinel-cyber-landing .landing-energy-ring::before,
+.sentinel-cyber-landing .landing-energy-ring::after {
+  display: none;
+}
+
+.sentinel-cyber-landing .landing-energy-ring-outer {
+  inset: 7%;
+  opacity: 0.54;
+  border-color: rgba(103, 232, 249, 0.32);
+  animation: landing-clean-ring-spin 42s linear infinite, landing-clean-hud-breathe 6s ease-in-out infinite;
+}
+
+.sentinel-cyber-landing .landing-energy-ring-mid {
+  inset: 20%;
+  opacity: 0.46;
+  border-color: rgba(45, 212, 191, 0.28);
+  border-style: dashed;
+  animation: landing-clean-ring-spin-reverse 54s linear infinite, landing-clean-hud-breathe 6.8s ease-in-out infinite;
+}
+
+.sentinel-cyber-landing .landing-energy-ring-inner {
+  inset: 34%;
+  opacity: 0.42;
+  border-color: rgba(103, 232, 249, 0.24);
+  animation: landing-clean-ring-spin 48s linear infinite, landing-clean-hud-breathe 5.4s ease-in-out infinite;
+}
+
+.sentinel-cyber-landing .landing-cyber-core::before,
+.sentinel-cyber-landing .landing-cyber-core::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 999px;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.sentinel-cyber-landing .landing-cyber-core::before {
+  width: 48%;
+  height: 48%;
+  border: 1px solid rgba(103, 232, 249, 0.16);
+}
+
+.sentinel-cyber-landing .landing-cyber-core::after {
+  width: 61%;
+  height: 61%;
+  border: 1px dotted rgba(45, 212, 191, 0.22);
+  animation: landing-clean-ring-spin-reverse 58s linear infinite;
+}
+
+.sentinel-cyber-landing .landing-ring-particles span {
+  width: 4px;
+  height: 4px;
+  opacity: 0.72;
+  box-shadow: 0 0 10px rgba(103, 232, 249, 0.62);
+  transform: rotate(var(--angle)) translateX(min(28vw, 250px));
+  animation: landing-clean-orbit-dot 12s ease-in-out infinite, landing-dot-twinkle 3.2s ease-in-out infinite;
+}
+
+.sentinel-cyber-landing .landing-ring-particles span:nth-child(n+11) {
+  display: none;
+}
+
+.sentinel-cyber-landing .landing-hud-label {
+  opacity: 0.78;
+  border-color: rgba(103, 232, 249, 0.16);
+  background: rgba(2, 6, 23, 0.48);
+}
+
+.sentinel-cyber-landing .landing-hud-label::before {
+  display: none;
+}
+
+@keyframes landing-clean-ring-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes landing-clean-ring-spin-reverse {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes landing-clean-hud-breathe {
+  0%, 100% {
+    opacity: 0.38;
+  }
+  50% {
+    opacity: 0.62;
+  }
+}
+
+@keyframes landing-clean-orbit-dot {
+  0%, 100% {
+    transform: rotate(var(--angle)) translateX(min(26vw, 235px)) scale(0.92);
+  }
+  50% {
+    transform: rotate(calc(var(--angle) + 24deg)) translateX(min(28vw, 250px)) scale(1.08);
+  }
+}
+
+@media (max-width: 760px) {
+  .sentinel-cyber-landing .landing-cyber-core {
+    width: min(108vw, 520px);
+  }
+
+  .sentinel-cyber-landing .landing-hero-center::before {
+    width: min(420px, 90vw);
+    height: 150px;
+  }
+
+  .sentinel-cyber-landing .landing-ring-particles span {
+    transform: rotate(var(--angle)) translateX(min(38vw, 190px));
+  }
+}
