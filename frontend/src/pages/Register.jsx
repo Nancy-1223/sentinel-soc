@@ -50,7 +50,7 @@ export default function Register() {
         team_password: form.role === "admin" ? form.teamPassword : undefined,
         team_password_confirm: form.role === "admin" && !teamExists ? form.confirmTeamPassword : undefined,
       });
-      setMessage("Account created. You can login now.");
+      setMessage(form.role === "admin" ? "Admin account created successfully. You can login now." : "Account created. You can login now.");
       setTimeout(() => navigate("/login"), 900);
     } catch (exc) {
       setMessage(getApiErrorMessage(exc, "Registration failed."));

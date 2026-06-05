@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Bot, HelpCircle, Info, PlayCircle, ShieldCheck, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Bot, HelpCircle, Info, PlayCircle, Send, ShieldCheck, X } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import "./SentinelAIAssistant.css";
 
@@ -89,12 +89,75 @@ function getStepPosition(element) {
   return { top, left };
 }
 
+const welcomeMessage = `Hi, I am Sentinel AI Assistant.
+I can help you understand this page.
+You can ask doubts or start a tutorial.
+
+Tip: Press ESC anytime to end the tutorial.`;
+
+function buildResponse(question, config, pathname) {
+  const query = question.toLowerCase();
+  const key = pageKey(pathname);
+
+  if (key === "/alerts") {
+    if (query.includes("no alert") || query.includes("not found") || query.includes("empty")) {
+      return "No alerts found usually means the linked agents have not reported suspicious files recently, detection is paused, or the endpoint is offline. Check endpoint status, agent mode, and recent telemetry before assuming the machine is clean.";
+    }
+    return "The Alerts page shows malware predictions, severity, risk score, endpoint name, file path, action taken, and time. Use it to decide whether to quarantine, investigate, or clear an event.";
+  }
+
+  if (key === "/quarantine") {
+    return "Quarantine keeps suspicious files isolated so they cannot execute normally. Restore only when you trust the file, and delete when the item is confirmed malicious or no longer needed.";
+  }
+
+  if (key === "/endpoint-details" || key === "/endpoints") {
+    return "Endpoint status combines heartbeat and agent mode. Online means heartbeat is active, Offline means heartbeat stopped or became stale, Paused means heartbeat continues but telemetry, detection, and quarantine are stopped.";
+  }
+
+  if (key === "/dashboard") {
+    return "The dashboard is the SOC overview: telemetry health, endpoints, alerts, AI threat status, and recent activity. Start here to understand whether your team is protected and which endpoints need attention.";
+  }
+
+  if (key === "/endpoint-portal") {
+    return "The Endpoint Portal is scoped to your own machine. It shows your endpoint status, telemetry summary, alerts, and quarantine state without exposing admin-only data.";
+  }
+
+  if (query.includes("telemetry")) {
+    return "Telemetry is the endpoint health data sent by the agent, such as heartbeat, CPU, memory, disk, network activity, and recent monitoring state. Sentinel SOC uses it to show whether machines are healthy and monitored.";
+  }
+
+  if (query.includes("alert") || query.includes("prediction") || query.includes("risk")) {
+    return "Alerts are created when Sentinel SOC detects suspicious or malicious behavior. Each alert includes prediction, severity, risk, endpoint, file details, and action context for investigation.";
+  }
+
+  if (query.includes("quarantine")) {
+    return "Quarantine isolates risky files from normal execution and keeps a record for review. Admins can decide whether to restore or delete after validating the file.";
+  }
+
+  if (query.includes("install") || query.includes("agent")) {
+    return "To install an agent, register the endpoint, download its agent package, extract it on the target machine, and run the installer. The agent then runs silently, sends heartbeat, reports telemetry, and follows dashboard controls.";
+  }
+
+  if (query.includes("endpoint") || query.includes("status") || query.includes("offline") || query.includes("paused")) {
+    return "Endpoint status reflects agent reachability and mode. Running endpoints send heartbeat and telemetry, paused endpoints send heartbeat only, stopped endpoints go offline, and removed endpoints are no longer active monitoring targets.";
+  }
+
+  return `${config.about} Try asking about telemetry, alerts, quarantine, endpoint status, or agent installation.`;
+}
+
 export default function SentinelAIAssistant() {
   const location = useLocation();
   const config = useMemo(() => pageHelp[pageKey(location.pathname)] || fallbackHelp, [location.pathname]);
   const [open, setOpen] = useState(false);
-  const [message, setMessage] = useState("");
+  const [chatInput, setChatInput] = useState("");
+  const [messages, setMessages] = useState([{ role: "bot", text: welcomeMessage }]);
   const [tutorial, setTutorial] = useState({ running: false, index: 0, step: null, target: null, position: null });
+  const chatEndRef = useRef(null);
+
+  function addBotMessage(text) {
+    if (!text) return;
+    setMessages((current) => [...current, { role: "bot", text }]);
+  }
 
   function clearHighlight() {
     document.querySelectorAll(".sentinel-ai-highlight").forEach((element) => {
@@ -105,7 +168,7 @@ export default function SentinelAIAssistant() {
   function endTutorial(text = "Tutorial ended. You can restart it anytime from Start Tutorial.") {
     clearHighlight();
     setTutorial({ running: false, index: 0, step: null, target: null, position: null });
-    setMessage(text);
+    addBotMessage(text);
   }
 
   function showStep(index) {
@@ -138,8 +201,20 @@ export default function SentinelAIAssistant() {
 
   function startTutorial() {
     setOpen(false);
-    setMessage("");
     showStep(0);
+  }
+
+  function sendChat(event) {
+    event?.preventDefault();
+    const question = chatInput.trim();
+    if (!question) return;
+
+    setMessages((current) => [
+      ...current,
+      { role: "user", text: question },
+      { role: "bot", text: buildResponse(question, config, location.pathname) },
+    ]);
+    setChatInput("");
   }
 
   useEffect(() => {
@@ -157,6 +232,12 @@ export default function SentinelAIAssistant() {
   useEffect(() => {
     endTutorial("");
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (open) {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+  }, [messages, open]);
 
   useEffect(() => clearHighlight, []);
 
@@ -188,19 +269,19 @@ export default function SentinelAIAssistant() {
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <p className="sentinel-ai-welcome">
-              Hi, I am Sentinel AI Assistant.
-              <br />
-              I can help you understand this page.
-              <br />
-              You can ask doubts or start a tutorial.
-              <br />
-              <br />
-              Tip: Press ESC anytime to end the tutorial.
-            </p>
-            {message && <div className="sentinel-ai-message">{message}</div>}
+            <div className="sentinel-ai-chat" aria-live="polite">
+              {messages.map((item, index) => (
+                <div
+                  key={`${item.role}-${index}`}
+                  className={`sentinel-ai-bubble sentinel-ai-bubble-${item.role}`}
+                >
+                  {item.text}
+                </div>
+              ))}
+              <div ref={chatEndRef} />
+            </div>
             <div className="sentinel-ai-options">
-              <button type="button" onClick={() => setMessage("Ask me about any visible metric, alert, endpoint, or control on this page.")}>
+              <button type="button" onClick={() => addBotMessage("Ask me about any visible metric, alert, endpoint, or control on this page. Press ESC anytime to end the tutorial.")}>
                 <HelpCircle className="h-4 w-4" />
                 Ask Doubt
               </button>
@@ -208,20 +289,33 @@ export default function SentinelAIAssistant() {
                 <PlayCircle className="h-4 w-4" />
                 Start Tutorial
               </button>
-              <button type="button" onClick={() => setMessage(config.about)}>
+              <button type="button" onClick={() => addBotMessage(config.about)}>
                 <Info className="h-4 w-4" />
                 About This Page
               </button>
-              <button type="button" onClick={() => setMessage("The endpoint agent runs silently, sends heartbeat and telemetry, scans Downloads for suspicious files, and follows dashboard pause/resume/stop/remove commands.")}>
+              <button type="button" onClick={() => addBotMessage("The endpoint agent runs silently, sends heartbeat and telemetry, scans Downloads for suspicious files, and follows dashboard pause/resume/stop/remove commands.")}>
                 How Agent Works
               </button>
-              <button type="button" onClick={() => setMessage("Quarantine moves malicious or high-risk files into a safe holding folder and records metadata for review or restore by admins.")}>
+              <button type="button" onClick={() => addBotMessage("Quarantine moves malicious or high-risk files into a safe holding folder and records metadata for review or restore by admins.")}>
                 How Quarantine Works
               </button>
-              <button type="button" onClick={() => setMessage("Endpoint monitoring combines heartbeat, telemetry, AI file detection, alerts, and endpoint health status for each linked machine.")}>
+              <button type="button" onClick={() => addBotMessage("Endpoint monitoring combines heartbeat, telemetry, AI file detection, alerts, and endpoint health status for each linked machine.")}>
                 How Endpoint Monitoring Works
               </button>
             </div>
+            <form className="sentinel-ai-chat-form" onSubmit={sendChat}>
+              <input
+                type="text"
+                value={chatInput}
+                onChange={(event) => setChatInput(event.target.value)}
+                placeholder="Ask Sentinel AI..."
+                aria-label="Ask Sentinel AI"
+              />
+              <button type="submit" aria-label="Send message">
+                <Send className="h-4 w-4" />
+                <span>Send</span>
+              </button>
+            </form>
           </section>
         )}
 

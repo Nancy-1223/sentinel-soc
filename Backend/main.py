@@ -18,7 +18,7 @@ import zipfile
 
 from database import Base, get_db, init_database
 from models import User, Team, Endpoint, Alert, Telemetry
-from auth import get_password_hash, authenticate_user, create_access_token, get_current_user, normalize_role, require_admin, endpoint_access_filter
+from auth import get_password_hash, verify_password, get_user_by_email, create_access_token, get_current_user, normalize_role, require_admin, endpoint_access_filter
 from detector import predict_file
 
 init_database(Base)
@@ -401,11 +401,15 @@ def update_endpoint_control(
 @safe_endpoint
 def register(request: RegisterRequest, db: Session = Depends(get_db)):
     email = request.email.strip().lower()
+    role = normalize_role(request.role)
+    admin_count = db.query(User).filter(func.lower(User.role) == "admin").count()
+    logger.info("Registration received: email=%s role=%s", email, role)
+    logger.info("Admin count before registration: %s", admin_count)
+
     existing_user = db.query(User).filter(User.email == email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    role = normalize_role(request.role)
     primary_team = get_primary_team(db)
     if role == "admin":
         team_password = (request.team_password or "").strip()
@@ -445,6 +449,7 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
                 user.admin_id = user.id
             db.commit()
             db.refresh(user)
+        logger.info("User saved successfully: id=%s email=%s role=%s", user.id, user.email, user.role)
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -458,8 +463,16 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
 @app.post("/login", response_model=LoginResponse)
 @safe_endpoint
 def login(request: LoginRequest, db: Session = Depends(get_db)):
-    user = authenticate_user(db, request.email, request.password)
+    email = request.email.strip().lower()
+    logger.info("Login attempt received: email=%s", email)
+    user = get_user_by_email(db, email)
     if not user:
+        logger.info("Login email not found: email=%s", email)
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    logger.info("Login email found: id=%s role=%s", user.id, user.role)
+    password_ok = verify_password(request.password, user.password_hash)
+    logger.info("Password verification result for %s: %s", email, password_ok)
+    if not password_ok:
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     user.role = normalize_role(user.role)
