@@ -4141,3 +4141,279 @@ textarea {
   border-color: rgba(103, 232, 249, 0.18);
   background: rgba(2, 6, 23, 0.5);
 }
+
+/* Active "/" landing route theme. Scoped to LandingPage.jsx root class. */
+.landing-page.sentinel-cyber-landing {
+  isolation: isolate;
+  color: #e6f7ff;
+  background:
+    radial-gradient(circle at 50% 38%, rgba(34, 211, 238, 0.3), transparent 32%),
+    radial-gradient(circle at 50% 52%, rgba(45, 212, 191, 0.18), transparent 24%),
+    radial-gradient(circle at 18% 15%, rgba(8, 47, 73, 0.72), transparent 34%),
+    radial-gradient(circle at 86% 17%, rgba(14, 116, 144, 0.42), transparent 31%),
+    linear-gradient(180deg, #020617 0%, #06172b 44%, #020617 100%);
+}
+
+.landing-page.sentinel-cyber-landing::before {
+  opacity: 0.88;
+  background-image:
+    linear-gradient(rgba(56, 189, 248, 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.08) 1px, transparent 1px),
+    radial-gradient(circle, rgba(45, 212, 191, 0.22) 0 1px, transparent 1.9px);
+  background-size: 62px 62px, 62px 62px, 148px 148px;
+  mask-image: radial-gradient(circle at 50% 38%, rgba(0, 0, 0, 0.94), transparent 79%);
+}
+
+.landing-page.sentinel-cyber-landing::after {
+  opacity: 0.2;
+  background:
+    linear-gradient(rgba(125, 211, 252, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(125, 211, 252, 0.04) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+.sentinel-cyber-landing .landing-particles {
+  opacity: 1;
+  animation: landing-particle-parallax 28s ease-in-out infinite alternate;
+}
+
+.sentinel-cyber-landing .landing-particle {
+  opacity: 0.64;
+  background: rgba(103, 232, 249, 0.86);
+  box-shadow:
+    0 0 16px rgba(56, 189, 248, 0.72),
+    0 0 32px rgba(45, 212, 191, 0.2);
+}
+
+.sentinel-cyber-landing .landing-particle:nth-child(3n),
+.sentinel-cyber-landing .landing-particle:nth-child(4n) {
+  background: rgba(45, 212, 191, 0.76);
+  box-shadow:
+    0 0 18px rgba(45, 212, 191, 0.48),
+    0 0 30px rgba(56, 189, 248, 0.16);
+}
+
+.sentinel-cyber-landing .landing-glow {
+  opacity: 0.42;
+  filter: blur(48px);
+}
+
+.sentinel-cyber-landing .landing-glow-one {
+  background: rgba(6, 182, 212, 0.34);
+}
+
+.sentinel-cyber-landing .landing-glow-two {
+  background: rgba(37, 99, 235, 0.2);
+}
+
+.sentinel-cyber-landing .landing-glow-three {
+  background: rgba(20, 184, 166, 0.22);
+}
+
+.sentinel-cyber-landing .landing-nav {
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow:
+    0 18px 46px rgba(2, 6, 23, 0.28),
+    0 0 30px rgba(14, 165, 233, 0.14);
+}
+
+.sentinel-cyber-landing .landing-brand,
+.sentinel-cyber-landing .landing-brand-title,
+.sentinel-cyber-landing .landing-nav-links a {
+  color: #111827;
+}
+
+.sentinel-cyber-landing .landing-nav-links a {
+  font-weight: 500;
+}
+
+.sentinel-cyber-landing .landing-nav-links a:hover,
+.sentinel-cyber-landing .landing-nav-links a:focus-visible {
+  color: #06b6d4;
+}
+
+.sentinel-cyber-landing .landing-nav-links a::after {
+  background: #06b6d4;
+}
+
+.sentinel-cyber-landing .landing-brand-subtitle {
+  color: #0369a1;
+}
+
+.sentinel-cyber-landing .landing-brand-mark {
+  color: #0284c7;
+  background: rgba(240, 249, 255, 0.96);
+  border-color: rgba(14, 165, 233, 0.28);
+  box-shadow:
+    0 10px 26px rgba(15, 23, 42, 0.1),
+    0 0 20px rgba(14, 165, 233, 0.18);
+}
+
+.sentinel-cyber-landing .landing-cyber-core {
+  opacity: 1;
+  filter:
+    drop-shadow(0 0 30px rgba(56, 189, 248, 0.38))
+    drop-shadow(0 28px 60px rgba(2, 6, 23, 0.36));
+}
+
+.sentinel-cyber-landing .landing-hero-copy::before {
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.22), rgba(45, 212, 191, 0.09) 38%, transparent 72%);
+}
+
+.sentinel-cyber-landing .landing-hud-grid {
+  opacity: 0.42;
+  background-image:
+    linear-gradient(rgba(103, 232, 249, 0.11) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(103, 232, 249, 0.11) 1px, transparent 1px);
+}
+
+.sentinel-cyber-landing .landing-holo-depth-back {
+  opacity: 0.94;
+  background:
+    radial-gradient(circle, rgba(103, 232, 249, 0.26), transparent 35%),
+    radial-gradient(circle, transparent 48%, rgba(45, 212, 191, 0.14) 49% 52%, transparent 53%);
+}
+
+.sentinel-cyber-landing .landing-holo-depth-front {
+  border-color: rgba(103, 232, 249, 0.22);
+  background: radial-gradient(circle, rgba(103, 232, 249, 0.1), transparent 58%);
+}
+
+.sentinel-cyber-landing .landing-energy-ring {
+  border-color: rgba(103, 232, 249, 0.38);
+  background:
+    conic-gradient(from 90deg, transparent 0 8%, rgba(103, 232, 249, 0.38) 9% 11%, transparent 12% 23%, rgba(45, 212, 191, 0.32) 24% 27%, transparent 28% 50%, rgba(56, 189, 248, 0.34) 51% 53%, transparent 54% 100%);
+  box-shadow:
+    0 0 30px rgba(56, 189, 248, 0.3),
+    inset 0 0 32px rgba(20, 184, 166, 0.1);
+}
+
+.sentinel-cyber-landing .landing-energy-ring::before,
+.sentinel-cyber-landing .landing-energy-ring::after,
+.sentinel-cyber-landing .landing-segment-ring {
+  filter: drop-shadow(0 0 12px rgba(103, 232, 249, 0.54));
+}
+
+.sentinel-cyber-landing .landing-ring-scanline {
+  background: linear-gradient(90deg, rgba(103, 232, 249, 0), rgba(103, 232, 249, 0.9), rgba(45, 212, 191, 0));
+  box-shadow: 0 0 20px rgba(103, 232, 249, 0.58);
+}
+
+.sentinel-cyber-landing .landing-ring-particles span {
+  background: #67e8f9;
+  box-shadow: 0 0 15px rgba(103, 232, 249, 0.78);
+}
+
+.sentinel-cyber-landing .landing-ring-particles span:nth-child(3n) {
+  background: #2dd4bf;
+  box-shadow: 0 0 15px rgba(45, 212, 191, 0.64);
+}
+
+.sentinel-cyber-landing .landing-shield-core {
+  color: #67e8f9;
+  background:
+    radial-gradient(circle at 40% 32%, rgba(255, 255, 255, 0.3), transparent 18%),
+    radial-gradient(circle, rgba(103, 232, 249, 0.26), rgba(45, 212, 191, 0.14) 38%, rgba(6, 20, 38, 0.8) 72%),
+    rgba(2, 6, 23, 0.68);
+  border-color: rgba(103, 232, 249, 0.38);
+  box-shadow:
+    0 0 36px rgba(56, 189, 248, 0.3),
+    inset 0 0 32px rgba(20, 184, 166, 0.1);
+}
+
+.sentinel-cyber-landing .landing-shield-core svg {
+  filter: drop-shadow(0 0 11px rgba(103, 232, 249, 0.5));
+}
+
+.sentinel-cyber-landing .landing-kicker {
+  color: #67e8f9;
+  background: rgba(2, 6, 23, 0.48);
+  border-color: rgba(103, 232, 249, 0.28);
+}
+
+.sentinel-cyber-landing .landing-title {
+  color: #f8fafc !important;
+  text-shadow: none;
+}
+
+.sentinel-cyber-landing .landing-platform-line {
+  color: rgba(219, 234, 254, 0.8) !important;
+}
+
+.sentinel-cyber-landing .landing-primary-button {
+  color: #04111f;
+  border-color: rgba(103, 232, 249, 0.82);
+  background: linear-gradient(135deg, #67e8f9, #2dd4bf);
+  box-shadow: 0 14px 34px rgba(14, 165, 233, 0.2);
+}
+
+.sentinel-cyber-landing .landing-secondary-button {
+  color: #e0fbff;
+  border-color: rgba(103, 232, 249, 0.24);
+  background: rgba(2, 6, 23, 0.5);
+}
+
+.sentinel-cyber-landing .landing-primary-button:hover,
+.sentinel-cyber-landing .landing-secondary-button:hover {
+  box-shadow:
+    0 16px 36px rgba(14, 165, 233, 0.25),
+    0 0 24px rgba(45, 212, 191, 0.14);
+}
+
+.sentinel-cyber-landing .landing-section-heading span,
+.sentinel-cyber-landing .landing-safety span,
+.sentinel-cyber-landing .landing-contact span {
+  color: #67e8f9;
+}
+
+.sentinel-cyber-landing .landing-section-heading h2,
+.sentinel-cyber-landing .landing-safety h2,
+.sentinel-cyber-landing .landing-contact h2 {
+  color: #f8fafc !important;
+}
+
+.sentinel-cyber-landing .landing-section-copy,
+.sentinel-cyber-landing .landing-safety p {
+  color: rgba(203, 213, 225, 0.82) !important;
+}
+
+.sentinel-cyber-landing .landing-feature-card,
+.sentinel-cyber-landing .landing-timeline-step,
+.sentinel-cyber-landing .landing-safety,
+.sentinel-cyber-landing .landing-contact {
+  border-color: rgba(103, 232, 249, 0.18);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(56, 189, 248, 0.09), transparent 34%),
+    rgba(2, 6, 23, 0.66);
+  box-shadow:
+    0 18px 46px rgba(2, 6, 23, 0.32),
+    0 0 24px rgba(56, 189, 248, 0.08);
+}
+
+.sentinel-cyber-landing .landing-feature-card:hover {
+  border-color: rgba(103, 232, 249, 0.34);
+  box-shadow:
+    0 22px 50px rgba(2, 6, 23, 0.38),
+    0 0 30px rgba(56, 189, 248, 0.18);
+}
+
+.sentinel-cyber-landing .landing-feature-card svg {
+  color: #67e8f9;
+}
+
+.sentinel-cyber-landing .landing-feature-card h3,
+.sentinel-cyber-landing .landing-timeline-step h3 {
+  color: #f8fafc;
+}
+
+.sentinel-cyber-landing .landing-feature-card p,
+.sentinel-cyber-landing .landing-timeline-step p,
+.sentinel-cyber-landing .landing-contact-links a {
+  color: rgba(203, 213, 225, 0.82);
+}
+
+.sentinel-cyber-landing .landing-contact-links a {
+  border-color: rgba(103, 232, 249, 0.18);
+  background: rgba(2, 6, 23, 0.54);
+}

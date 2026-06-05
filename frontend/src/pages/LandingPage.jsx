@@ -64,7 +64,7 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="landing-page">
+    <div className="landing-page sentinel-cyber-landing">
       <div className="landing-particles" aria-hidden="true">
         {particles.map((particle) => (
           <span
