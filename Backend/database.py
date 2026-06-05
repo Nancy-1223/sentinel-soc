@@ -88,6 +88,10 @@ def _add_missing_sqlite_columns(base) -> None:
                     connection.exec_driver_sql(
                         f"ALTER TABLE {table.name} ADD COLUMN {column.name} BOOLEAN NOT NULL DEFAULT 1"
                     )
+                elif column.name == "removed_at":
+                    connection.exec_driver_sql(
+                        f"ALTER TABLE {table.name} ADD COLUMN {column.name} DATETIME"
+                    )
                 elif column.name == "agent_version":
                     connection.exec_driver_sql(
                         f"ALTER TABLE {table.name} ADD COLUMN {column.name} VARCHAR NOT NULL DEFAULT 'unknown'"

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import {
+  AlertTriangle,
   Activity,
   Bot,
   BrainCircuit,
@@ -13,17 +14,23 @@ import {
   Hexagon,
   LockKeyhole,
   Network,
+  Pause,
+  Play,
+  Power,
   RadioTower,
   ScanLine,
   ShieldCheck,
   Siren,
   Sparkles,
   Terminal,
+  Trash2,
   Zap,
 } from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import AlertTable from "../components/AlertTable";
+import Button from "../components/Button";
 import StatCard from "../components/StatCard";
+import { createApiClient, getApiErrorMessage } from "../api/client";
 import { useAlerts } from "../context/AlertsContext";
 import { useSettings } from "../context/SettingsContext";
 import { useTelemetry } from "../context/TelemetryContext";
@@ -161,7 +168,7 @@ function MetricPill({ icon: Icon, label, value, tone = "cyan", live = false }) {
   );
 }
 
-function AiThreatIntelligence({ alerts, summary, endpoints }) {
+function AiThreatIntelligence({ alerts, summary, endpoints, busyAction, onPauseResume, onStop, onRemove }) {
   const latestThreats = alerts.filter(isThreat).slice(0, 3);
   const latest = latestThreats[0] || alerts[0];
 
@@ -219,7 +226,13 @@ function AiThreatIntelligence({ alerts, summary, endpoints }) {
         </div>
       </div>
 
-      <EndpointHealthCards endpoints={endpoints} />
+      <EndpointHealthCards
+        endpoints={endpoints}
+        busyAction={busyAction}
+        onPauseResume={onPauseResume}
+        onStop={onStop}
+        onRemove={onRemove}
+      />
     </div>
   );
 }
@@ -256,6 +269,55 @@ function MiniMetric({ label, value, tone = "cyan" }) {
     <div className="min-w-0 rounded-lg border border-white/10 bg-white/[0.035] p-2">
       <div className="truncate uppercase tracking-[0.14em] text-slate-500">{label}</div>
       <div className={`mt-1 truncate font-semibold ${toneText(tone)}`}>{value}</div>
+    </div>
+  );
+}
+
+function AgentControlButtons({ endpoint, busyAction, onPauseResume, onStop, onRemove }) {
+  const agentMode = String(endpoint.agent_mode || "running").toLowerCase();
+  const isPaused = agentMode === "paused";
+  const isStopped = agentMode === "stopped";
+  const isRemoved = agentMode === "removed";
+  const pausePath = isPaused ? "/agent/resume" : "/agent/pause";
+
+  return (
+    <div className="mt-4 grid gap-2 sm:grid-cols-3">
+      <Button
+        size="xs"
+        tone="amber"
+        className="w-full"
+        disabled={isStopped || isRemoved}
+        loading={busyAction === `${pausePath}-${endpoint.endpoint_id}`}
+        loadingText="Updating..."
+        onClick={() => onPauseResume(endpoint)}
+      >
+        {isPaused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
+        {isRemoved ? "Removed" : isStopped ? "Stopped" : isPaused ? "Resume Agent" : "Pause Agent"}
+      </Button>
+      <Button
+        size="xs"
+        tone="red"
+        className="w-full"
+        disabled={isStopped || isRemoved}
+        loading={busyAction === `/agent/stop-${endpoint.endpoint_id}`}
+        loadingText="Stopping..."
+        onClick={() => onStop(endpoint)}
+      >
+        <Power className="h-3.5 w-3.5" />
+        Stop Agent
+      </Button>
+      <Button
+        size="xs"
+        tone="red"
+        className="w-full"
+        disabled={isRemoved}
+        loading={busyAction === `/agent/remove-${endpoint.endpoint_id}`}
+        loadingText="Removing..."
+        onClick={() => onRemove(endpoint)}
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+        Remove Agent
+      </Button>
     </div>
   );
 }
@@ -328,7 +390,7 @@ function AnomalyFeed({ alerts, summary }) {
   );
 }
 
-function EndpointHealthCards({ endpoints }) {
+function EndpointHealthCards({ endpoints, busyAction, onPauseResume, onStop, onRemove }) {
   const top = endpoints.slice(0, 6);
   return (
     <div className="glass cyber-border hover-glow-card rounded-2xl p-5 xl:col-span-2">
@@ -344,6 +406,10 @@ function EndpointHealthCards({ endpoints }) {
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {top.map((endpoint) => {
           const telemetry = endpoint.telemetry || {};
+          const agentMode = String(endpoint.agent_mode || "running").toLowerCase();
+          const liveLabel = agentMode === "removed" ? "Removed" : endpoint.status === "Online" ? "Online" : "Offline";
+          const liveTone = endpoint.status === "Online" && agentMode !== "removed" ? "green" : "slate";
+          const modeTone = agentMode === "running" ? "green" : agentMode === "paused" ? "amber" : "red";
           return (
             <div key={endpoint.endpoint_id} className={`rounded-xl border p-4 ${toneClasses(endpoint.riskTone)}`}>
               <div className="flex items-start justify-between gap-3">
@@ -353,6 +419,14 @@ function EndpointHealthCards({ endpoints }) {
                 </div>
                 <span className={`rounded-full border px-2 py-1 text-xs font-semibold ${toneClasses(endpoint.riskTone)}`}>
                   {endpoint.riskScore} {endpoint.riskLevel}
+                </span>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className={`rounded-full border px-2 py-1 text-[11px] font-semibold ${toneClasses(liveTone)}`}>
+                  {liveLabel}
+                </span>
+                <span className={`rounded-full border px-2 py-1 text-[11px] font-semibold ${toneClasses(modeTone)}`}>
+                  {endpoint.agentModeLabel}
                 </span>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
@@ -367,6 +441,13 @@ function EndpointHealthCards({ endpoints }) {
                 <span className="rounded-full border border-white/10 bg-white/[0.035] px-2 py-1 text-[11px] text-slate-300">{endpoint.detectionStatus}</span>
                 <span className="rounded-full border border-white/10 bg-white/[0.035] px-2 py-1 text-[11px] text-slate-300">Last seen {formatDate(endpoint.last_seen)}</span>
               </div>
+              <AgentControlButtons
+                endpoint={endpoint}
+                busyAction={busyAction}
+                onPauseResume={onPauseResume}
+                onStop={onStop}
+                onRemove={onRemove}
+              />
             </div>
           );
         })}
@@ -852,7 +933,10 @@ function EmptyState({ text }) {
 export default function Dashboard() {
   const { alerts, loading, offline } = useAlerts();
   const { settings } = useSettings();
-  const { summary, endpointStatus, latestTelemetry, history, offline: telemetryOffline } = useTelemetry();
+  const { summary, endpointStatus, latestTelemetry, history, offline: telemetryOffline, refreshTelemetry } = useTelemetry();
+  const [busyAction, setBusyAction] = useState("");
+  const [removeTarget, setRemoveTarget] = useState(null);
+  const [controlMessage, setControlMessage] = useState(null);
   const endpoints = buildEndpointRows(endpointStatus, latestTelemetry, alerts);
   const totalThreats = alerts.filter(isThreat).length;
   const activeAlerts = alerts.filter((alert) => Number(alert.risk_score) >= 45).length;
@@ -863,6 +947,63 @@ export default function Dashboard() {
   const securityScore = endpoints.length
     ? clamp(Math.round((protectedEndpoints / endpoints.length) * 100 - activeAlerts * 3 + quarantined * 2), 0, 100)
     : clamp(100 - activeAlerts * 8 - avgRisk / 3, 40, 100);
+
+  function showControlMessage(type, text) {
+    setControlMessage({ type, text });
+    window.setTimeout(() => setControlMessage(null), 3200);
+  }
+
+  async function runAgentControl(endpoint, path, successText, confirmText = "") {
+    if (confirmText && !window.confirm(confirmText)) return;
+
+    setBusyAction(`${path}-${endpoint.endpoint_id}`);
+    try {
+      const api = createApiClient();
+      await api.post(`/endpoints/${endpoint.endpoint_id}${path}`);
+      showControlMessage("success", successText);
+      await refreshTelemetry();
+    } catch (exc) {
+      showControlMessage("error", getApiErrorMessage(exc, "Could not update endpoint control."));
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  function pauseResumeAgent(endpoint) {
+    const agentMode = String(endpoint.agent_mode || "running").toLowerCase();
+    runAgentControl(
+      endpoint,
+      agentMode === "paused" ? "/agent/resume" : "/agent/pause",
+      agentMode === "paused" ? "Agent resume command sent." : "Agent pause command sent."
+    );
+  }
+
+  function stopAgent(endpoint) {
+    runAgentControl(
+      endpoint,
+      "/agent/stop",
+      "Stop Agent command sent.",
+      `Stop Sentinel SOC agent on ${endpoint.pc_name || "this endpoint"}? The agent process will exit completely and the endpoint will go offline.`
+    );
+  }
+
+  async function confirmRemoveAgent() {
+    if (!removeTarget) return;
+
+    const endpoint = removeTarget;
+    setBusyAction(`/agent/remove-${endpoint.endpoint_id}`);
+    try {
+      const api = createApiClient();
+      await api.post(`/endpoints/${endpoint.endpoint_id}/agent/remove`);
+      showControlMessage("success", "Remove Agent command sent.");
+      setRemoveTarget(null);
+      await refreshTelemetry();
+    } catch (exc) {
+      showControlMessage("error", getApiErrorMessage(exc, "Could not remove agent."));
+    } finally {
+      setBusyAction("");
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -899,6 +1040,12 @@ export default function Dashboard() {
         </div>
       )}
 
+      {controlMessage && (
+        <div className={`glass cyber-border rounded-lg p-3 text-sm ${controlMessage.type === "success" ? "border-cyber-green/30 text-cyber-green" : "border-cyber-red/30 text-cyber-red"}`}>
+          {controlMessage.text}
+        </div>
+      )}
+
       {loading && (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
@@ -914,7 +1061,15 @@ export default function Dashboard() {
         <StatCard label="SOC Status" value={offline ? "Offline" : "Online"} detail={`Average risk ${avgRisk}`} tone={offline ? "red" : "cyan"} icon={Activity} />
       </div>
 
-      <AiThreatIntelligence alerts={alerts} summary={summary} endpoints={endpoints} />
+      <AiThreatIntelligence
+        alerts={alerts}
+        summary={summary}
+        endpoints={endpoints}
+        busyAction={busyAction}
+        onPauseResume={pauseResumeAgent}
+        onStop={stopAgent}
+        onRemove={setRemoveTarget}
+      />
 
       <RealTimeTelemetryCharts history={history} alerts={alerts} endpoints={endpoints} />
 
@@ -982,6 +1137,47 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {removeTarget && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/70 p-4 backdrop-blur-sm">
+          <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="dashboard-remove-agent-title"
+            className="glass cyber-border w-[min(460px,100%)] rounded-2xl p-5 shadow-2xl"
+            initial={{ opacity: 0, y: 18, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+          >
+            <div className="flex items-start gap-3">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-cyber-red/35 bg-cyber-red/10 text-cyber-red">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 id="dashboard-remove-agent-title" className="text-base font-semibold text-white">Remove Sentinel SOC agent?</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-300">
+                  Are you sure you want to remove Sentinel SOC agent from this endpoint? This will stop monitoring and remove local agent files.
+                </p>
+                <p className="mt-2 text-xs text-slate-500">
+                  Endpoint: {removeTarget.pc_name || `#${removeTarget.endpoint_id}`}
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button tone="slate" onClick={() => setRemoveTarget(null)}>
+                Cancel
+              </Button>
+              <Button
+                tone="red"
+                loading={busyAction === `/agent/remove-${removeTarget.endpoint_id}`}
+                loadingText="Removing..."
+                onClick={confirmRemoveAgent}
+              >
+                Confirm Remove
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

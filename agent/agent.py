@@ -12,6 +12,7 @@ import json
 import os
 import shutil
 import socket
+import subprocess
 import sys
 import threading
 import time
@@ -29,6 +30,7 @@ from watchdog.observers import Observer
 AGENT_DIR = Path(__file__).resolve().parent
 LOG_PATH = AGENT_DIR / "agent.log"
 STATUS_PATH = AGENT_DIR / "agent_status.json"
+PID_PATH = AGENT_DIR / "agent.pid"
 
 
 def append_log_file(level: str, message: str) -> None:
@@ -170,6 +172,21 @@ control_state = {
 }
 
 
+def write_pid_file() -> None:
+    try:
+        PID_PATH.write_text(str(os.getpid()), encoding="utf-8")
+    except OSError as exc:
+        append_log_file("WARNING", f"Could not write agent PID file: {exc}")
+
+
+def remove_pid_file() -> None:
+    try:
+        if PID_PATH.exists():
+            PID_PATH.unlink()
+    except OSError as exc:
+        append_log_file("WARNING", f"Could not delete agent PID file: {exc}")
+
+
 def log(level: str, message: str) -> None:
     """Write clean SOC-style logs to console when visible and always to disk."""
     if sys.stdout:
@@ -224,6 +241,92 @@ def poll_control_status() -> Dict[str, object]:
 def detection_is_active() -> bool:
     state = get_control_state()
     return state.get("agent_mode") == "running" and bool(state.get("detection_enabled"))
+
+
+def get_startup_shortcut_path() -> Path | None:
+    appdata = os.environ.get("APPDATA")
+    if not appdata:
+        return None
+
+    return (
+        Path(appdata)
+        / "Microsoft"
+        / "Windows"
+        / "Start Menu"
+        / "Programs"
+        / "Startup"
+        / "Sentinel SOC Agent.lnk"
+    )
+
+
+def remove_startup_entry() -> None:
+    shortcut_path = get_startup_shortcut_path()
+    if not shortcut_path:
+        log("WARNING", "APPDATA is unavailable; could not locate Startup shortcut")
+        return
+
+    try:
+        if shortcut_path.exists():
+            shortcut_path.unlink()
+            log("INFO", f"Removed startup shortcut: {shortcut_path}")
+    except OSError as exc:
+        log("WARNING", f"Could not remove startup shortcut: {exc}")
+
+
+def schedule_agent_directory_cleanup() -> None:
+    """
+    The running Python process cannot delete its own script on Windows, so a
+    hidden PowerShell helper waits for this PID to exit and then removes files.
+    Quarantine is intentionally kept unless a local user removes it separately.
+    """
+    if not sys.platform.startswith("win"):
+        log("WARNING", "Remote self-removal is only supported on Windows agents")
+        return
+
+    script = f"""
+$pidToWait = {os.getpid()}
+$agentDir = {json.dumps(str(AGENT_DIR))}
+$pidFile = Join-Path $agentDir 'agent.pid'
+$logFile = Join-Path $agentDir 'agent.log'
+$statusFile = Join-Path $agentDir 'agent_status.json'
+try {{ Wait-Process -Id $pidToWait -Timeout 30 -ErrorAction SilentlyContinue }} catch {{ }}
+foreach ($path in @($pidFile, $logFile, $statusFile)) {{
+  if (Test-Path -LiteralPath $path) {{ Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue }}
+}}
+Get-ChildItem -LiteralPath $agentDir -Force -ErrorAction SilentlyContinue |
+  Where-Object {{ $_.Name -notin @('remove_agent_cleanup.ps1') }} |
+  Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 1
+Remove-Item -LiteralPath $agentDir -Recurse -Force -ErrorAction SilentlyContinue
+"""
+    cleanup_script = AGENT_DIR / "remove_agent_cleanup.ps1"
+    try:
+        cleanup_script.write_text(script, encoding="utf-8")
+        subprocess.Popen(
+            [
+                "powershell.exe",
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-WindowStyle",
+                "Hidden",
+                "-File",
+                str(cleanup_script),
+            ],
+            cwd=str(AGENT_DIR),
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            close_fds=True,
+        )
+        log("INFO", "Scheduled hidden local cleanup for Sentinel SOC agent files")
+    except OSError as exc:
+        log("ERROR", f"Could not schedule local agent cleanup: {exc}")
+
+
+def uninstall_agent_locally() -> None:
+    write_status("removing", "Remove Agent command received")
+    remove_startup_entry()
+    remove_pid_file()
+    schedule_agent_directory_cleanup()
 
 
 def ensure_agent_folders() -> None:
@@ -349,7 +452,7 @@ def telemetry_loop(stop_event: threading.Event) -> None:
         state = get_control_state()
         agent_mode = str(state.get("agent_mode") or "running")
 
-        if agent_mode == "stopped":
+        if agent_mode in {"stopped", "removed"}:
             break
 
         if not bool(state.get("heartbeat_enabled", True)):
@@ -961,9 +1064,11 @@ class DownloadsEventHandler(FileSystemEventHandler):
 
 
 def start_monitoring() -> None:
+    write_pid_file()
     if not DOWNLOADS_DIR.exists():
         log("ERROR", f"Downloads folder not found: {DOWNLOADS_DIR}")
         write_status("error", f"Downloads folder not found: {DOWNLOADS_DIR}")
+        remove_pid_file()
         return
 
     ensure_agent_folders()
@@ -991,6 +1096,10 @@ def start_monitoring() -> None:
                 log("INFO", "Full Stop Agent command received; exiting agent process")
                 write_status("stopping", "Full Stop Agent command received")
                 break
+            if state.get("agent_mode") == "removed":
+                log("INFO", "Remove Agent command received; uninstalling local agent")
+                uninstall_agent_locally()
+                break
             time.sleep(CONTROL_POLL_INTERVAL_SECONDS)
     except KeyboardInterrupt:
         log("INFO", "Stopping endpoint agent...")
@@ -1000,7 +1109,9 @@ def start_monitoring() -> None:
         observer.stop()
         observer.join()
         telemetry_thread.join(timeout=2)
-        write_status("stopped", "Sentinel SOC Agent stopped")
+        if get_control_state().get("agent_mode") != "removed":
+            remove_pid_file()
+            write_status("stopped", "Sentinel SOC Agent stopped")
 
 
 if __name__ == "__main__":

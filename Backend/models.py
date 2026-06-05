@@ -28,6 +28,7 @@ class Endpoint(Base):
     detection_enabled = Column(Boolean, default=True, nullable=False)
     agent_mode = Column(String, default="running", nullable=False)
     heartbeat_enabled = Column(Boolean, default=True, nullable=False)
+    removed_at = Column(DateTime, nullable=True)
 
     user = relationship("User", back_populates="endpoints")
     alerts = relationship("Alert", back_populates="endpoint")

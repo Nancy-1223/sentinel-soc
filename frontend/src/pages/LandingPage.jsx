@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   Activity,
@@ -41,6 +42,26 @@ export default function LandingPage() {
   const isLoggedIn = Boolean(localStorage.getItem("soc_token"));
   const ctaTarget = isLoggedIn ? "/dashboard" : "/login";
   const ctaLabel = "Enter SOC Dashboard";
+
+  useEffect(() => {
+    const revealItems = Array.from(document.querySelectorAll(".landing-reveal"));
+    if (!revealItems.length) return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.16, rootMargin: "0px 0px -8% 0px" }
+    );
+
+    revealItems.forEach((item) => observer.observe(item));
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <div className="landing-page">
@@ -89,9 +110,14 @@ export default function LandingPage() {
         <section className="landing-hero">
           <div className="landing-cyber-core" aria-hidden="true">
             <div className="landing-hud-grid" />
+            <div className="landing-holo-depth landing-holo-depth-back" />
             <div className="landing-energy-ring landing-energy-ring-outer" />
             <div className="landing-energy-ring landing-energy-ring-mid" />
             <div className="landing-energy-ring landing-energy-ring-inner" />
+            <div className="landing-segment-ring landing-segment-ring-one" />
+            <div className="landing-segment-ring landing-segment-ring-two" />
+            <div className="landing-scan-disc landing-scan-disc-one" />
+            <div className="landing-scan-disc landing-scan-disc-two" />
             <div className="landing-ring-scanline" />
             <div className="landing-ring-particles">
               {particles.slice(0, 18).map((particle, index) => (
@@ -99,12 +125,14 @@ export default function LandingPage() {
               ))}
             </div>
             <div className="landing-shield-core">
+              <div className="landing-core-orb" />
               <ShieldCheck className="h-14 w-14" />
             </div>
+            <div className="landing-holo-depth landing-holo-depth-front" />
           </div>
 
           <div className="landing-hero-copy landing-hero-center">
-            <div className="landing-kicker reveal-up">A Living Interface</div>
+            <div className="landing-kicker landing-intro-kicker">A Living Interface</div>
             <h1 className="landing-title landing-glitch-title reveal-up reveal-delay-1" data-text="Sentinel SOC">
               Sentinel SOC
             </h1>
@@ -142,7 +170,7 @@ export default function LandingPage() {
             {features.map((feature, index) => {
               const Icon = feature.icon;
               return (
-                <article key={feature.title} className="landing-feature-card landing-reveal" style={{ animationDelay: `${index * 90}ms` }}>
+                <article key={feature.title} className="landing-feature-card landing-reveal" style={{ transitionDelay: `${index * 90}ms` }}>
                   <Icon className="h-6 w-6" />
                   <h3>{feature.title}</h3>
                   <p>{feature.text}</p>
@@ -159,7 +187,7 @@ export default function LandingPage() {
           </div>
           <div className="landing-timeline">
             {steps.map((step, index) => (
-              <div key={step} className="landing-timeline-step landing-reveal" style={{ animationDelay: `${index * 120}ms` }}>
+              <div key={step} className="landing-timeline-step landing-reveal" style={{ transitionDelay: `${index * 120}ms` }}>
                 <div className="landing-step-index">{index + 1}</div>
                 <div>
                   <h3>{step}</h3>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Download, Pause, Play, Power } from "lucide-react";
+import { AlertTriangle, Download, Pause, Play, Power, Trash2 } from "lucide-react";
 import { createApiClient, getApiErrorMessage } from "../api/client";
 import Button from "../components/Button";
 import { useAlerts } from "../context/AlertsContext";
@@ -22,19 +22,21 @@ function endpointBadges(endpoint) {
   const online = endpoint.status === "Online";
   const agentMode = String(endpoint.agent_mode || "running").toLowerCase();
   const detectionEnabled = endpoint.detection_enabled !== false;
+  const removed = agentMode === "removed";
+  const stopped = agentMode === "stopped";
 
   return [
     {
-      label: online ? "Online" : "Offline",
-      tone: online ? "green" : "slate",
+      label: removed ? "Removed" : online ? "Online" : "Offline",
+      tone: removed ? "red" : online ? "green" : "slate",
     },
     {
-      label: detectionEnabled && agentMode === "running" ? "Detection Active" : "Detection Paused",
-      tone: detectionEnabled && agentMode === "running" ? "green" : "amber",
+      label: detectionEnabled && agentMode === "running" ? "Detection Active" : "Detection Stopped",
+      tone: detectionEnabled && agentMode === "running" ? "green" : stopped || removed ? "red" : "amber",
     },
     {
-      label: agentMode === "stopped" ? "Agent Stopped" : agentMode === "paused" ? "Agent Paused" : "Agent Running",
-      tone: agentMode === "stopped" ? "red" : agentMode === "paused" ? "amber" : "green",
+      label: removed ? "Agent Removed" : stopped ? "Agent Stopped" : agentMode === "paused" ? "Agent Paused" : "Agent Running",
+      tone: stopped || removed ? "red" : agentMode === "paused" ? "amber" : "green",
     },
   ];
 }
@@ -48,6 +50,7 @@ export default function EndpointDetails() {
   const [message, setMessage] = useState("");
   const [toast, setToast] = useState(null);
   const [busyAction, setBusyAction] = useState("");
+  const [removeTarget, setRemoveTarget] = useState(null);
 
   const alertEndpoints = alerts.reduce((acc, alert) => {
     acc[alert.endpoint_id] = acc[alert.endpoint_id] || {
@@ -184,15 +187,6 @@ export default function EndpointDetails() {
     }
   }
 
-  function toggleDetection(endpoint) {
-    const paused = endpoint.detection_enabled === false;
-    runEndpointControl(
-      endpoint,
-      paused ? "/detection/resume" : "/detection/pause",
-      paused ? "Detection resumed." : "Detection paused."
-    );
-  }
-
   function toggleAgentPause(endpoint) {
     const agentMode = String(endpoint.agent_mode || "running").toLowerCase();
     runEndpointControl(
@@ -206,9 +200,27 @@ export default function EndpointDetails() {
     runEndpointControl(
       endpoint,
       "/agent/stop",
-      "Full Stop Agent command sent.",
-      `Fully stop ${endpoint.pc_name || "this endpoint"}? The dashboard cannot restart it remotely unless a local launcher/service/watchdog is installed.`
+      "Stop Agent command sent.",
+      `Stop Sentinel SOC agent on ${endpoint.pc_name || "this endpoint"}? The agent process will exit completely and the endpoint will go offline.`
     );
+  }
+
+  async function confirmRemoveAgent() {
+    if (!removeTarget) return;
+
+    const endpoint = removeTarget;
+    setBusyAction(`/agent/remove-${endpoint.endpoint_id}`);
+    try {
+      const api = createApiClient();
+      await api.post(`/endpoints/${endpoint.endpoint_id}/agent/remove`);
+      showToast("success", "Remove Agent command sent.");
+      setRemoveTarget(null);
+      await refreshAll();
+    } catch (exc) {
+      showToast("error", getApiErrorMessage(exc, "Could not remove agent."));
+    } finally {
+      setBusyAction("");
+    }
   }
 
   async function clearOfflineEndpoints() {
@@ -317,10 +329,10 @@ export default function EndpointDetails() {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {endpoints.map((endpoint) => {
           const agentMode = String(endpoint.agent_mode || "running").toLowerCase();
-          const detectionPaused = endpoint.detection_enabled === false;
           const agentStopped = agentMode === "stopped";
-          const detectionPath = detectionPaused ? "/detection/resume" : "/detection/pause";
+          const agentRemoved = agentMode === "removed";
           const agentPath = agentMode === "paused" ? "/agent/resume" : "/agent/pause";
+          const controlsDisabled = agentStopped || agentRemoved;
 
           return (
           <div key={endpoint.endpoint_id} className="glass cyber-border hover-glow-card rounded-lg p-5">
@@ -359,37 +371,37 @@ export default function EndpointDetails() {
             <div className="mt-4 text-xs text-slate-500">Last seen {formatDate(endpoint.lastSeen)}</div>
             <div className="mt-4 grid gap-2">
               <Button
-                onClick={() => toggleDetection(endpoint)}
-                disabled={agentStopped || busyAction === `${detectionPath}-${endpoint.endpoint_id}`}
-                loading={busyAction === `${detectionPath}-${endpoint.endpoint_id}`}
-                loadingText="Updating..."
-                tone="cyan"
-                className="w-full"
-              >
-                {detectionPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-                {detectionPaused ? "Resume Detection" : "Pause Detection"}
-              </Button>
-              <Button
                 onClick={() => toggleAgentPause(endpoint)}
-                disabled={agentStopped || busyAction === `${agentPath}-${endpoint.endpoint_id}`}
+                disabled={controlsDisabled || busyAction === `${agentPath}-${endpoint.endpoint_id}`}
                 loading={busyAction === `${agentPath}-${endpoint.endpoint_id}`}
                 loadingText="Updating..."
                 tone="amber"
                 className="w-full"
               >
                 {agentMode === "paused" ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-                {agentStopped ? "Agent Stopped" : agentMode === "paused" ? "Resume Agent" : "Pause Agent"}
+                {agentRemoved ? "Agent Removed" : agentStopped ? "Agent Stopped" : agentMode === "paused" ? "Resume Agent" : "Pause Agent"}
               </Button>
               <Button
                 onClick={() => stopAgent(endpoint)}
-                disabled={agentStopped || busyAction === `/agent/stop-${endpoint.endpoint_id}`}
+                disabled={controlsDisabled || busyAction === `/agent/stop-${endpoint.endpoint_id}`}
                 loading={busyAction === `/agent/stop-${endpoint.endpoint_id}`}
                 loadingText="Stopping..."
                 tone="red"
                 className="w-full"
               >
                 <Power className="h-4 w-4" />
-                Full Stop Agent
+                Stop Agent
+              </Button>
+              <Button
+                onClick={() => setRemoveTarget(endpoint)}
+                disabled={agentRemoved || busyAction === `/agent/remove-${endpoint.endpoint_id}`}
+                loading={busyAction === `/agent/remove-${endpoint.endpoint_id}`}
+                loadingText="Removing..."
+                tone="red"
+                className="w-full"
+              >
+                <Trash2 className="h-4 w-4" />
+                Remove Agent Completely
               </Button>
             </div>
             <Button
@@ -417,6 +429,52 @@ export default function EndpointDetails() {
         {endpoints.length === 0 && <div className="glass cyber-border hover-glow-card rounded-lg p-5 text-sm text-slate-400">No endpoint alerts have been reported yet.</div>}
       </div>
       <AnimatePresence>
+        {removeTarget && (
+          <motion.div
+            className="fixed inset-0 z-50 grid place-items-center bg-slate-950/70 p-4 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="remove-agent-title"
+              className="glass cyber-border w-[min(460px,100%)] rounded-2xl p-5 shadow-2xl"
+              initial={{ opacity: 0, y: 18, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 18, scale: 0.96 }}
+            >
+              <div className="flex items-start gap-3">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-cyber-red/35 bg-cyber-red/10 text-cyber-red">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 id="remove-agent-title" className="text-base font-semibold text-white">Remove Sentinel SOC agent?</h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    Are you sure you want to remove Sentinel SOC agent from this endpoint? This will stop monitoring and remove local agent files.
+                  </p>
+                  <p className="mt-2 text-xs text-slate-500">
+                    Endpoint: {removeTarget.pc_name || `#${removeTarget.endpoint_id}`}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-5 flex justify-end gap-2">
+                <Button tone="slate" onClick={() => setRemoveTarget(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  tone="red"
+                  loading={busyAction === `/agent/remove-${removeTarget.endpoint_id}`}
+                  loadingText="Removing..."
+                  onClick={confirmRemoveAgent}
+                >
+                  Confirm Remove
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
         {toast && (
           <motion.div
             initial={{ opacity: 0, y: 18, scale: 0.96 }}

@@ -17,6 +17,7 @@ export function endpointTone(endpoint) {
   const mode = String(endpoint?.agent_mode || "running").toLowerCase();
   const status = String(endpoint?.status || "").toLowerCase();
   const risk = Number(endpoint?.riskScore || endpoint?.max_risk_score || endpoint?.maxRisk || 0);
+  if (mode === "removed" || status === "removed") return "red";
   if (mode === "stopped" || status === "offline") return "red";
   if (mode === "paused" || endpoint?.detection_enabled === false || risk >= 31) return risk >= 71 ? "red" : "amber";
   return "green";
@@ -102,6 +103,10 @@ export function enrichEndpoint(endpoint, alerts = []) {
     score += 28;
     reasons.push("agent stopped");
   }
+  if (mode === "removed") {
+    score += 36;
+    reasons.push("agent removed");
+  }
   if (!detectionEnabled) {
     score += 18;
     reasons.push("detection paused");
@@ -132,7 +137,7 @@ export function enrichEndpoint(endpoint, alerts = []) {
     healthScore,
     agentVersion: telemetry.agent_version || "unknown",
     uptimeSeconds: telemetry.uptime_seconds || 0,
-    detectionStatus: detectionEnabled && mode === "running" ? "Detection Active" : "Detection Paused",
-    agentModeLabel: mode === "paused" ? "Agent Paused" : mode === "stopped" ? "Agent Stopped" : "Agent Running",
+    detectionStatus: mode === "removed" ? "Detection Removed" : mode === "stopped" ? "Detection Stopped" : detectionEnabled && mode === "running" ? "Detection Active" : "Detection Paused",
+    agentModeLabel: mode === "removed" ? "Agent Removed" : mode === "paused" ? "Agent Paused" : mode === "stopped" ? "Agent Stopped" : "Agent Running",
   };
 }

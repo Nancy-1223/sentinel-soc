@@ -228,6 +228,10 @@ def latest_telemetry_rows(db: Session):
 
 
 def endpoint_live_status(endpoint: Endpoint) -> str:
+    if endpoint.agent_mode == "removed":
+        return "Removed"
+    if endpoint.agent_mode == "stopped":
+        return "Offline"
     if not endpoint.last_seen:
         return "Offline"
 
@@ -314,6 +318,7 @@ def serialize_endpoint_control(endpoint: Endpoint) -> dict:
         "heartbeat_enabled": bool(endpoint.heartbeat_enabled),
         "status": endpoint_live_status(endpoint),
         "last_seen": serialize_datetime(endpoint.last_seen),
+        "removed_at": serialize_datetime(endpoint.removed_at),
     }
 
 
@@ -331,6 +336,10 @@ def update_endpoint_control(
     if agent_mode is not None:
         endpoint.agent_mode = agent_mode
         endpoint.status = agent_mode.title()
+        if agent_mode == "removed":
+            endpoint.removed_at = datetime.utcnow()
+        elif agent_mode == "running":
+            endpoint.removed_at = None
     if heartbeat_enabled is not None:
         endpoint.heartbeat_enabled = heartbeat_enabled
     db.commit()
@@ -514,8 +523,9 @@ def upload_alert(request: AlertUploadRequest, db: Session = Depends(get_db)):
     action_taken = request.action_taken.strip()
     endpoint.pc_name = request.pc_name
     endpoint.last_seen = datetime.utcnow()
-    endpoint.status = "Online"
-    endpoint.agent_mode = "running"
+    if endpoint.agent_mode not in {"paused", "stopped", "removed"}:
+        endpoint.status = "Online"
+        endpoint.agent_mode = "running"
 
     alert = Alert(
         endpoint_id=request.endpoint_id,
@@ -543,10 +553,15 @@ def receive_heartbeat(request: HeartbeatRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Endpoint not found")
 
     endpoint.pc_name = request.pc_name
+    if endpoint.agent_mode == "removed":
+        return {"message": "Heartbeat ignored for removed endpoint", **serialize_endpoint_control(endpoint)}
+    if endpoint.agent_mode == "stopped" and request.agent_mode != "stopped":
+        return {"message": "Heartbeat ignored for stopped endpoint", **serialize_endpoint_control(endpoint)}
+
     endpoint.last_seen = datetime.utcnow()
-    if request.agent_mode in {"running", "paused"}:
+    if request.agent_mode in {"running", "paused", "stopped"}:
         endpoint.agent_mode = request.agent_mode
-        endpoint.status = "Paused" if request.agent_mode == "paused" else "Online"
+        endpoint.status = "Paused" if request.agent_mode == "paused" else "Offline" if request.agent_mode == "stopped" else "Online"
     db.commit()
 
     return {"message": "Heartbeat received", **serialize_endpoint_control(endpoint)}
@@ -563,7 +578,7 @@ async def receive_telemetry(request: Request, db: Session = Depends(get_db)):
         endpoint = db.get(Endpoint, int(endpoint_id))
         if endpoint:
             endpoint.last_seen = datetime.utcnow()
-            if endpoint.agent_mode != "stopped":
+            if endpoint.agent_mode not in {"paused", "stopped", "removed"}:
                 endpoint.agent_mode = "running"
                 endpoint.status = "Online"
             timestamp_value = payload.get("timestamp")
@@ -654,6 +669,7 @@ def get_endpoint_status(db: Session = Depends(get_db)):
             "detection_enabled": bool(endpoint.detection_enabled),
             "agent_mode": endpoint.agent_mode or "running",
             "heartbeat_enabled": bool(endpoint.heartbeat_enabled),
+            "removed_at": serialize_datetime(endpoint.removed_at),
             "telemetry": serialize_telemetry(latest_by_endpoint[endpoint.id]) if endpoint.id in latest_by_endpoint else None,
             "total_alerts": stats_by_endpoint.get(endpoint.id, {}).get("total_alerts", 0),
             "max_risk_score": stats_by_endpoint.get(endpoint.id, {}).get("max_risk_score", 0),
@@ -700,6 +716,18 @@ def stop_agent(endpoint_id: int, db: Session = Depends(get_db)):
         db,
         detection_enabled=False,
         agent_mode="stopped",
+        heartbeat_enabled=False,
+    )
+
+
+@app.post("/endpoints/{endpoint_id}/agent/remove")
+@safe_endpoint
+def remove_agent(endpoint_id: int, db: Session = Depends(get_db)):
+    return update_endpoint_control(
+        endpoint_id,
+        db,
+        detection_enabled=False,
+        agent_mode="removed",
         heartbeat_enabled=False,
     )
 
