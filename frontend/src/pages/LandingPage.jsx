@@ -108,35 +108,17 @@ export default function LandingPage() {
 
       <main>
         <section className="landing-hero">
-          <div className="landing-cyber-core" aria-hidden="true">
-            <div className="landing-hud-grid" />
-            <div className="landing-holo-depth landing-holo-depth-back" />
-            <div className="landing-hud-label landing-hud-label-left">
-              <span>Threat Scan</span>
-              <strong>Status Protected</strong>
-            </div>
-            <div className="landing-hud-label landing-hud-label-right">
-              <span>AI Model</span>
-              <strong>Endpoints Active</strong>
-            </div>
-            <div className="landing-energy-ring landing-energy-ring-outer" />
-            <div className="landing-energy-ring landing-energy-ring-mid" />
-            <div className="landing-energy-ring landing-energy-ring-inner" />
-            <div className="landing-segment-ring landing-segment-ring-one" />
-            <div className="landing-segment-ring landing-segment-ring-two" />
-            <div className="landing-scan-disc landing-scan-disc-one" />
-            <div className="landing-scan-disc landing-scan-disc-two" />
-            <div className="landing-ring-scanline" />
-            <div className="landing-ring-particles">
-              {particles.slice(0, 18).map((particle, index) => (
+          <div className="landing-clean-hud" aria-hidden="true">
+            <span className="landing-clean-hud-glow" />
+            <span className="landing-clean-hud-ring landing-clean-hud-ring-outer" />
+            <span className="landing-clean-hud-ring landing-clean-hud-ring-middle" />
+            <span className="landing-clean-hud-ring landing-clean-hud-ring-dotted" />
+            <span className="landing-clean-hud-ring landing-clean-hud-ring-inner" />
+            <div className="landing-clean-hud-orbit">
+              {particles.slice(0, 12).map((particle, index) => (
                 <span key={particle.id} style={{ "--i": index, animationDelay: particle.delay }} />
               ))}
             </div>
-            <div className="landing-shield-core">
-              <div className="landing-core-orb" />
-              <ShieldCheck className="h-14 w-14" />
-            </div>
-            <div className="landing-holo-depth landing-holo-depth-front" />
           </div>
 
           <div className="landing-hero-copy landing-hero-center">

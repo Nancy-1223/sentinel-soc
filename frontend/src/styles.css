@@ -4812,3 +4812,188 @@ textarea {
     transform: rotate(var(--angle)) translateX(min(38vw, 190px));
   }
 }
+
+/* Rebuilt hero HUD from scratch: empty-center premium cyber interface */
+.sentinel-cyber-landing .landing-clean-hud {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  z-index: 1;
+  width: min(76vw, 680px);
+  aspect-ratio: 1;
+  border-radius: 999px;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  animation: landing-clean-hud-enter 900ms cubic-bezier(.2,.8,.2,1) both, landing-clean-hud-breathing 6s ease-in-out 900ms infinite;
+}
+
+.sentinel-cyber-landing .landing-clean-hud-glow {
+  position: absolute;
+  inset: 13%;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.16), rgba(45, 212, 191, 0.07) 42%, transparent 68%);
+  filter: blur(22px);
+  opacity: 0.72;
+}
+
+.sentinel-cyber-landing .landing-clean-hud-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+}
+
+.sentinel-cyber-landing .landing-clean-hud-ring-outer {
+  inset: 3%;
+  border: 1px solid rgba(103, 232, 249, 0.3);
+  box-shadow: 0 0 24px rgba(56, 189, 248, 0.18), inset 0 0 20px rgba(45, 212, 191, 0.04);
+  animation: landing-clean-hud-rotate 48s linear infinite;
+}
+
+.sentinel-cyber-landing .landing-clean-hud-ring-outer::before,
+.sentinel-cyber-landing .landing-clean-hud-ring-middle::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from 90deg,
+    transparent 0 8%,
+    rgba(103, 232, 249, 0.72) 8% 10%,
+    transparent 10% 34%,
+    rgba(45, 212, 191, 0.58) 34% 36%,
+    transparent 36% 62%,
+    rgba(103, 232, 249, 0.52) 62% 64%,
+    transparent 64% 100%
+  );
+  mask: radial-gradient(circle, transparent 0 98.5%, black 99% 100%);
+}
+
+.sentinel-cyber-landing .landing-clean-hud-ring-middle {
+  inset: 15%;
+  border: 1px solid rgba(45, 212, 191, 0.24);
+  box-shadow: 0 0 18px rgba(45, 212, 191, 0.1);
+  animation: landing-clean-hud-rotate-reverse 62s linear infinite;
+}
+
+.sentinel-cyber-landing .landing-clean-hud-ring-dotted {
+  inset: 27%;
+  border: 1px dotted rgba(103, 232, 249, 0.26);
+  animation: landing-clean-hud-rotate-reverse 70s linear infinite;
+}
+
+.sentinel-cyber-landing .landing-clean-hud-ring-inner {
+  inset: 40%;
+  border: 1px solid rgba(103, 232, 249, 0.14);
+  box-shadow: inset 0 0 16px rgba(56, 189, 248, 0.04);
+}
+
+.sentinel-cyber-landing .landing-clean-hud-orbit span {
+  --angle: calc(var(--i) * 30deg);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: #67e8f9;
+  box-shadow: 0 0 12px rgba(103, 232, 249, 0.72);
+  transform: rotate(var(--angle)) translateX(min(34vw, 300px));
+  animation: landing-clean-hud-orbit 12s ease-in-out infinite, landing-dot-twinkle 3.2s ease-in-out infinite;
+}
+
+.sentinel-cyber-landing .landing-clean-hud-orbit span:nth-child(3n) {
+  background: #2dd4bf;
+  box-shadow: 0 0 12px rgba(45, 212, 191, 0.62);
+}
+
+.sentinel-cyber-landing .landing-hero-copy::before {
+  display: none;
+}
+
+.sentinel-cyber-landing .landing-hero-center {
+  z-index: 5;
+}
+
+.sentinel-cyber-landing .landing-title,
+.sentinel-cyber-landing .landing-platform-line,
+.sentinel-cyber-landing .landing-actions,
+.sentinel-cyber-landing .landing-kicker {
+  position: relative;
+  z-index: 6;
+}
+
+.sentinel-cyber-landing .landing-title::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: -1;
+  width: min(540px, 84vw);
+  height: 160px;
+  border-radius: 999px;
+  background: radial-gradient(ellipse, rgba(2, 6, 23, 0.82), rgba(2, 6, 23, 0.46) 58%, transparent 74%);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+@keyframes landing-clean-hud-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.94);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes landing-clean-hud-breathing {
+  0%, 100% {
+    opacity: 0.86;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.018);
+  }
+}
+
+@keyframes landing-clean-hud-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes landing-clean-hud-rotate-reverse {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes landing-clean-hud-orbit {
+  0%, 100% {
+    opacity: 0.58;
+    transform: rotate(var(--angle)) translateX(min(32vw, 286px)) scale(0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: rotate(calc(var(--angle) + 28deg)) translateX(min(34vw, 300px)) scale(1.08);
+  }
+}
+
+@media (max-width: 760px) {
+  .sentinel-cyber-landing .landing-clean-hud {
+    width: min(112vw, 540px);
+  }
+
+  .sentinel-cyber-landing .landing-clean-hud-orbit span {
+    transform: rotate(var(--angle)) translateX(min(42vw, 210px));
+  }
+
+  .sentinel-cyber-landing .landing-title::before {
+    width: min(390px, 92vw);
+    height: 130px;
+  }
+}
