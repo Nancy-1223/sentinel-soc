@@ -7,7 +7,7 @@ AI-Based SOC Threat Detection Platform.
 Normal users should onboard endpoints from the Sentinel SOC dashboard:
 
 1. Login to the dashboard.
-2. Open Endpoint Details.
+2. Open Endpoint Management.
 3. Enter the PC name.
 4. Click Register Endpoint.
 5. Click Download Agent.
@@ -42,7 +42,7 @@ Runtime status and logs are written to:
 - `agent\agent.log`
 
 To verify Online status, install or start the agent, confirm
-`agent\agent_status.json` says `running`, then open Endpoint Details in the
+`agent\agent_status.json` says `running`, then open Endpoint Management in the
 dashboard. The endpoint should show Online after telemetry reaches the backend.
 
 The old terminal method still works:

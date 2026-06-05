@@ -41,7 +41,7 @@ function endpointBadges(endpoint) {
   ];
 }
 
-export default function EndpointDetails() {
+export default function EndpointManagement() {
   const { alerts, refreshAlerts } = useAlerts();
   const { settings } = useSettings();
   const { endpointStatus, offline: telemetryOffline, refreshTelemetry } = useTelemetry();
@@ -265,8 +265,8 @@ export default function EndpointDetails() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-white">Endpoint Details</h1>
-        <p className="mt-1 text-sm text-slate-400">Registered endpoint workflow and observed alert activity.</p>
+        <h1 className="text-xl font-semibold text-white">Endpoint Management</h1>
+        <p className="mt-1 text-sm text-slate-400">Register endpoints, review health, manage agents, and inspect observed alert activity.</p>
       </div>
       {telemetryOffline && (
         <div className="glass cyber-border hover-glow-card rounded-lg border-cyber-amber/30 p-3 text-sm text-cyber-amber">

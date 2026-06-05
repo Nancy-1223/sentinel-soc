@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import BackendStatus from "../BackendStatus";
 import Button from "../Button";
@@ -65,14 +65,6 @@ export default function Topbar() {
             <Button onClick={refreshAll} tone="cyan" size="xs" loading={refreshing} loadingText="Refreshing...">
               Refresh
             </Button>
-          )}
-          {role === "admin" && (
-            <Link
-              to="/incidents"
-              className="hover-glow-button rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-300 hover:bg-white/[0.04]"
-            >
-              Investigate
-            </Link>
           )}
           <div className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-400">
             {user?.name || "SOC Analyst"}

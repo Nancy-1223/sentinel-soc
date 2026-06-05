@@ -856,33 +856,33 @@ function EndpointRiskBoard({ endpoints }) {
   );
 }
 
-function incidentStage(alert) {
+function threatStage(alert) {
   const action = String(alert.action_taken || "").toLowerCase();
   if (action.includes("restored") || action.includes("resolved")) return "Resolved";
   if (action.includes("quarantine")) return "Quarantined";
   return Number(alert.risk_score || 0) >= 45 ? "Alert Generated" : "Detection";
 }
 
-function IncidentWorkflow({ alerts }) {
+function ThreatResponseWorkflow({ alerts }) {
   const [overrides, setOverrides] = useState({});
-  const incidents = alerts.filter(isThreat).slice(0, 5);
-  const stages = ["Detection", "Alert Generated", "Investigation Started", "Quarantined", "Resolved"];
+  const threats = alerts.filter(isThreat).slice(0, 5);
+  const stages = ["Detection", "Alert Generated", "Triage Started", "Quarantined", "Resolved"];
 
   return (
     <div className="glass cyber-border hover-glow-card rounded-2xl p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
           <RadioTower className="h-4 w-4 text-cyber-green" />
-          Incident Investigation Workflow
+          Threat Response Workflow
         </div>
         <span className="rounded-full border border-cyber-cyan/25 bg-cyber-cyan/10 px-2.5 py-1 text-xs text-cyber-cyan">
-          {incidents.length} active incident(s)
+          {threats.length} active threat(s)
         </span>
       </div>
-      {incidents.length ? (
+      {threats.length ? (
         <div className="space-y-4">
-          {incidents.map((alert) => {
-            const activeStage = overrides[alert.id] || incidentStage(alert);
+          {threats.map((alert) => {
+            const activeStage = overrides[alert.id] || threatStage(alert);
             const activeIndex = stages.indexOf(activeStage);
             return (
               <div key={alert.id} className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
@@ -893,7 +893,7 @@ function IncidentWorkflow({ alerts }) {
                     <div className="mt-1 text-xs text-slate-500">Path {alert.file_path || `Downloads/${alert.filename}`} - {formatDate(alert.created_at)}</div>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <button onClick={() => setOverrides((current) => ({ ...current, [alert.id]: "Investigation Started" }))} className="hover-glow-button rounded-md border border-cyber-amber/30 px-3 py-2 text-xs text-cyber-amber">Mark Investigating</button>
+                    <button onClick={() => setOverrides((current) => ({ ...current, [alert.id]: "Triage Started" }))} className="hover-glow-button rounded-md border border-cyber-amber/30 px-3 py-2 text-xs text-cyber-amber">Mark Triage Started</button>
                     <button onClick={() => setOverrides((current) => ({ ...current, [alert.id]: "Resolved" }))} className="hover-glow-button rounded-md border border-cyber-green/30 px-3 py-2 text-xs text-cyber-green">Mark Resolved</button>
                     <Link to={`/alerts/${alert.id}`} className="hover-glow-button inline-flex items-center rounded-md border border-cyber-cyan/30 px-3 py-2 text-xs font-semibold text-cyber-cyan hover:bg-cyber-cyan/10">View Details</Link>
                   </div>
@@ -916,7 +916,7 @@ function IncidentWorkflow({ alerts }) {
           })}
         </div>
       ) : (
-        <EmptyState text="No active incidents. New malicious or suspicious detections will appear here." />
+        <EmptyState text="No active threats. New malicious or suspicious detections will appear here." />
       )}
     </div>
   );
@@ -1088,7 +1088,7 @@ export default function Dashboard() {
 
       <ThreatTimeline alerts={alerts} />
 
-      <IncidentWorkflow alerts={alerts} />
+      <ThreatResponseWorkflow alerts={alerts} />
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_.9fr]">
         <div className="glass cyber-border hover-glow-card static-visual-surface rounded-2xl p-5 xl:col-span-2">

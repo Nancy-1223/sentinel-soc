@@ -33,12 +33,8 @@ const pageHelp = {
       { selector: "table", title: "Alert Table", text: "Each row shows the file, endpoint, prediction, risk, action, and timestamp." },
     ],
   },
-  "/endpoint-details": {
-    title: "Endpoint Details",
-    about: "This page explains endpoint registration, agent status, health, telemetry, and admin-only control actions.",
-  },
-  "/endpoints": {
-    title: "Endpoint Details",
+  "/endpoint-management": {
+    title: "Endpoint Management",
     about: "This page explains endpoint registration, agent status, health, telemetry, and admin-only control actions.",
     steps: [
       { selector: "form", title: "Register Endpoint", text: "Register a machine here before downloading and installing its agent package." },
@@ -90,7 +86,7 @@ const fallbackHelp = {
 
 function pageKey(pathname) {
   if (pathname.startsWith("/alerts/")) return "/alerts";
-  return pageHelp[pathname] ? pathname : pathname === "/endpoint-details" ? "/endpoints" : pathname;
+  return pageHelp[pathname] ? pathname : pathname;
 }
 
 function getStepPosition(element) {
@@ -152,7 +148,7 @@ function buildResponse(question, config, pathname) {
     return "Quarantine keeps suspicious files isolated so they cannot execute normally. Restore only when you trust the file, and delete when the item is confirmed malicious or no longer needed.";
   }
 
-  if (key === "/endpoint-details" || key === "/endpoints") {
+  if (key === "/endpoint-management") {
     return "Endpoint status combines heartbeat and agent mode. Online means heartbeat is active, Offline means heartbeat stopped or became stale, Paused means heartbeat continues but telemetry, detection, and quarantine are stopped.";
   }
 

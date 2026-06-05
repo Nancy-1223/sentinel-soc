@@ -44,7 +44,7 @@ Normal users should not use Swagger or terminal commands for endpoint
 registration.
 
 1. Login to the Sentinel SOC dashboard.
-2. Open Endpoint Details.
+2. Open Endpoint Management.
 3. Enter the PC name.
 4. Click Register Endpoint.
 5. Click Download Agent.
@@ -132,7 +132,7 @@ silently.
 1. Confirm the backend URL in `agent\.env` matches the dashboard backend.
 2. Run `install_agent.bat` once, or double-click `start_agent_silent.vbs`.
 3. Open `agent\agent_status.json` and confirm the state is `running`.
-4. Open the Sentinel SOC dashboard and check Endpoint Details.
+4. Open the Sentinel SOC dashboard and check Endpoint Management.
 5. The endpoint should change to Online after the next telemetry post.
 
 ## Developer Setup

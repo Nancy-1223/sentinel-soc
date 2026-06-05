@@ -6,9 +6,8 @@ import AboutUs from "./pages/AboutUs";
 import AlertsPanel from "./pages/AlertsPanel";
 import Dashboard from "./pages/Dashboard";
 import ConnectTeam from "./pages/ConnectTeam";
-import EndpointDetails from "./pages/EndpointDetails";
+import EndpointManagement from "./pages/EndpointManagement";
 import EndpointPortal from "./pages/EndpointPortal";
-import IncidentInvestigation from "./pages/IncidentInvestigation";
 import LandingPage from "./pages/LandingPage";
 import Login from "./pages/Login";
 import Quarantine from "./pages/Quarantine";
@@ -31,12 +30,12 @@ export default function App() {
           <Route path="/alerts" element={<ProtectedRoute roles={["admin"]}><AlertsPanel /></ProtectedRoute>} />
           <Route path="/alerts/:id" element={<ProtectedRoute roles={["admin"]}><ThreatDetails /></ProtectedRoute>} />
           <Route path="/behavior" element={<ProtectedRoute roles={["admin"]}><UserBehavior /></ProtectedRoute>} />
-          <Route path="/endpoints" element={<ProtectedRoute roles={["admin"]}><EndpointDetails /></ProtectedRoute>} />
-          <Route path="/endpoint-details" element={<ProtectedRoute roles={["admin"]}><EndpointDetails /></ProtectedRoute>} />
-          <Route path="/endpoint-management" element={<ProtectedRoute roles={["admin"]}><EndpointDetails /></ProtectedRoute>} />
+          <Route path="/endpoints" element={<Navigate to="/endpoint-management" replace />} />
+          <Route path="/endpoint-details" element={<Navigate to="/endpoint-management" replace />} />
+          <Route path="/endpoint-management" element={<ProtectedRoute roles={["admin"]}><EndpointManagement /></ProtectedRoute>} />
           <Route path="/quarantine" element={<ProtectedRoute roles={["admin"]}><Quarantine /></ProtectedRoute>} />
           <Route path="/health" element={<ProtectedRoute roles={["admin"]}><SystemHealth /></ProtectedRoute>} />
-          <Route path="/incidents" element={<ProtectedRoute roles={["admin"]}><IncidentInvestigation /></ProtectedRoute>} />
+          <Route path="/incidents" element={<Navigate to="/dashboard" replace />} />
           <Route path="/about" element={<ProtectedRoute roles={["admin", "endpoint"]}><AboutUs /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute roles={["admin"]}><Settings /></ProtectedRoute>} />
           <Route path="/users" element={<ProtectedRoute roles={["admin"]}><Users /></ProtectedRoute>} />

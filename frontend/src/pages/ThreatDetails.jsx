@@ -5,7 +5,7 @@ import { PredictionBadge, RiskBadge } from "../components/StatusBadge";
 import { useAlerts } from "../context/AlertsContext";
 import { useTelemetry } from "../context/TelemetryContext";
 import { formatBytes, formatDate } from "../utils/format";
-import { downloadIncidentReport, getAiRecommendation } from "../utils/incidentReport";
+import { downloadAlertReport, getAiRecommendation } from "../utils/alertReport";
 
 export default function ThreatDetails() {
   const { id } = useParams();
@@ -49,7 +49,7 @@ export default function ThreatDetails() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
-            onClick={() => downloadIncidentReport(alert, telemetry)}
+            onClick={() => downloadAlertReport(alert, telemetry)}
             tone="green"
             size="xs"
           >
@@ -99,7 +99,7 @@ export default function ThreatDetails() {
             <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Analyst Notes</div>
             <textarea
               className="mt-3 min-h-32 w-full rounded-md border border-white/10 bg-white/[0.04] p-3 text-sm text-slate-100 outline-none focus:border-cyber-cyan/60"
-              placeholder="Add investigation notes, containment steps, or follow-up actions..."
+              placeholder="Add triage notes, containment steps, or follow-up actions..."
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
             />
@@ -120,7 +120,7 @@ export default function ThreatDetails() {
             <div className="mt-3 text-sm text-slate-400">{confidence}% confidence based on risk indicators.</div>
           </div>
           <div className="glass cyber-border hover-glow-card rounded-lg p-5">
-            <div className="text-sm font-medium text-slate-200">Investigation Timeline</div>
+            <div className="text-sm font-medium text-slate-200">Alert Timeline</div>
             <div className="mt-4 space-y-4 border-l border-cyber-cyan/25 pl-4 text-sm">
               <div><span className="text-cyber-cyan">File created</span><div className="text-slate-500">Endpoint agent detected new download.</div></div>
               <div><span className="text-cyber-cyan">AI scan</span><div className="text-slate-500">Features sent to ML prediction API.</div></div>

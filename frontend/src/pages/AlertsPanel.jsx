@@ -5,7 +5,7 @@ import AlertTable from "../components/AlertTable";
 import { useAlerts } from "../context/AlertsContext";
 import { useSettings } from "../context/SettingsContext";
 import { useTelemetry } from "../context/TelemetryContext";
-import { downloadIncidentReport } from "../utils/incidentReport";
+import { downloadAlertReport } from "../utils/alertReport";
 
 export default function AlertsPanel() {
   const { settings } = useSettings();
@@ -54,8 +54,8 @@ export default function AlertsPanel() {
 
   function generateReport(alert) {
     const telemetry = latestTelemetry.find((row) => String(row.endpoint_id) === String(alert.endpoint_id));
-    downloadIncidentReport(alert, telemetry);
-    showToast("success", "Incident report generated.");
+    downloadAlertReport(alert, telemetry);
+    showToast("success", "Alert report generated.");
   }
 
   return (

@@ -8,7 +8,7 @@ export function getAiRecommendation(riskScore = 0) {
   return "Low risk";
 }
 
-export function buildIncidentReport(alert, telemetry) {
+export function buildAlertReport(alert, telemetry) {
   const telemetryText = telemetry
     ? [
         `CPU: ${Math.round(Number(telemetry.cpu || 0))}%`,
@@ -22,8 +22,8 @@ export function buildIncidentReport(alert, telemetry) {
     : "No telemetry snapshot available.";
 
   return [
-    "AI SOC VIRUS DETECTION - INCIDENT REPORT",
-    "========================================",
+    "AI SOC VIRUS DETECTION - ALERT REPORT",
+    "=====================================",
     "",
     `Filename: ${alert.filename}`,
     `PC name: ${alert.pc_name}`,
@@ -43,13 +43,13 @@ export function buildIncidentReport(alert, telemetry) {
   ].join("\n");
 }
 
-export function downloadIncidentReport(alert, telemetry) {
-  const report = buildIncidentReport(alert, telemetry);
+export function downloadAlertReport(alert, telemetry) {
+  const report = buildAlertReport(alert, telemetry);
   const blob = new Blob([report], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `incident-report-${alert.id}-${alert.pc_name || "endpoint"}.txt`;
+  link.download = `alert-report-${alert.id}-${alert.pc_name || "endpoint"}.txt`;
   document.body.appendChild(link);
   link.click();
   link.remove();

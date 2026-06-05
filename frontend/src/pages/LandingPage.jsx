@@ -28,7 +28,7 @@ const features = [
   { icon: Activity, title: "Real-Time Telemetry", text: "Watch CPU, RAM, disk, and endpoint health signals." },
   { icon: LockKeyhole, title: "Quarantine Vault", text: "Contain suspicious files and review response status." },
   { icon: Radar, title: "Risk Scoring", text: "Turn alerts into clear severity and triage signals." },
-  { icon: Siren, title: "Incident Investigation", text: "Move from alert review to investigation workflow fast." },
+  { icon: Siren, title: "Alert Triage", text: "Move from alert review to response decisions fast." },
 ];
 
 const steps = [

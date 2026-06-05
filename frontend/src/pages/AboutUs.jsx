@@ -17,7 +17,7 @@ const featureLabels = [
   "Quarantine Vault",
   "Endpoint Health",
   "Risk Scoring",
-  "Incident Investigation",
+  "Alert Reporting",
 ];
 
 const aboutTranslations = {
@@ -39,7 +39,7 @@ const aboutTranslations = {
       "Endpoint appears online in dashboard.",
       "Alerts and telemetry appear automatically.",
       "Use Pause Detection / Pause Agent controls when needed.",
-      "Check quarantine and incident investigation pages.",
+      "Check quarantine and alert detail pages.",
     ],
     featuresTitle: "Key Features",
     safetyTitle: "Safety Notes",
@@ -76,7 +76,7 @@ const aboutTranslations = {
       "Endpoint dashboard-ல் online ஆக தெரியும்.",
       "Alerts மற்றும் telemetry தானாக தோன்றும்.",
       "தேவைப்படும் போது Pause Detection / Pause Agent controls-ஐ பயன்படுத்தவும்.",
-      "Quarantine மற்றும் Incident Investigation pages-ஐ பார்க்கவும்.",
+      "Quarantine மற்றும் alert detail pages-ஐ பார்க்கவும்.",
     ],
     featuresTitle: "முக்கிய அம்சங்கள்",
     safetyTitle: "பாதுகாப்பு குறிப்புகள்",
@@ -113,7 +113,7 @@ const aboutTranslations = {
       "Endpoint dashboard में online दिखाई देता है.",
       "Alerts और telemetry automatically दिखाई देते हैं.",
       "जरूरत होने पर Pause Detection / Pause Agent controls का उपयोग करें.",
-      "Quarantine और Incident Investigation pages देखें.",
+      "Quarantine और alert detail pages देखें.",
     ],
     featuresTitle: "मुख्य विशेषताएं",
     safetyTitle: "सुरक्षा नोट्स",
