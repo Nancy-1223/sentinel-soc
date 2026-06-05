@@ -1,16 +1,17 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   Activity,
   Bell,
   CircleHelp,
   Gauge,
   HardDrive,
+  LogOut,
   LockKeyhole,
   Settings,
   Shield,
   UserRoundCog,
 } from "lucide-react";
-import { endpointNeedsTeam, getStoredUser, getUserRole } from "../../utils/auth";
+import { clearSession, endpointNeedsTeam, getStoredUser, getUserRole } from "../../utils/auth";
 
 const adminNavItems = [
   { to: "/dashboard", label: "Dashboard", icon: Gauge },
@@ -20,28 +21,19 @@ const adminNavItems = [
   { to: "/quarantine", label: "Quarantine", icon: LockKeyhole },
   { to: "/health", label: "System Health", icon: Activity },
   { to: "/users", label: "Users", icon: UserRoundCog },
-  { to: "/about", label: "About Us", icon: CircleHelp },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
 const endpointNavItems = [
-  { to: "/endpoint-portal", label: "My Endpoint", icon: HardDrive },
-  { to: "/my-dashboard", label: "My Dashboard", icon: Gauge },
-  { to: "/my-behavior", label: "My Behavior", icon: UserRoundCog },
+  { to: "/endpoint-portal", label: "My Dashboard", icon: Gauge },
   { to: "/my-alerts", label: "My Alerts", icon: Bell },
+  { to: "/my-behavior", label: "My Behavior", icon: UserRoundCog },
+  { to: "/my-endpoint", label: "My Endpoint", icon: HardDrive },
   { to: "/my-quarantine", label: "My Quarantine", icon: LockKeyhole },
   { to: "/about", label: "About Us", icon: CircleHelp },
 ];
 
-export default function Sidebar() {
-  const user = getStoredUser();
-  const role = getUserRole(user);
-  const navItems = role === "endpoint"
-    ? endpointNeedsTeam(user)
-      ? [{ to: "/connect-team", label: "Connect Team", icon: HardDrive }, { to: "/about", label: "About Us", icon: CircleHelp }]
-      : endpointNavItems
-    : adminNavItems;
-
+function SidebarFrame({ title, subtitle, navItems, footerText, onLogout }) {
   return (
     <aside className="premium-sidebar fixed inset-y-0 left-0 z-40 hidden w-72 border-r border-cyber-cyan/10 p-5 lg:block">
       <div className="mb-8 flex items-center gap-3">
@@ -50,8 +42,8 @@ export default function Sidebar() {
         </div>
         <div>
           <div className="text-xs uppercase tracking-[0.28em] text-cyber-cyan">Sentinel</div>
-          <div className="mt-1 text-lg font-semibold text-white">{role === "endpoint" ? "Endpoint Portal" : "AI SOC Platform"}</div>
-          <div className="mt-1 text-xs font-medium text-slate-400">{role === "endpoint" ? "Assigned endpoint view" : "Endpoint Defense Mesh"}</div>
+          <div className="mt-1 text-lg font-semibold text-white">{title}</div>
+          <div className="mt-1 text-xs font-medium text-slate-400">{subtitle}</div>
         </div>
       </div>
       <nav className="space-y-2">
@@ -74,11 +66,60 @@ export default function Sidebar() {
           </NavLink>
           );
         })}
+        {onLogout && (
+          <button
+            type="button"
+            onClick={onLogout}
+            className="sidebar-link flex w-full items-center gap-3 rounded-xl border border-transparent px-4 py-3 text-left text-sm font-medium text-slate-100 transition hover:border-white/10 hover:bg-white/[0.04] hover:text-white"
+          >
+            <LogOut className="h-4 w-4 shrink-0" />
+            <span>Logout</span>
+          </button>
+        )}
       </nav>
       <div className="absolute bottom-5 left-5 right-5 rounded-2xl border border-cyber-green/20 bg-cyber-green/5 p-4">
         <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">SOC Mode</div>
-        <div className="mt-2 text-sm text-cyber-green">{role === "endpoint" ? "Endpoint workspace ready" : "Investigation workspace ready"}</div>
+        <div className="mt-2 text-sm text-cyber-green">{footerText}</div>
       </div>
     </aside>
   );
+}
+
+export function AdminSidebar() {
+  return (
+    <SidebarFrame
+      title="AI SOC Platform"
+      subtitle="Endpoint Defense Mesh"
+      navItems={adminNavItems}
+      footerText="Investigation workspace ready"
+    />
+  );
+}
+
+export function EndpointSidebar() {
+  const navigate = useNavigate();
+  const user = getStoredUser();
+  const navItems = endpointNeedsTeam(user)
+    ? [{ to: "/connect-team", label: "Connect Team", icon: HardDrive }]
+    : endpointNavItems;
+
+  function logout() {
+    clearSession();
+    navigate("/login");
+  }
+
+  return (
+    <SidebarFrame
+      title="Endpoint Portal"
+      subtitle="Assigned endpoint view"
+      navItems={navItems}
+      footerText="Endpoint workspace ready"
+      onLogout={logout}
+    />
+  );
+}
+
+export default function Sidebar() {
+  const role = getUserRole(getStoredUser());
+  return role === "endpoint" ? <EndpointSidebar /> : <AdminSidebar />;
 }

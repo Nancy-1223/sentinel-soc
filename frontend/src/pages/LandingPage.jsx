@@ -12,6 +12,7 @@ import {
   Siren,
 } from "lucide-react";
 import { useSettings } from "../context/SettingsContext";
+import { getRoleHome, getStoredUser } from "../utils/auth";
 
 const particles = Array.from({ length: 30 }, (_, index) => ({
   id: index,
@@ -42,8 +43,9 @@ const steps = [
 export default function LandingPage() {
   const { settings } = useSettings();
   const isLoggedIn = Boolean(localStorage.getItem("soc_token"));
-  const ctaTarget = isLoggedIn ? "/dashboard" : "/login";
-  const ctaLabel = "Enter SOC Dashboard";
+  const roleHome = isLoggedIn ? getRoleHome(getStoredUser()) : "/login";
+  const ctaTarget = roleHome;
+  const ctaLabel = roleHome === "/endpoint-portal" ? "Enter Endpoint Portal" : "Enter SOC Dashboard";
   const isDarkTheme = settings.theme === "dark";
 
   useEffect(() => {

@@ -5,7 +5,7 @@ import Button from "../Button";
 import { useAlerts } from "../../context/AlertsContext";
 import { useSettings } from "../../context/SettingsContext";
 import { useTelemetry } from "../../context/TelemetryContext";
-import { getStoredUser, getUserRole } from "../../utils/auth";
+import { clearSession, getStoredUser, getUserRole } from "../../utils/auth";
 
 export default function Topbar() {
   const { alerts, refreshAlerts } = useAlerts();
@@ -23,8 +23,7 @@ export default function Topbar() {
   }
 
   function logout() {
-    localStorage.removeItem("soc_user");
-    localStorage.removeItem("soc_token");
+    clearSession();
     navigate("/login");
   }
 
@@ -67,7 +66,7 @@ export default function Topbar() {
             </Button>
           )}
           <div className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-400">
-            {user?.name || "SOC Analyst"}
+            {user?.name || (role === "endpoint" ? "Endpoint User" : "SOC Analyst")}
           </div>
           <Button onClick={logout} tone="slate" size="xs" aria-label="Log out and return to login">
             Logout

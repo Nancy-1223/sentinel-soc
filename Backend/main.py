@@ -190,7 +190,8 @@ class HeartbeatRequest(BaseModel):
 
 
 class ConnectTeamRequest(BaseModel):
-    team_password: str = Field(..., min_length=1)
+    team_passcode: str | None = None
+    team_password: str | None = None
 
 
 def serialize_telemetry(row: Telemetry):
@@ -255,6 +256,11 @@ def authenticate_team_passcode(team: Team, passcode: str) -> bool:
     return get_password_hash(passcode.strip()) == team.passcode_hash
 
 
+def find_team_by_passcode(db: Session, passcode: str) -> Team | None:
+    passcode_hash = get_password_hash(passcode.strip())
+    return db.query(Team).filter(Team.passcode_hash == passcode_hash).first()
+
+
 def team_exists(db: Session) -> bool:
     return db.query(Team.id).first() is not None
 
@@ -277,7 +283,7 @@ def ensure_endpoint_visible(db: Session, current_user: User, endpoint_id: int) -
 
 
 def require_team_for_endpoint_user(current_user: User) -> None:
-    if normalize_role(current_user.role) == "endpoint" and current_user.team_id is None:
+    if normalize_role(current_user.role) == "endpoint" and (current_user.team_id is None or current_user.admin_id is None):
         raise HTTPException(status_code=403, detail="Endpoint user must connect to a team first")
 
 
@@ -582,14 +588,28 @@ def connect_team(request: ConnectTeamRequest, db: Session = Depends(get_db), cur
     if normalize_role(current_user.role) != "endpoint":
         raise HTTPException(status_code=403, detail="Only endpoint users can connect to a team")
 
-    team = get_primary_team(db)
+    passcode = (request.team_passcode or request.team_password or "").strip()
+    if not passcode:
+        raise HTTPException(status_code=400, detail="Team Passcode is required")
+
+    team = find_team_by_passcode(db, passcode)
     if not team:
-        raise HTTPException(status_code=404, detail="No team has been created yet")
-    if not authenticate_team_passcode(team, request.team_password):
-        raise HTTPException(status_code=403, detail="Invalid team passcode")
+        raise HTTPException(status_code=400, detail="Invalid Team Passcode")
+
+    admin_id = team.owner_admin_id
+    if admin_id is None:
+        admin = (
+            db.query(User)
+            .filter(User.team_id == team.id, func.lower(User.role) == "admin")
+            .order_by(User.id.asc())
+            .first()
+        )
+        admin_id = admin.id if admin else None
+    if admin_id is None:
+        raise HTTPException(status_code=400, detail="Invalid Team Passcode")
 
     current_user.team_id = team.id
-    current_user.admin_id = team.owner_admin_id
+    current_user.admin_id = admin_id
     if current_user.endpoint_id is not None:
         endpoint = db.get(Endpoint, current_user.endpoint_id)
         if endpoint:
@@ -611,6 +631,8 @@ def register_endpoint(
         raise HTTPException(status_code=400, detail="PC name is required")
     if normalize_role(current_user.role) == "endpoint":
         require_team_for_endpoint_user(current_user)
+        if current_user.endpoint_id is not None:
+            raise HTTPException(status_code=403, detail="Endpoint users can only manage their assigned endpoint")
 
     endpoint = Endpoint(
         user_id=current_user.id,
@@ -638,7 +660,8 @@ def register_endpoint(
 
 @app.get("/agent-config/{endpoint_id}")
 @safe_endpoint
-def get_agent_config(endpoint_id: int, request: Request, db: Session = Depends(get_db)):
+def get_agent_config(endpoint_id: int, request: Request, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    ensure_endpoint_visible(db, current_user, endpoint_id)
     endpoint = get_endpoint_or_404(endpoint_id, db)
     return {
         "SOC_BACKEND_URL": public_backend_url(request),
@@ -844,7 +867,8 @@ def get_endpoint_status(db: Session = Depends(get_db), current_user: User = Depe
 
 @app.get("/endpoints/{endpoint_id}/control/status")
 @safe_endpoint
-def get_endpoint_control_status(endpoint_id: int, db: Session = Depends(get_db)):
+def get_endpoint_control_status(endpoint_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    ensure_endpoint_visible(db, current_user, endpoint_id)
     return serialize_endpoint_control(get_endpoint_or_404(endpoint_id, db))
 
 

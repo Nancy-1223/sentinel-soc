@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createApiClient } from "../api/client";
-import { getStoredUser, getUserRole } from "../utils/auth";
+import { endpointNeedsTeam, getStoredUser, getUserRole } from "../utils/auth";
 import { useSettings } from "./SettingsContext";
 
 const AlertsContext = createContext(null);
@@ -17,6 +17,15 @@ export function AlertsProvider({ children }) {
   const fetchAlerts = useCallback(async () => {
     const api = createApiClient();
     const user = getStoredUser();
+    if (endpointNeedsTeam(user)) {
+      knownIds.current = new Set();
+      initialized.current = true;
+      setAlerts([]);
+      setOffline(false);
+      setLoading(false);
+      return true;
+    }
+
     const alertsPath = getUserRole(user) === "endpoint" ? "/my/alerts" : "/get-alerts";
 
     try {

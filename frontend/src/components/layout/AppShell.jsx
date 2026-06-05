@@ -8,6 +8,7 @@ import SentinelAIAssistant from "../SentinelAIAssistant";
 import Toast from "../Toast";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
+import { clearSession, storeSession } from "../../utils/auth";
 
 function ShellContent() {
   const { latestThreat, clearLatestThreat } = useAlerts();
@@ -50,11 +51,10 @@ export default function AppShell() {
         const api = createApiClient();
         const response = await api.get("/me");
         const token = localStorage.getItem("soc_token");
-        localStorage.setItem("soc_user", JSON.stringify({ ...response.data, token }));
+        storeSession(response.data, token);
         setAuthState("valid");
       } catch {
-        localStorage.removeItem("soc_token");
-        localStorage.removeItem("soc_user");
+        clearSession();
         setAuthState("invalid");
       }
     }

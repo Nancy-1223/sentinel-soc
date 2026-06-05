@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { createApiClient, getApiErrorMessage } from "../api/client";
 import BackendStatus from "../components/BackendStatus";
 import Button from "../components/Button";
+import { getRoleHome, storeSession } from "../utils/auth";
 
 export default function ConnectTeam() {
   const navigate = useNavigate();
@@ -17,11 +18,11 @@ export default function ConnectTeam() {
     try {
       const api = createApiClient();
       const response = await api.post("/connect-team", {
-        team_password: teamPassword,
+        team_passcode: teamPassword,
       });
       const token = localStorage.getItem("soc_token");
-      localStorage.setItem("soc_user", JSON.stringify({ ...response.data.user, token }));
-      navigate("/endpoint-portal", { replace: true });
+      const user = storeSession(response.data.user, token);
+      navigate(getRoleHome(user), { replace: true });
     } catch (exc) {
       setMessage(getApiErrorMessage(exc, "Could not connect to team."));
     } finally {
@@ -33,7 +34,7 @@ export default function ConnectTeam() {
     <div className="grid min-h-[70vh] place-items-center px-4">
       <form onSubmit={submit} className="glass cyber-border hover-glow-card w-full max-w-md rounded-lg p-7">
         <div className="text-xs uppercase tracking-[0.28em] text-cyber-cyan">Endpoint Access</div>
-        <h1 className="mt-3 text-xl font-semibold text-white">Connect Team</h1>
+        <h1 className="mt-3 text-xl font-semibold text-white">Connect to Admin Team</h1>
         <p className="mt-2 text-sm leading-6 text-slate-400">
           Enter your Sentinel SOC team passcode to connect this endpoint user account to the admin team.
         </p>
@@ -53,7 +54,7 @@ export default function ConnectTeam() {
         </label>
         {message && <div className="mt-4 rounded-md border border-cyber-red/30 bg-cyber-red/10 p-3 text-sm text-cyber-red">{message}</div>}
         <Button type="submit" loading={loading} loadingText="Connecting..." tone="solidCyan" size="lg" className="mt-6 w-full">
-          Connect Team
+          Connect
         </Button>
       </form>
     </div>

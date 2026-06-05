@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { createApiClient } from "../api/client";
-import { getStoredUser, getUserRole } from "../utils/auth";
+import { endpointNeedsTeam, getStoredUser, getUserRole } from "../utils/auth";
 import { useSettings } from "./SettingsContext";
 
 const TelemetryContext = createContext(null);
@@ -22,6 +22,15 @@ export function TelemetryProvider({ children }) {
   const fetchTelemetry = useCallback(async () => {
     const api = createApiClient();
     const user = getStoredUser();
+    if (endpointNeedsTeam(user)) {
+      setLatestTelemetry([]);
+      setEndpointStatus([]);
+      setHistory([]);
+      setOffline(false);
+      setLoading(false);
+      return true;
+    }
+
     const isEndpoint = getUserRole(user) === "endpoint";
     const telemetryPath = isEndpoint ? "/my/telemetry" : "/telemetry";
     const statusPath = isEndpoint ? "/my/endpoint/status" : "/endpoints/status";
