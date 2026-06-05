@@ -1,5 +1,5 @@
 import { Navigate, useLocation } from "react-router-dom";
-import { getRoleHome, getStoredUser, getUserRole } from "../utils/auth";
+import { endpointNeedsTeam, getRoleHome, getStoredUser, getUserRole } from "../utils/auth";
 
 export default function ProtectedRoute({ roles = [], children }) {
   const location = useLocation();
@@ -19,6 +19,10 @@ export default function ProtectedRoute({ roles = [], children }) {
         state={{ deniedMessage: "Access denied. Admin only." }}
       />
     );
+  }
+
+  if (role === "endpoint" && endpointNeedsTeam(user) && location.pathname !== "/connect-team") {
+    return <Navigate to="/connect-team" replace />;
   }
 
   return children;

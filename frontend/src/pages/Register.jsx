@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { createApiClient, getApiErrorMessage } from "../api/client";
 import BackendStatus from "../components/BackendStatus";
@@ -6,13 +6,39 @@ import Button from "../components/Button";
 
 export default function Register() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ name: "", email: "", password: "", role: "endpoint", teamPassword: "" });
+  const [form, setForm] = useState({ name: "", email: "", password: "", confirmPassword: "", role: "endpoint", teamPassword: "", confirmTeamPassword: "" });
+  const [teamExists, setTeamExists] = useState(true);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchTeamStatus() {
+      try {
+        const api = createApiClient();
+        const response = await api.get("/team/status");
+        if (!cancelled) setTeamExists(Boolean(response.data?.team_exists));
+      } catch {
+        if (!cancelled) setTeamExists(true);
+      }
+    }
+    fetchTeamStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function submit(event) {
     event.preventDefault();
     setMessage("");
+    if (form.password !== form.confirmPassword) {
+      setMessage("Passwords do not match.");
+      return;
+    }
+    if (form.role === "admin" && !teamExists && form.teamPassword !== form.confirmTeamPassword) {
+      setMessage("Team passcodes do not match.");
+      return;
+    }
     setLoading(true);
     try {
       const api = createApiClient();
@@ -22,6 +48,7 @@ export default function Register() {
         password: form.password,
         role: form.role,
         team_password: form.role === "admin" ? form.teamPassword : undefined,
+        team_password_confirm: form.role === "admin" && !teamExists ? form.confirmTeamPassword : undefined,
       });
       setMessage("Account created. You can login now.");
       setTimeout(() => navigate("/login"), 900);
@@ -41,15 +68,45 @@ export default function Register() {
           <BackendStatus />
         </div>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <input className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-sm outline-none focus:border-cyber-cyan/60" placeholder="Name" autoComplete="name" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <select className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-sm outline-none focus:border-cyber-cyan/60" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value, teamPassword: "" })}>
-            <option value="endpoint">Endpoint User</option>
-            <option value="admin">Admin</option>
-          </select>
-          <input className="sm:col-span-2 rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-sm outline-none focus:border-cyber-cyan/60" placeholder="Email" type="email" autoComplete="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-          <input className="sm:col-span-2 rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-sm outline-none focus:border-cyber-cyan/60" placeholder="Password" type="password" autoComplete="new-password" required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+          <label className="grid gap-2 text-sm text-slate-300">
+            <span>Full Name</span>
+            <input className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-sm outline-none focus:border-cyber-cyan/60" placeholder="Full Name" autoComplete="name" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          </label>
+          <label className="grid gap-2 text-sm text-slate-300">
+            <span>Account Type</span>
+            <select className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-sm outline-none focus:border-cyber-cyan/60" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value, teamPassword: "", confirmTeamPassword: "" })}>
+              <option value="admin">Admin</option>
+              <option value="endpoint">Endpoint User</option>
+            </select>
+          </label>
+          <label className="grid gap-2 text-sm text-slate-300 sm:col-span-2">
+            <span>Email</span>
+            <input className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-sm outline-none focus:border-cyber-cyan/60" placeholder="Email" type="email" autoComplete="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          </label>
+          <label className="grid gap-2 text-sm text-slate-300 sm:col-span-2">
+            <span>Create Password</span>
+            <input className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-sm outline-none focus:border-cyber-cyan/60" placeholder="Create Password" type="password" autoComplete="new-password" required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+          </label>
+          <label className="grid gap-2 text-sm text-slate-300 sm:col-span-2">
+            <span>Confirm Password</span>
+            <input className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-sm outline-none focus:border-cyber-cyan/60" placeholder="Confirm Password" type="password" autoComplete="new-password" required value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} />
+          </label>
           {form.role === "admin" && (
-            <input className="sm:col-span-2 rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-sm outline-none focus:border-cyber-cyan/60" placeholder="Team Password / Admin Code" type="password" required value={form.teamPassword} onChange={(e) => setForm({ ...form, teamPassword: e.target.value })} />
+            <label className="grid gap-2 text-sm text-slate-300 sm:col-span-2">
+              <span>{teamExists ? "Enter Team Passcode" : "Create Team Passcode"}</span>
+              <input className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-sm outline-none focus:border-cyber-cyan/60" placeholder={teamExists ? "Enter Team Passcode" : "Create Team Passcode"} type="password" required value={form.teamPassword} onChange={(e) => setForm({ ...form, teamPassword: e.target.value })} />
+              <span className="text-xs leading-5 text-slate-500">
+                {teamExists
+                  ? "This is the existing team passcode used to verify authorization for admin account creation."
+                  : "This creates the first team passcode. Store it securely for future admins and endpoint users."}
+              </span>
+              {!teamExists && (
+                <>
+                  <span className="mt-2">Confirm Team Passcode</span>
+                  <input className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-sm outline-none focus:border-cyber-cyan/60" placeholder="Confirm Team Passcode" type="password" required value={form.confirmTeamPassword} onChange={(e) => setForm({ ...form, confirmTeamPassword: e.target.value })} />
+                </>
+              )}
+            </label>
           )}
         </div>
         {message && <div className="mt-4 text-sm text-cyber-cyan">{message}</div>}

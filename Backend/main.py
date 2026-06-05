@@ -17,7 +17,7 @@ import shutil
 import zipfile
 
 from database import Base, get_db, init_database
-from models import User, Endpoint, Alert, Telemetry
+from models import User, Team, Endpoint, Alert, Telemetry
 from auth import get_password_hash, authenticate_user, create_access_token, get_current_user, normalize_role, require_admin, endpoint_access_filter
 from detector import predict_file
 
@@ -131,6 +131,7 @@ class RegisterRequest(BaseModel):
     password: str
     role: str
     team_password: str | None = None
+    team_password_confirm: str | None = None
 
 
 class LoginRequest(BaseModel):
@@ -187,6 +188,10 @@ class HeartbeatRequest(BaseModel):
     timestamp: datetime | None = None
 
 
+class ConnectTeamRequest(BaseModel):
+    team_password: str = Field(..., min_length=1)
+
+
 def serialize_telemetry(row: Telemetry):
     return {
         "id": row.id,
@@ -218,8 +223,44 @@ def serialize_user(user: User) -> dict:
         "email": user.email,
         "role": normalize_role(user.role),
         "endpoint_id": user.endpoint_id,
+        "team_id": user.team_id,
+        "admin_id": user.admin_id,
         "created_at": serialize_datetime(user.created_at),
     }
+
+
+def get_primary_team(db: Session) -> Team | None:
+    return db.query(Team).order_by(Team.id.asc()).first()
+
+
+def authenticate_team_passcode(team: Team, passcode: str) -> bool:
+    return get_password_hash(passcode.strip()) == team.passcode_hash
+
+
+def team_exists(db: Session) -> bool:
+    return db.query(Team.id).first() is not None
+
+
+def visible_endpoint_ids(db: Session, current_user: User) -> set[int] | None:
+    role = normalize_role(current_user.role)
+    if role == "admin":
+        if current_user.team_id is None:
+            return None
+        return {row.id for row in db.query(Endpoint.id).filter(Endpoint.team_id == current_user.team_id).all()}
+    if current_user.endpoint_id is None:
+        return set()
+    return {int(current_user.endpoint_id)}
+
+
+def ensure_endpoint_visible(db: Session, current_user: User, endpoint_id: int) -> None:
+    allowed_ids = visible_endpoint_ids(db, current_user)
+    if allowed_ids is not None and int(endpoint_id) not in allowed_ids:
+        raise HTTPException(status_code=403, detail="Access denied. Endpoint is outside your team scope.")
+
+
+def require_team_for_endpoint_user(current_user: User) -> None:
+    if normalize_role(current_user.role) == "endpoint" and current_user.team_id is None:
+        raise HTTPException(status_code=403, detail="Endpoint user must connect to a team first")
 
 
 def latest_telemetry_rows(db: Session):
@@ -365,12 +406,17 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Email already registered")
 
     role = normalize_role(request.role)
+    primary_team = get_primary_team(db)
     if role == "admin":
-        expected_password = os.getenv("ADMIN_TEAM_PASSWORD", "your_team_password_here").strip()
-        if not expected_password:
-            raise HTTPException(status_code=500, detail="Admin registration is not configured")
-        if (request.team_password or "").strip() != expected_password:
-            raise HTTPException(status_code=403, detail="Invalid admin team password")
+        team_password = (request.team_password or "").strip()
+        if not team_password:
+            raise HTTPException(status_code=400, detail="Team passcode is required for admin registration")
+        if primary_team:
+            if not authenticate_team_passcode(primary_team, team_password):
+                raise HTTPException(status_code=403, detail="Invalid team passcode")
+        else:
+            if team_password != (request.team_password_confirm or "").strip():
+                raise HTTPException(status_code=400, detail="Team passcodes do not match")
 
     user = User(
         name=request.name.strip(),
@@ -382,6 +428,23 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
         db.add(user)
         db.commit()
         db.refresh(user)
+        if role == "admin":
+            if primary_team:
+                user.team_id = primary_team.id
+                user.admin_id = primary_team.owner_admin_id or user.id
+            else:
+                primary_team = Team(
+                    name=f"{user.name}'s Team",
+                    passcode_hash=get_password_hash((request.team_password or "").strip()),
+                    owner_admin_id=user.id,
+                )
+                db.add(primary_team)
+                db.commit()
+                db.refresh(primary_team)
+                user.team_id = primary_team.id
+                user.admin_id = user.id
+            db.commit()
+            db.refresh(user)
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -402,7 +465,14 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     user.role = normalize_role(user.role)
     db.commit()
     db.refresh(user)
-    token = create_access_token({"sub": str(user.id), "role": user.role, "email": user.email, "endpoint_id": user.endpoint_id})
+    token = create_access_token({
+        "sub": str(user.id),
+        "role": user.role,
+        "email": user.email,
+        "endpoint_id": user.endpoint_id,
+        "team_id": user.team_id,
+        "admin_id": user.admin_id,
+    })
     return {
         "token": token,
         "user": serialize_user(user),
@@ -415,6 +485,35 @@ def read_current_user(current_user: User = Depends(get_current_user)):
     return serialize_user(current_user)
 
 
+@app.get("/team/status")
+@safe_endpoint
+def get_team_status(db: Session = Depends(get_db)):
+    return {"team_exists": team_exists(db)}
+
+
+@app.post("/connect-team")
+@safe_endpoint
+def connect_team(request: ConnectTeamRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if normalize_role(current_user.role) != "endpoint":
+        raise HTTPException(status_code=403, detail="Only endpoint users can connect to a team")
+
+    team = get_primary_team(db)
+    if not team:
+        raise HTTPException(status_code=404, detail="No team has been created yet")
+    if not authenticate_team_passcode(team, request.team_password):
+        raise HTTPException(status_code=403, detail="Invalid team passcode")
+
+    current_user.team_id = team.id
+    current_user.admin_id = team.owner_admin_id
+    if current_user.endpoint_id is not None:
+        endpoint = db.get(Endpoint, current_user.endpoint_id)
+        if endpoint:
+            endpoint.team_id = team.id
+    db.commit()
+    db.refresh(current_user)
+    return {"message": "Team connected successfully", "user": serialize_user(current_user)}
+
+
 @app.post("/register-endpoint", status_code=status.HTTP_201_CREATED)
 @safe_endpoint
 def register_endpoint(
@@ -425,6 +524,8 @@ def register_endpoint(
     pc_name = request.pc_name.strip()
     if not pc_name:
         raise HTTPException(status_code=400, detail="PC name is required")
+    if normalize_role(current_user.role) == "endpoint":
+        require_team_for_endpoint_user(current_user)
 
     endpoint = Endpoint(
         user_id=current_user.id,
@@ -434,6 +535,7 @@ def register_endpoint(
         detection_enabled=True,
         agent_mode="running",
         heartbeat_enabled=True,
+        team_id=current_user.team_id,
     )
     db.add(endpoint)
     db.commit()
@@ -463,7 +565,7 @@ def get_agent_config(endpoint_id: int, request: Request, db: Session = Depends(g
 @app.get("/download-agent/{endpoint_id}")
 @safe_endpoint
 def download_agent(endpoint_id: int, request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    endpoint_access_filter(current_user, endpoint_id)
+    ensure_endpoint_visible(db, current_user, endpoint_id)
     endpoint = get_endpoint_or_404(endpoint_id, db)
     required_files = [
         "agent.py",
@@ -623,19 +725,17 @@ async def receive_telemetry(request: Request, db: Session = Depends(get_db)):
 @app.get("/telemetry")
 @safe_endpoint
 def get_latest_telemetry(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if normalize_role(current_user.role) == "endpoint" and current_user.endpoint_id is None:
-        return []
-    endpoint_id = endpoint_access_filter(current_user)
+    allowed_ids = visible_endpoint_ids(db, current_user)
     rows = latest_telemetry_rows(db)
-    if endpoint_id is not None:
-        rows = [row for row in rows if row.endpoint_id == endpoint_id]
+    if allowed_ids is not None:
+        rows = [row for row in rows if row.endpoint_id in allowed_ids]
     return [serialize_telemetry(row) for row in rows]
 
 
 @app.get("/telemetry/{endpoint_id}")
 @safe_endpoint
 def get_endpoint_telemetry(endpoint_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    endpoint_access_filter(current_user, endpoint_id)
+    ensure_endpoint_visible(db, current_user, endpoint_id)
     endpoint = db.get(Endpoint, endpoint_id)
     if not endpoint:
         raise HTTPException(status_code=404, detail="Endpoint not found")
@@ -653,9 +753,7 @@ def get_endpoint_telemetry(endpoint_id: int, db: Session = Depends(get_db), curr
 @app.get("/endpoints/status")
 @safe_endpoint
 def get_endpoint_status(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if normalize_role(current_user.role) == "endpoint" and current_user.endpoint_id is None:
-        return []
-    scoped_endpoint_id = endpoint_access_filter(current_user)
+    allowed_ids = visible_endpoint_ids(db, current_user)
     alert_stats = (
         db.query(
             Alert.endpoint_id,
@@ -683,8 +781,10 @@ def get_endpoint_status(db: Session = Depends(get_db), current_user: User = Depe
     }
     latest_by_endpoint = {row.endpoint_id: row for row in latest_telemetry_rows(db)}
     endpoint_query = db.query(Endpoint).order_by(Endpoint.id.asc())
-    if scoped_endpoint_id is not None:
-        endpoint_query = endpoint_query.filter(Endpoint.id == scoped_endpoint_id)
+    if allowed_ids is not None:
+        if not allowed_ids:
+            return []
+        endpoint_query = endpoint_query.filter(Endpoint.id.in_(allowed_ids))
     endpoints = endpoint_query.all()
 
     return [
@@ -715,30 +815,35 @@ def get_endpoint_control_status(endpoint_id: int, db: Session = Depends(get_db))
 @app.post("/endpoints/{endpoint_id}/detection/pause")
 @safe_endpoint
 def pause_detection(endpoint_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    ensure_endpoint_visible(db, current_user, endpoint_id)
     return update_endpoint_control(endpoint_id, db, detection_enabled=False)
 
 
 @app.post("/endpoints/{endpoint_id}/detection/resume")
 @safe_endpoint
 def resume_detection(endpoint_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    ensure_endpoint_visible(db, current_user, endpoint_id)
     return update_endpoint_control(endpoint_id, db, detection_enabled=True)
 
 
 @app.post("/endpoints/{endpoint_id}/agent/pause")
 @safe_endpoint
 def pause_agent(endpoint_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    ensure_endpoint_visible(db, current_user, endpoint_id)
     return update_endpoint_control(endpoint_id, db, agent_mode="paused", heartbeat_enabled=True)
 
 
 @app.post("/endpoints/{endpoint_id}/agent/resume")
 @safe_endpoint
 def resume_agent(endpoint_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    ensure_endpoint_visible(db, current_user, endpoint_id)
     return update_endpoint_control(endpoint_id, db, agent_mode="running", heartbeat_enabled=True)
 
 
 @app.post("/endpoints/{endpoint_id}/agent/stop")
 @safe_endpoint
 def stop_agent(endpoint_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    ensure_endpoint_visible(db, current_user, endpoint_id)
     return update_endpoint_control(
         endpoint_id,
         db,
@@ -751,6 +856,7 @@ def stop_agent(endpoint_id: int, db: Session = Depends(get_db), current_user: Us
 @app.post("/endpoints/{endpoint_id}/agent/remove")
 @safe_endpoint
 def remove_agent(endpoint_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    ensure_endpoint_visible(db, current_user, endpoint_id)
     return update_endpoint_control(
         endpoint_id,
         db,
@@ -763,6 +869,7 @@ def remove_agent(endpoint_id: int, db: Session = Depends(get_db), current_user: 
 @app.delete("/endpoints/{endpoint_id}")
 @safe_endpoint
 def delete_endpoint(endpoint_id: int, remove_alerts: bool = True, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    ensure_endpoint_visible(db, current_user, endpoint_id)
     endpoint = db.get(Endpoint, endpoint_id)
     if not endpoint:
         raise HTTPException(status_code=404, detail="Endpoint not found")
@@ -812,12 +919,12 @@ def reset_demo_data(db: Session = Depends(get_db), current_user: User = Depends(
 @app.get("/get-alerts")
 @safe_endpoint
 def get_alerts(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if normalize_role(current_user.role) == "endpoint" and current_user.endpoint_id is None:
-        return []
-    scoped_endpoint_id = endpoint_access_filter(current_user)
+    allowed_ids = visible_endpoint_ids(db, current_user)
     query = db.query(Alert).order_by(Alert.created_at.desc())
-    if scoped_endpoint_id is not None:
-        query = query.filter(Alert.endpoint_id == scoped_endpoint_id)
+    if allowed_ids is not None:
+        if not allowed_ids:
+            return []
+        query = query.filter(Alert.endpoint_id.in_(allowed_ids))
     alerts = query.all()
     return [
         {
@@ -844,6 +951,7 @@ def delete_alert(alert_id: int, db: Session = Depends(get_db), current_user: Use
     alert = db.get(Alert, alert_id)
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
+    ensure_endpoint_visible(db, current_user, alert.endpoint_id)
 
     db.delete(alert)
     db.commit()

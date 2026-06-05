@@ -11,7 +11,7 @@ import {
   Shield,
   UserRoundCog,
 } from "lucide-react";
-import { getStoredUser, getUserRole } from "../../utils/auth";
+import { endpointNeedsTeam, getStoredUser, getUserRole } from "../../utils/auth";
 
 const adminNavItems = [
   { to: "/dashboard", label: "Dashboard", icon: Gauge },
@@ -35,7 +35,11 @@ const endpointNavItems = [
 export default function Sidebar() {
   const user = getStoredUser();
   const role = getUserRole(user);
-  const navItems = role === "endpoint" ? endpointNavItems : adminNavItems;
+  const navItems = role === "endpoint"
+    ? endpointNeedsTeam(user)
+      ? [{ to: "/connect-team", label: "Connect Team", icon: HardDrive }, { to: "/about", label: "About Us", icon: CircleHelp }]
+      : endpointNavItems
+    : adminNavItems;
 
   return (
     <aside className="premium-sidebar fixed inset-y-0 left-0 z-40 hidden w-72 border-r border-cyber-cyan/10 p-5 lg:block">

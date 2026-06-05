@@ -14,6 +14,18 @@ export function getUserRole(user = getStoredUser()) {
   return role === "endpoint_user" || role === "endpoint-user" || role === "user" ? "endpoint" : role;
 }
 
-export function getRoleHome(role = getUserRole()) {
-  return role === "endpoint" ? "/endpoint-portal" : "/dashboard";
+export function endpointNeedsTeam(user = getStoredUser()) {
+  return getUserRole(user) === "endpoint" && !user?.team_id;
+}
+
+export function getRoleHome(roleOrUser = getStoredUser()) {
+  if (typeof roleOrUser === "string") {
+    return roleOrUser === "endpoint" ? "/endpoint-portal" : "/dashboard";
+  }
+  const user = roleOrUser;
+  const role = getUserRole(user);
+  if (role === "endpoint") {
+    return endpointNeedsTeam(user) ? "/connect-team" : "/endpoint-portal";
+  }
+  return "/dashboard";
 }

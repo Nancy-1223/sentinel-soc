@@ -5,6 +5,7 @@ import { SettingsProvider } from "./context/SettingsContext";
 import AboutUs from "./pages/AboutUs";
 import AlertsPanel from "./pages/AlertsPanel";
 import Dashboard from "./pages/Dashboard";
+import ConnectTeam from "./pages/ConnectTeam";
 import EndpointDetails from "./pages/EndpointDetails";
 import EndpointPortal from "./pages/EndpointPortal";
 import IncidentInvestigation from "./pages/IncidentInvestigation";
@@ -36,6 +37,7 @@ export default function App() {
           <Route path="/incidents" element={<ProtectedRoute roles={["admin"]}><IncidentInvestigation /></ProtectedRoute>} />
           <Route path="/about" element={<ProtectedRoute roles={["admin", "endpoint"]}><AboutUs /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute roles={["admin"]}><Settings /></ProtectedRoute>} />
+          <Route path="/connect-team" element={<ProtectedRoute roles={["endpoint"]}><ConnectTeam /></ProtectedRoute>} />
           <Route path="/endpoint-portal" element={<ProtectedRoute roles={["endpoint"]}><EndpointPortal /></ProtectedRoute>} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

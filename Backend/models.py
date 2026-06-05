@@ -4,6 +4,16 @@ from datetime import datetime
 from database import Base
 
 
+class Team(Base):
+    __tablename__ = "teams"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    passcode_hash = Column(String, nullable=False)
+    owner_admin_id = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -13,6 +23,8 @@ class User(Base):
     password_hash = Column(String, nullable=False)
     role = Column(String, nullable=False)
     endpoint_id = Column(Integer, nullable=True)
+    team_id = Column(Integer, nullable=True)
+    admin_id = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     endpoints = relationship("Endpoint", back_populates="user", foreign_keys="Endpoint.user_id")
@@ -30,6 +42,7 @@ class Endpoint(Base):
     agent_mode = Column(String, default="running", nullable=False)
     heartbeat_enabled = Column(Boolean, default=True, nullable=False)
     removed_at = Column(DateTime, nullable=True)
+    team_id = Column(Integer, nullable=True)
 
     user = relationship("User", back_populates="endpoints", foreign_keys=[user_id])
     alerts = relationship("Alert", back_populates="endpoint")

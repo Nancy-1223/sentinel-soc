@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { createApiClient, getApiErrorMessage } from "../api/client";
 import BackendStatus from "../components/BackendStatus";
 import Button from "../components/Button";
-import { getRoleHome, getUserRole } from "../utils/auth";
+import { getRoleHome } from "../utils/auth";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -25,7 +25,7 @@ export default function Login() {
         if (cancelled) return;
         const existingUser = { ...response.data, token };
         localStorage.setItem("soc_user", JSON.stringify(existingUser));
-        navigate(getRoleHome(getUserRole(existingUser)), { replace: true });
+        navigate(getRoleHome(existingUser), { replace: true });
       } catch {
         localStorage.removeItem("soc_token");
         localStorage.removeItem("soc_user");
@@ -52,7 +52,7 @@ export default function Login() {
       });
       localStorage.setItem("soc_token", response.data.token);
       localStorage.setItem("soc_user", JSON.stringify({ ...response.data.user, token: response.data.token }));
-      navigate(getRoleHome(getUserRole(response.data.user)));
+      navigate(getRoleHome(response.data.user));
     } catch (exc) {
       setError(getApiErrorMessage(exc, "Login failed. Check backend and credentials."));
     } finally {
@@ -86,7 +86,7 @@ export default function Login() {
           />
           <input
             className="w-full rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-sm outline-none focus:border-cyber-cyan/60"
-            placeholder="Password"
+            placeholder="Enter Password"
             type="password"
             autoComplete="current-password"
             required
