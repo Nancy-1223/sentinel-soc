@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { useLocation } from "react-router-dom";
+import { useSettings } from "../context/SettingsContext";
 import "./SentinelAIAssistant.css";
 
 const pageHelp = {
@@ -168,6 +169,7 @@ function buildResponse(question, config, pathname) {
 
 export default function SentinelAIAssistant() {
   const location = useLocation();
+  const { settings } = useSettings();
   const config = useMemo(() => pageHelp[pageKey(location.pathname)] || fallbackHelp, [location.pathname]);
   const [open, setOpen] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
@@ -175,6 +177,7 @@ export default function SentinelAIAssistant() {
   const [messages, setMessages] = useState([{ role: "bot", text: welcomeMessage }]);
   const [tutorial, setTutorial] = useState({ running: false, index: 0, step: null, target: null, position: null });
   const chatEndRef = useRef(null);
+  const isDarkTheme = settings.theme === "dark";
 
   function addBotMessage(text) {
     if (!text) return;
@@ -287,7 +290,7 @@ export default function SentinelAIAssistant() {
         </div>
       )}
 
-      <div className="sentinel-ai-assistant">
+      <div className={`sentinel-ai-assistant ${!isDarkTheme ? "sentinel-ai-light" : ""}`}>
         {open && (
           <section className="sentinel-ai-panel" aria-label="Sentinel AI Assistant">
             <div className="sentinel-ai-panel-header">

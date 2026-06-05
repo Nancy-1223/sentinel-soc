@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   Siren,
 } from "lucide-react";
+import { useSettings } from "../context/SettingsContext";
 
 const particles = Array.from({ length: 30 }, (_, index) => ({
   id: index,
@@ -39,9 +40,11 @@ const steps = [
 ];
 
 export default function LandingPage() {
+  const { settings } = useSettings();
   const isLoggedIn = Boolean(localStorage.getItem("soc_token"));
   const ctaTarget = isLoggedIn ? "/dashboard" : "/login";
   const ctaLabel = "Enter SOC Dashboard";
+  const isDarkTheme = settings.theme === "dark";
 
   useEffect(() => {
     const revealItems = Array.from(document.querySelectorAll(".landing-reveal"));
@@ -64,7 +67,7 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="landing-page sentinel-cyber-landing">
+    <div className={`landing-page ${isDarkTheme ? "sentinel-cyber-landing" : ""}`}>
       <div className="landing-particles" aria-hidden="true">
         {particles.map((particle) => (
           <span
