@@ -13,6 +13,7 @@ from io import BytesIO
 import json
 import logging
 import os
+import re
 import shutil
 import zipfile
 
@@ -28,6 +29,7 @@ AGENT_DIR = PROJECT_ROOT / "agent"
 QUARANTINE_DIR = PROJECT_ROOT / "quarantine"
 ENDPOINT_ONLINE_TIMEOUT_SECONDS = 15
 DEFAULT_AGENT_BACKEND_URL = "https://sentinel-soc-backend-fxb8.onrender.com"
+ALERT_DEDUP_WINDOW_SECONDS = int(os.getenv("ALERT_DEDUP_WINDOW_SECONDS", "60"))
 telemetry_events = []
 
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(name)s: %(message)s")
@@ -172,6 +174,9 @@ class AlertUploadRequest(BaseModel):
     endpoint_id: int
     pc_name: str
     filename: str
+    file_path: str | None = None
+    file_hash: str | None = None
+    alert_key: str | None = None
     file_extension: str
     keyword_count: int
     file_size: int
@@ -238,6 +243,58 @@ def serialize_alert(alert: Alert) -> dict:
         "suspicious_content": alert.suspicious_content,
         "created_at": serialize_datetime(alert.created_at),
     }
+
+
+def extract_alert_file_hash(request: AlertUploadRequest) -> str | None:
+    raw_hash = (request.file_hash or "").strip().lower()
+    if re.fullmatch(r"[a-f0-9]{64}", raw_hash):
+        return raw_hash
+
+    match = re.search(r"SHA256=([a-fA-F0-9]{64})", request.suspicious_content or "")
+    if match:
+        return match.group(1).lower()
+    return None
+
+
+def build_alert_key(endpoint_id: int, file_hash: str | None) -> str | None:
+    if not file_hash:
+        return None
+    return f"{endpoint_id}:{file_hash}"
+
+
+def find_recent_duplicate_alert(db: Session, request: AlertUploadRequest, file_hash: str | None) -> Alert | None:
+    cutoff = datetime.utcnow() - timedelta(seconds=ALERT_DEDUP_WINDOW_SECONDS)
+    query = (
+        db.query(Alert)
+        .filter(Alert.endpoint_id == request.endpoint_id, Alert.created_at >= cutoff)
+        .order_by(Alert.created_at.desc())
+    )
+
+    if file_hash:
+        duplicate = query.filter(Alert.suspicious_content.ilike(f"%SHA256={file_hash}%")).first()
+        if duplicate:
+            return duplicate
+
+    return (
+        query.filter(
+            Alert.filename == request.filename,
+            Alert.file_size == request.file_size,
+            Alert.file_extension == request.file_extension,
+        )
+        .first()
+    )
+
+
+def update_duplicate_alert(alert: Alert, request: AlertUploadRequest, file_hash: str | None) -> None:
+    alert.pc_name = request.pc_name
+    alert.keyword_count = request.keyword_count
+    alert.prediction = request.prediction
+    alert.risk_score = request.risk_score
+    alert.action_taken = request.action_taken.strip()
+    suspicious_content = request.suspicious_content
+    if file_hash and f"SHA256={file_hash}" not in suspicious_content:
+        suspicious_content = f"SHA256={file_hash}; {suspicious_content}"
+    alert.suspicious_content = suspicious_content
 
 
 def serialize_datetime(value: datetime | None):
@@ -802,6 +859,40 @@ def upload_alert(request: AlertUploadRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Endpoint not found")
 
     action_taken = request.action_taken.strip()
+    file_hash = extract_alert_file_hash(request)
+    alert_key = request.alert_key or build_alert_key(request.endpoint_id, file_hash)
+    logger.info(
+        "Alert detected: endpoint_id=%s filename=%s file_hash=%s alert_key=%s",
+        request.endpoint_id,
+        request.filename,
+        file_hash or "missing",
+        alert_key or "missing",
+    )
+
+    duplicate_alert = find_recent_duplicate_alert(db, request, file_hash)
+    if duplicate_alert:
+        update_duplicate_alert(duplicate_alert, request, file_hash)
+        endpoint.pc_name = request.pc_name
+        endpoint.last_seen = datetime.utcnow()
+        if endpoint.agent_mode not in {"paused", "stopped", "removed"}:
+            endpoint.status = "Online"
+            endpoint.agent_mode = "running"
+        db.commit()
+        db.refresh(duplicate_alert)
+        logger.info(
+            "Duplicate alert ignored: endpoint_id=%s filename=%s alert_id=%s alert_key=%s",
+            request.endpoint_id,
+            request.filename,
+            duplicate_alert.id,
+            alert_key or "missing",
+        )
+        return {
+            "message": "Duplicate alert ignored",
+            "alert_id": duplicate_alert.id,
+            "duplicate_ignored": True,
+            "alert_key": alert_key,
+        }
+
     endpoint.pc_name = request.pc_name
     endpoint.last_seen = datetime.utcnow()
     if endpoint.agent_mode not in {"paused", "stopped", "removed"}:
@@ -818,12 +909,23 @@ def upload_alert(request: AlertUploadRequest, db: Session = Depends(get_db)):
         prediction=request.prediction,
         risk_score=request.risk_score,
         action_taken=action_taken,
-        suspicious_content=request.suspicious_content,
+        suspicious_content=(
+            request.suspicious_content
+            if not file_hash or f"SHA256={file_hash}" in request.suspicious_content
+            else f"SHA256={file_hash}; {request.suspicious_content}"
+        ),
     )
     db.add(alert)
     db.commit()
     db.refresh(alert)
-    return {"message": "Alert stored successfully", "alert_id": alert.id}
+    logger.info(
+        "Alert created: endpoint_id=%s filename=%s alert_id=%s alert_key=%s",
+        request.endpoint_id,
+        request.filename,
+        alert.id,
+        alert_key or "missing",
+    )
+    return {"message": "Alert stored successfully", "alert_id": alert.id, "duplicate_ignored": False, "alert_key": alert_key}
 
 
 @app.post("/heartbeat")

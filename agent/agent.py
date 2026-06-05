@@ -99,7 +99,7 @@ TELEMETRY_API_PATH = "/telemetry"
 CONTROL_POLL_INTERVAL_SECONDS = 3
 MAX_TEXT_READ_BYTES = 1_000_000
 HASH_CACHE_SECONDS = 60
-DUPLICATE_ALERT_SECONDS = 30
+DUPLICATE_ALERT_SECONDS = 60
 EVENT_DEBOUNCE_SECONDS = 30
 EICAR_SIGNATURE = "EICAR-STANDARD-ANTIVIRUS-TEST-FILE"
 
@@ -725,6 +725,7 @@ def extract_file_features(file_path: Path) -> Dict[str, object]:
 
     return {
         "filename": file_path.name,
+        "file_path": str(file_path),
         "file_extension": extension,
         "keyword_count": keyword_count,
         "file_size": file_size,
@@ -937,6 +938,9 @@ def upload_alert(
         "endpoint_id": ENDPOINT_ID,
         "pc_name": PC_NAME,
         "filename": features["filename"],
+        "file_path": str(features.get("file_path") or ""),
+        "file_hash": features["sha256"],
+        "alert_key": f"{ENDPOINT_ID}:{features['sha256']}",
         "file_extension": features["file_extension"],
         "keyword_count": features["keyword_count"],
         "file_size": features["file_size"],
@@ -953,7 +957,11 @@ def upload_alert(
             timeout=REQUEST_TIMEOUT_SECONDS,
         )
         response.raise_for_status()
-        log("INFO", "Alert uploaded successfully")
+        result = response.json()
+        if result.get("duplicate_ignored"):
+            log("INFO", f"Duplicate alert ignored by backend for {features['filename']}")
+        else:
+            log("INFO", f"Alert uploaded successfully for {features['filename']}")
         return True
     except RequestException as exc:
         log("ERROR", f"Could not upload alert to backend: {exc}")
@@ -988,23 +996,24 @@ def scan_file(file_path: Path) -> None:
 
         log("INFO", f"New file detected: {file_path.name}")
 
-        if not wait_for_file_ready(file_path):
-            log("WARNING", f"Skipping unreadable or incomplete file: {file_path.name}")
+        if should_debounce_event(file_path):
             return
 
-        if should_debounce_event(file_path):
+        if not wait_for_file_ready(file_path):
+            log("WARNING", f"Skipping unreadable or incomplete file: {file_path.name}")
             return
 
         features = extract_file_features(file_path)
         file_hash = str(features["sha256"])
 
+        if not begin_hash_processing(file_hash):
+            return
+        processing_started = True
+
         if is_blacklisted_hash(file_hash):
             log("HASH BLACKLIST MATCH", features["filename"])
             prediction_result = build_hash_blacklist_prediction()
         else:
-            if not begin_hash_processing(file_hash):
-                return
-            processing_started = True
             prediction_result = decide_final_prediction(features)
 
         if prediction_result is None:
