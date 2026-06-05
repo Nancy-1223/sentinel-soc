@@ -4,6 +4,7 @@ import { createApiClient } from "../../api/client";
 import { AlertsProvider, useAlerts } from "../../context/AlertsContext";
 import { TelemetryProvider } from "../../context/TelemetryContext";
 import CyberBackground from "../CyberBackground";
+import SentinelAIAssistant from "../SentinelAIAssistant";
 import Toast from "../Toast";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
@@ -29,6 +30,7 @@ function ShellContent() {
         </main>
       </div>
       <Toast alert={latestThreat} onClose={clearLatestThreat} />
+      <SentinelAIAssistant />
     </div>
   );
 }
