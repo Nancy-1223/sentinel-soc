@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { createApiClient, getApiErrorMessage } from "../api/client";
 import BackendStatus from "../components/BackendStatus";
 import Button from "../components/Button";
+import { getRoleHome, getUserRole } from "../utils/auth";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -22,9 +23,9 @@ export default function Login() {
         const api = createApiClient();
         const response = await api.get("/me");
         if (cancelled) return;
-        const existingUser = JSON.parse(localStorage.getItem("soc_user") || "{}");
-        localStorage.setItem("soc_user", JSON.stringify({ ...existingUser, ...response.data, token }));
-        navigate("/dashboard", { replace: true });
+        const existingUser = { ...response.data, token };
+        localStorage.setItem("soc_user", JSON.stringify(existingUser));
+        navigate(getRoleHome(getUserRole(existingUser)), { replace: true });
       } catch {
         localStorage.removeItem("soc_token");
         localStorage.removeItem("soc_user");
@@ -50,8 +51,8 @@ export default function Login() {
         password: form.password,
       });
       localStorage.setItem("soc_token", response.data.token);
-      localStorage.setItem("soc_user", JSON.stringify(response.data));
-      navigate("/dashboard");
+      localStorage.setItem("soc_user", JSON.stringify({ ...response.data.user, token: response.data.token }));
+      navigate(getRoleHome(getUserRole(response.data.user)));
     } catch (exc) {
       setError(getApiErrorMessage(exc, "Login failed. Check backend and credentials."));
     } finally {

@@ -5,13 +5,15 @@ import Button from "../Button";
 import { useAlerts } from "../../context/AlertsContext";
 import { useSettings } from "../../context/SettingsContext";
 import { useTelemetry } from "../../context/TelemetryContext";
+import { getStoredUser, getUserRole } from "../../utils/auth";
 
 export default function Topbar() {
   const { alerts, refreshAlerts } = useAlerts();
   const { refreshTelemetry } = useTelemetry();
   const { settings } = useSettings();
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem("soc_user") || "null");
+  const user = getStoredUser();
+  const role = getUserRole(user);
   const [refreshing, setRefreshing] = useState(false);
   const [toast, setToast] = useState(null);
 
@@ -64,12 +66,14 @@ export default function Topbar() {
               Refresh
             </Button>
           )}
-          <Link
-            to="/incidents"
-            className="hover-glow-button rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-300 hover:bg-white/[0.04]"
-          >
-            Investigate
-          </Link>
+          {role === "admin" && (
+            <Link
+              to="/incidents"
+              className="hover-glow-button rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-300 hover:bg-white/[0.04]"
+            >
+              Investigate
+            </Link>
+          )}
           <div className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-400">
             {user?.name || "SOC Analyst"}
           </div>

@@ -67,3 +67,34 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     if user is None:
         raise credentials_exception
     return user
+
+
+def normalize_role(role: str | None) -> str:
+    value = str(role or "admin").strip().lower()
+    if value in {"endpoint_user", "endpoint-user", "user"}:
+        return "endpoint"
+    if value not in {"admin", "endpoint"}:
+        return "admin"
+    return value
+
+
+def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    if normalize_role(current_user.role) != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied. Admin only.")
+    return current_user
+
+
+def require_endpoint_user(current_user: User = Depends(get_current_user)) -> User:
+    if normalize_role(current_user.role) != "endpoint":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied. Endpoint users only.")
+    return current_user
+
+
+def endpoint_access_filter(current_user: User, requested_endpoint_id: int | None = None) -> int | None:
+    if normalize_role(current_user.role) == "admin":
+        return requested_endpoint_id
+    if current_user.endpoint_id is None:
+        return None
+    if requested_endpoint_id is not None and int(requested_endpoint_id) != int(current_user.endpoint_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied. Endpoint users can only access their own endpoint.")
+    return int(current_user.endpoint_id)

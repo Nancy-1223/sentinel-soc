@@ -1,10 +1,12 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "./components/layout/AppShell";
+import ProtectedRoute from "./components/ProtectedRoute";
 import { SettingsProvider } from "./context/SettingsContext";
 import AboutUs from "./pages/AboutUs";
 import AlertsPanel from "./pages/AlertsPanel";
 import Dashboard from "./pages/Dashboard";
 import EndpointDetails from "./pages/EndpointDetails";
+import EndpointPortal from "./pages/EndpointPortal";
 import IncidentInvestigation from "./pages/IncidentInvestigation";
 import LandingPage from "./pages/LandingPage";
 import Login from "./pages/Login";
@@ -23,16 +25,18 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route element={<AppShell />}>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/alerts" element={<AlertsPanel />} />
-          <Route path="/alerts/:id" element={<ThreatDetails />} />
-          <Route path="/behavior" element={<UserBehavior />} />
-          <Route path="/endpoints" element={<EndpointDetails />} />
-          <Route path="/quarantine" element={<Quarantine />} />
-          <Route path="/health" element={<SystemHealth />} />
-          <Route path="/incidents" element={<IncidentInvestigation />} />
-          <Route path="/about" element={<AboutUs />} />
-          <Route path="/settings" element={<Settings />} />
+          <Route path="/dashboard" element={<ProtectedRoute roles={["admin"]}><Dashboard /></ProtectedRoute>} />
+          <Route path="/alerts" element={<ProtectedRoute roles={["admin"]}><AlertsPanel /></ProtectedRoute>} />
+          <Route path="/alerts/:id" element={<ProtectedRoute roles={["admin"]}><ThreatDetails /></ProtectedRoute>} />
+          <Route path="/behavior" element={<ProtectedRoute roles={["admin"]}><UserBehavior /></ProtectedRoute>} />
+          <Route path="/endpoints" element={<ProtectedRoute roles={["admin"]}><EndpointDetails /></ProtectedRoute>} />
+          <Route path="/endpoint-details" element={<ProtectedRoute roles={["admin"]}><EndpointDetails /></ProtectedRoute>} />
+          <Route path="/quarantine" element={<ProtectedRoute roles={["admin"]}><Quarantine /></ProtectedRoute>} />
+          <Route path="/health" element={<ProtectedRoute roles={["admin"]}><SystemHealth /></ProtectedRoute>} />
+          <Route path="/incidents" element={<ProtectedRoute roles={["admin"]}><IncidentInvestigation /></ProtectedRoute>} />
+          <Route path="/about" element={<ProtectedRoute roles={["admin", "endpoint"]}><AboutUs /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute roles={["admin"]}><Settings /></ProtectedRoute>} />
+          <Route path="/endpoint-portal" element={<ProtectedRoute roles={["endpoint"]}><EndpointPortal /></ProtectedRoute>} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

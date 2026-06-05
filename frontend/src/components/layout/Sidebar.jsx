@@ -11,8 +11,9 @@ import {
   Shield,
   UserRoundCog,
 } from "lucide-react";
+import { getStoredUser, getUserRole } from "../../utils/auth";
 
-const navItems = [
+const adminNavItems = [
   { to: "/dashboard", label: "Dashboard", icon: Gauge },
   { to: "/alerts", label: "Alerts Panel", icon: Bell },
   { to: "/behavior", label: "User Behavior", icon: UserRoundCog },
@@ -24,7 +25,18 @@ const navItems = [
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
+const endpointNavItems = [
+  { to: "/endpoint-portal", label: "My Endpoint", icon: HardDrive },
+  { to: "/endpoint-portal#alerts", label: "My Alerts", icon: Bell },
+  { to: "/endpoint-portal#quarantine", label: "My Quarantine", icon: LockKeyhole },
+  { to: "/about", label: "About Us", icon: CircleHelp },
+];
+
 export default function Sidebar() {
+  const user = getStoredUser();
+  const role = getUserRole(user);
+  const navItems = role === "endpoint" ? endpointNavItems : adminNavItems;
+
   return (
     <aside className="premium-sidebar fixed inset-y-0 left-0 z-40 hidden w-72 border-r border-cyber-cyan/10 p-5 lg:block">
       <div className="mb-8 flex items-center gap-3">
@@ -33,8 +45,8 @@ export default function Sidebar() {
         </div>
         <div>
           <div className="text-xs uppercase tracking-[0.28em] text-cyber-cyan">Sentinel</div>
-          <div className="mt-1 text-lg font-semibold text-white">AI SOC Platform</div>
-          <div className="mt-1 text-xs font-medium text-slate-400">Endpoint Defense Mesh</div>
+          <div className="mt-1 text-lg font-semibold text-white">{role === "endpoint" ? "Endpoint Portal" : "AI SOC Platform"}</div>
+          <div className="mt-1 text-xs font-medium text-slate-400">{role === "endpoint" ? "Assigned endpoint view" : "Endpoint Defense Mesh"}</div>
         </div>
       </div>
       <nav className="space-y-2">
@@ -60,7 +72,7 @@ export default function Sidebar() {
       </nav>
       <div className="absolute bottom-5 left-5 right-5 rounded-2xl border border-cyber-green/20 bg-cyber-green/5 p-4">
         <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">SOC Mode</div>
-        <div className="mt-2 text-sm text-cyber-green">Investigation workspace ready</div>
+        <div className="mt-2 text-sm text-cyber-green">{role === "endpoint" ? "Endpoint workspace ready" : "Investigation workspace ready"}</div>
       </div>
     </aside>
   );

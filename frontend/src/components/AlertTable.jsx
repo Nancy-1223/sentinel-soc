@@ -12,7 +12,7 @@ function alertRowTone(alert) {
   return "";
 }
 
-export default function AlertTable({ alerts, onDeleteAlert, deletingAlertId, onGenerateReport, compact = false }) {
+export default function AlertTable({ alerts, onDeleteAlert, deletingAlertId, onGenerateReport, compact = false, showDetails = true }) {
   return (
     <div className="thin-scrollbar overflow-x-auto">
       <table className="w-full min-w-[840px] text-left text-sm">
@@ -55,12 +55,14 @@ export default function AlertTable({ alerts, onDeleteAlert, deletingAlertId, onG
               <td className="px-4 py-3 text-slate-400">{formatDate(alert.created_at)}</td>
               <td className="px-4 py-3 text-right">
                 <div className="flex justify-end gap-2">
-                  <Link
-                    to={`/alerts/${alert.id}`}
-                    className="hover-glow-button rounded-md border border-cyber-cyan/30 px-3 py-1.5 text-xs font-medium text-cyber-cyan hover:bg-cyber-cyan/10"
-                  >
-                    Details
-                  </Link>
+                  {showDetails && (
+                    <Link
+                      to={`/alerts/${alert.id}`}
+                      className="hover-glow-button rounded-md border border-cyber-cyan/30 px-3 py-1.5 text-xs font-medium text-cyber-cyan hover:bg-cyber-cyan/10"
+                    >
+                      Details
+                    </Link>
+                  )}
                   {onDeleteAlert && (
                     <Button
                       onClick={() => onDeleteAlert(alert)}

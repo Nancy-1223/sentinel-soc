@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { createApiClient } from "../../api/client";
 import { AlertsProvider, useAlerts } from "../../context/AlertsContext";
 import { TelemetryProvider } from "../../context/TelemetryContext";
@@ -10,6 +10,8 @@ import Topbar from "./Topbar";
 
 function ShellContent() {
   const { latestThreat, clearLatestThreat } = useAlerts();
+  const location = useLocation();
+  const deniedMessage = location.state?.deniedMessage;
 
   return (
     <div className="min-h-screen">
@@ -18,6 +20,11 @@ function ShellContent() {
       <div className="lg:pl-72">
         <Topbar />
         <main className="px-4 py-6 lg:px-8">
+          {deniedMessage && (
+            <div className="mb-4 glass cyber-border rounded-lg border-cyber-amber/30 p-3 text-sm text-cyber-amber">
+              {deniedMessage}
+            </div>
+          )}
           <Outlet />
         </main>
       </div>
@@ -39,7 +46,9 @@ export default function AppShell() {
     async function validateToken() {
       try {
         const api = createApiClient();
-        await api.get("/me");
+        const response = await api.get("/me");
+        const token = localStorage.getItem("soc_token");
+        localStorage.setItem("soc_user", JSON.stringify({ ...response.data, token }));
         setAuthState("valid");
       } catch {
         localStorage.removeItem("soc_token");

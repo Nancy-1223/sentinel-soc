@@ -12,9 +12,10 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
     role = Column(String, nullable=False)
+    endpoint_id = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    endpoints = relationship("Endpoint", back_populates="user")
+    endpoints = relationship("Endpoint", back_populates="user", foreign_keys="Endpoint.user_id")
 
 
 class Endpoint(Base):
@@ -30,7 +31,7 @@ class Endpoint(Base):
     heartbeat_enabled = Column(Boolean, default=True, nullable=False)
     removed_at = Column(DateTime, nullable=True)
 
-    user = relationship("User", back_populates="endpoints")
+    user = relationship("User", back_populates="endpoints", foreign_keys=[user_id])
     alerts = relationship("Alert", back_populates="endpoint")
     telemetry = relationship("Telemetry", back_populates="endpoint")
 

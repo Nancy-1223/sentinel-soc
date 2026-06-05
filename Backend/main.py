@@ -18,7 +18,7 @@ import zipfile
 
 from database import Base, get_db, init_database
 from models import User, Endpoint, Alert, Telemetry
-from auth import get_password_hash, authenticate_user, create_access_token, get_current_user
+from auth import get_password_hash, authenticate_user, create_access_token, get_current_user, normalize_role, require_admin, endpoint_access_filter
 from detector import predict_file
 
 init_database(Base)
@@ -130,6 +130,7 @@ class RegisterRequest(BaseModel):
     email: str
     password: str
     role: str
+    team_password: str | None = None
 
 
 class LoginRequest(BaseModel):
@@ -139,10 +140,7 @@ class LoginRequest(BaseModel):
 
 class LoginResponse(BaseModel):
     token: str
-    user_id: int
-    name: str
-    email: str
-    role: str
+    user: dict
 
 
 class EndpointRegisterRequest(BaseModel):
@@ -211,6 +209,17 @@ def serialize_datetime(value: datetime | None):
     if not value:
         return None
     return value.replace(tzinfo=None).isoformat() + "Z"
+
+
+def serialize_user(user: User) -> dict:
+    return {
+        "id": user.id,
+        "name": user.name,
+        "email": user.email,
+        "role": normalize_role(user.role),
+        "endpoint_id": user.endpoint_id,
+        "created_at": serialize_datetime(user.created_at),
+    }
 
 
 def latest_telemetry_rows(db: Session):
@@ -355,11 +364,19 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
 
+    role = normalize_role(request.role)
+    if role == "admin":
+        expected_password = os.getenv("ADMIN_TEAM_PASSWORD", "your_team_password_here").strip()
+        if not expected_password:
+            raise HTTPException(status_code=500, detail="Admin registration is not configured")
+        if (request.team_password or "").strip() != expected_password:
+            raise HTTPException(status_code=403, detail="Invalid admin team password")
+
     user = User(
         name=request.name.strip(),
         email=email,
         password_hash=get_password_hash(request.password),
-        role=request.role.strip().lower(),
+        role=role,
     )
     try:
         db.add(user)
@@ -382,26 +399,20 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    token = create_access_token({"sub": str(user.id), "role": user.role, "email": user.email})
+    user.role = normalize_role(user.role)
+    db.commit()
+    db.refresh(user)
+    token = create_access_token({"sub": str(user.id), "role": user.role, "email": user.email, "endpoint_id": user.endpoint_id})
     return {
         "token": token,
-        "user_id": user.id,
-        "name": user.name,
-        "email": user.email,
-        "role": user.role,
+        "user": serialize_user(user),
     }
 
 
 @app.get("/me")
 @safe_endpoint
 def read_current_user(current_user: User = Depends(get_current_user)):
-    return {
-        "id": current_user.id,
-        "name": current_user.name,
-        "email": current_user.email,
-        "role": current_user.role,
-        "created_at": current_user.created_at,
-    }
+    return serialize_user(current_user)
 
 
 @app.post("/register-endpoint", status_code=status.HTTP_201_CREATED)
@@ -427,6 +438,9 @@ def register_endpoint(
     db.add(endpoint)
     db.commit()
     db.refresh(endpoint)
+    if normalize_role(current_user.role) == "endpoint" and current_user.endpoint_id is None:
+        current_user.endpoint_id = endpoint.id
+        db.commit()
     return {
         "message": "Endpoint registered successfully",
         "endpoint_id": endpoint.id,
@@ -448,7 +462,8 @@ def get_agent_config(endpoint_id: int, request: Request, db: Session = Depends(g
 
 @app.get("/download-agent/{endpoint_id}")
 @safe_endpoint
-def download_agent(endpoint_id: int, request: Request, db: Session = Depends(get_db)):
+def download_agent(endpoint_id: int, request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    endpoint_access_filter(current_user, endpoint_id)
     endpoint = get_endpoint_or_404(endpoint_id, db)
     required_files = [
         "agent.py",
@@ -607,13 +622,20 @@ async def receive_telemetry(request: Request, db: Session = Depends(get_db)):
 
 @app.get("/telemetry")
 @safe_endpoint
-def get_latest_telemetry(db: Session = Depends(get_db)):
-    return [serialize_telemetry(row) for row in latest_telemetry_rows(db)]
+def get_latest_telemetry(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if normalize_role(current_user.role) == "endpoint" and current_user.endpoint_id is None:
+        return []
+    endpoint_id = endpoint_access_filter(current_user)
+    rows = latest_telemetry_rows(db)
+    if endpoint_id is not None:
+        rows = [row for row in rows if row.endpoint_id == endpoint_id]
+    return [serialize_telemetry(row) for row in rows]
 
 
 @app.get("/telemetry/{endpoint_id}")
 @safe_endpoint
-def get_endpoint_telemetry(endpoint_id: int, db: Session = Depends(get_db)):
+def get_endpoint_telemetry(endpoint_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    endpoint_access_filter(current_user, endpoint_id)
     endpoint = db.get(Endpoint, endpoint_id)
     if not endpoint:
         raise HTTPException(status_code=404, detail="Endpoint not found")
@@ -630,7 +652,10 @@ def get_endpoint_telemetry(endpoint_id: int, db: Session = Depends(get_db)):
 
 @app.get("/endpoints/status")
 @safe_endpoint
-def get_endpoint_status(db: Session = Depends(get_db)):
+def get_endpoint_status(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if normalize_role(current_user.role) == "endpoint" and current_user.endpoint_id is None:
+        return []
+    scoped_endpoint_id = endpoint_access_filter(current_user)
     alert_stats = (
         db.query(
             Alert.endpoint_id,
@@ -657,7 +682,10 @@ def get_endpoint_status(db: Session = Depends(get_db)):
         for alert in db.query(Alert).join(latest_alert_ids, Alert.id == latest_alert_ids.c.id).all()
     }
     latest_by_endpoint = {row.endpoint_id: row for row in latest_telemetry_rows(db)}
-    endpoints = db.query(Endpoint).order_by(Endpoint.id.asc()).all()
+    endpoint_query = db.query(Endpoint).order_by(Endpoint.id.asc())
+    if scoped_endpoint_id is not None:
+        endpoint_query = endpoint_query.filter(Endpoint.id == scoped_endpoint_id)
+    endpoints = endpoint_query.all()
 
     return [
         {
@@ -686,31 +714,31 @@ def get_endpoint_control_status(endpoint_id: int, db: Session = Depends(get_db))
 
 @app.post("/endpoints/{endpoint_id}/detection/pause")
 @safe_endpoint
-def pause_detection(endpoint_id: int, db: Session = Depends(get_db)):
+def pause_detection(endpoint_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     return update_endpoint_control(endpoint_id, db, detection_enabled=False)
 
 
 @app.post("/endpoints/{endpoint_id}/detection/resume")
 @safe_endpoint
-def resume_detection(endpoint_id: int, db: Session = Depends(get_db)):
+def resume_detection(endpoint_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     return update_endpoint_control(endpoint_id, db, detection_enabled=True)
 
 
 @app.post("/endpoints/{endpoint_id}/agent/pause")
 @safe_endpoint
-def pause_agent(endpoint_id: int, db: Session = Depends(get_db)):
+def pause_agent(endpoint_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     return update_endpoint_control(endpoint_id, db, agent_mode="paused", heartbeat_enabled=True)
 
 
 @app.post("/endpoints/{endpoint_id}/agent/resume")
 @safe_endpoint
-def resume_agent(endpoint_id: int, db: Session = Depends(get_db)):
+def resume_agent(endpoint_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     return update_endpoint_control(endpoint_id, db, agent_mode="running", heartbeat_enabled=True)
 
 
 @app.post("/endpoints/{endpoint_id}/agent/stop")
 @safe_endpoint
-def stop_agent(endpoint_id: int, db: Session = Depends(get_db)):
+def stop_agent(endpoint_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     return update_endpoint_control(
         endpoint_id,
         db,
@@ -722,7 +750,7 @@ def stop_agent(endpoint_id: int, db: Session = Depends(get_db)):
 
 @app.post("/endpoints/{endpoint_id}/agent/remove")
 @safe_endpoint
-def remove_agent(endpoint_id: int, db: Session = Depends(get_db)):
+def remove_agent(endpoint_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     return update_endpoint_control(
         endpoint_id,
         db,
@@ -734,7 +762,7 @@ def remove_agent(endpoint_id: int, db: Session = Depends(get_db)):
 
 @app.delete("/endpoints/{endpoint_id}")
 @safe_endpoint
-def delete_endpoint(endpoint_id: int, remove_alerts: bool = True, db: Session = Depends(get_db)):
+def delete_endpoint(endpoint_id: int, remove_alerts: bool = True, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     endpoint = db.get(Endpoint, endpoint_id)
     if not endpoint:
         raise HTTPException(status_code=404, detail="Endpoint not found")
@@ -756,7 +784,7 @@ def delete_endpoint(endpoint_id: int, remove_alerts: bool = True, db: Session = 
 
 @app.delete("/demo/reset")
 @safe_endpoint
-def reset_demo_data(db: Session = Depends(get_db)):
+def reset_demo_data(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     deleted_telemetry = db.query(Telemetry).delete(synchronize_session=False)
     deleted_alerts = db.query(Alert).delete(synchronize_session=False)
     deleted_endpoints = db.query(Endpoint).delete(synchronize_session=False)
@@ -783,8 +811,14 @@ def reset_demo_data(db: Session = Depends(get_db)):
 
 @app.get("/get-alerts")
 @safe_endpoint
-def get_alerts(db: Session = Depends(get_db)):
-    alerts = db.query(Alert).order_by(Alert.created_at.desc()).all()
+def get_alerts(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if normalize_role(current_user.role) == "endpoint" and current_user.endpoint_id is None:
+        return []
+    scoped_endpoint_id = endpoint_access_filter(current_user)
+    query = db.query(Alert).order_by(Alert.created_at.desc())
+    if scoped_endpoint_id is not None:
+        query = query.filter(Alert.endpoint_id == scoped_endpoint_id)
+    alerts = query.all()
     return [
         {
             "id": alert.id,
@@ -806,7 +840,7 @@ def get_alerts(db: Session = Depends(get_db)):
 
 @app.delete("/alerts/{alert_id}")
 @safe_endpoint
-def delete_alert(alert_id: int, db: Session = Depends(get_db)):
+def delete_alert(alert_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     alert = db.get(Alert, alert_id)
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
@@ -818,7 +852,7 @@ def delete_alert(alert_id: int, db: Session = Depends(get_db)):
 
 @app.delete("/quarantine/{filename}")
 @safe_endpoint
-def delete_quarantined_file(filename: str, db: Session = Depends(get_db)):
+def delete_quarantined_file(filename: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     file_path, metadata_path = get_quarantine_paths(filename)
 
     if not file_path.exists() and not metadata_path.exists():
@@ -856,7 +890,7 @@ def delete_quarantined_file(filename: str, db: Session = Depends(get_db)):
 
 @app.post("/restore/{filename}")
 @safe_endpoint
-def restore_quarantined_file(filename: str, db: Session = Depends(get_db)):
+def restore_quarantined_file(filename: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     file_path, metadata_path = get_quarantine_paths(filename)
 
     if not file_path.exists():
@@ -908,5 +942,5 @@ def restore_quarantined_file(filename: str, db: Session = Depends(get_db)):
 
 @app.post("/quarantine/{filename}/restore")
 @safe_endpoint
-def restore_quarantined_file_legacy(filename: str, db: Session = Depends(get_db)):
-    return restore_quarantined_file(filename, db)
+def restore_quarantined_file_legacy(filename: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    return restore_quarantined_file(filename, db, current_user)
