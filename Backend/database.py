@@ -1,12 +1,15 @@
 import os
 import shutil
 import sqlite3
+import logging
 from datetime import datetime
 from pathlib import Path
 
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import declarative_base, sessionmaker
+
+logger = logging.getLogger("soc_database")
 
 # Render should set DATABASE_URL to a persistent hosted database such as Render
 # PostgreSQL. Local development falls back to SQLite beside this file, and older
@@ -130,6 +133,12 @@ def _add_missing_sqlite_columns(base) -> None:
 
 def init_database(base) -> None:
     """Create tables, replacing a corrupted or incompatible SQLite database."""
+    logger.info(
+        "Database initialization: engine=%s database_url_configured=%s sqlite_path=%s",
+        engine.dialect.name,
+        bool(DATABASE_URL),
+        str(DB_PATH) if engine.dialect.name == "sqlite" else "n/a",
+    )
     if not _sqlite_file_is_healthy():
         _backup_database("corrupt")
 

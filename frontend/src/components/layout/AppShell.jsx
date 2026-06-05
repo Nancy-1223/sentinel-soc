@@ -8,7 +8,7 @@ import SentinelAIAssistant from "../SentinelAIAssistant";
 import Toast from "../Toast";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
-import { clearSession, storeSession } from "../../utils/auth";
+import { clearSession, getStoredUser, getUserRole, isInvalidTokenError, storeSession } from "../../utils/auth";
 
 function ShellContent() {
   const { latestThreat, clearLatestThreat } = useAlerts();
@@ -42,18 +42,47 @@ export default function AppShell() {
   useEffect(() => {
     const token = localStorage.getItem("soc_token");
     if (!token) {
+      console.warn("[auth] AppShell init: token missing");
       setAuthState("invalid");
       return;
     }
+    console.info("[auth] AppShell init: token found", {
+      tokenFound: true,
+      role: getUserRole(getStoredUser()),
+    });
 
     async function validateToken() {
       try {
         const api = createApiClient();
         const response = await api.get("/me");
         const token = localStorage.getItem("soc_token");
-        storeSession(response.data, token);
+        const user = storeSession(response.data, token);
+        console.info("[auth] /me success", {
+          role: getUserRole(user),
+          userId: user.id,
+        });
         setAuthState("valid");
-      } catch {
+      } catch (error) {
+        console.warn("[auth] /me failure", {
+          status: error?.response?.status,
+          message: error?.message,
+          detail: error?.response?.data?.detail,
+          tokenFound: Boolean(localStorage.getItem("soc_token")),
+          role: getUserRole(getStoredUser()),
+        });
+
+        if (isInvalidTokenError(error)) {
+          clearSession();
+          setAuthState("invalid");
+          return;
+        }
+
+        if (localStorage.getItem("soc_token") && getStoredUser()) {
+          console.warn("[auth] Keeping local session because /me failed without a 401");
+          setAuthState("valid");
+          return;
+        }
+
         clearSession();
         setAuthState("invalid");
       }

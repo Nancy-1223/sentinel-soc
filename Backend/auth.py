@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Optional
 import hashlib
+import logging
 import os
 from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, status
@@ -9,6 +10,8 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from models import User
+
+logger = logging.getLogger("soc_auth")
 
 # Render/Vercel deployments should set SECRET_KEY in environment variables.
 # The fallback keeps the existing local demo working for beginners.
@@ -57,15 +60,20 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: str = payload.get("sub")
         if user_id is None:
+            logger.warning("Token validation failed: subject missing")
             raise credentials_exception
     except JWTError:
+        logger.warning("Token validation failed: JWT decode error")
         raise credentials_exception
     try:
         user = db.get(User, int(user_id))
     except (TypeError, ValueError):
+        logger.warning("Token validation failed: invalid subject value")
         raise credentials_exception
     if user is None:
+        logger.warning("Token validation failed: user id %s not found in database", user_id)
         raise credentials_exception
+    logger.info("Token validation succeeded: user_id=%s role=%s", user.id, normalize_role(user.role))
     return user
 
 

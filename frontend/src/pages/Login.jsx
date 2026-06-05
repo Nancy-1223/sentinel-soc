@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { createApiClient, getApiErrorMessage } from "../api/client";
 import BackendStatus from "../components/BackendStatus";
 import Button from "../components/Button";
-import { clearSession, getRoleHome, storeSession } from "../utils/auth";
+import { clearSession, getRoleHome, getStoredUser, getUserRole, isInvalidTokenError, storeSession } from "../utils/auth";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -14,7 +14,14 @@ export default function Login() {
 
   useEffect(() => {
     const token = localStorage.getItem("soc_token");
-    if (!token) return;
+    if (!token) {
+      console.info("[auth] Login init: token missing");
+      return;
+    }
+    console.info("[auth] Login init: token found", {
+      tokenFound: true,
+      role: getUserRole(getStoredUser()),
+    });
 
     let cancelled = false;
 
@@ -24,9 +31,22 @@ export default function Login() {
         const response = await api.get("/me");
         if (cancelled) return;
         const existingUser = storeSession(response.data, token);
+        console.info("[auth] Login /me success", {
+          role: getUserRole(existingUser),
+          userId: existingUser.id,
+        });
         navigate(getRoleHome(existingUser), { replace: true });
-      } catch {
-        clearSession();
+      } catch (error) {
+        console.warn("[auth] Login /me failure", {
+          status: error?.response?.status,
+          message: error?.message,
+          detail: error?.response?.data?.detail,
+          tokenFound: Boolean(localStorage.getItem("soc_token")),
+          role: getUserRole(getStoredUser()),
+        });
+        if (isInvalidTokenError(error)) {
+          clearSession();
+        }
       }
     }
 
@@ -50,6 +70,11 @@ export default function Login() {
       });
       const token = response.data.access_token || response.data.token;
       const user = storeSession(response.data.user, token);
+      console.info("[auth] Login success", {
+        tokenFound: Boolean(token),
+        role: getUserRole(user),
+        userId: user.id,
+      });
       navigate(getRoleHome(user), { replace: true });
     } catch (exc) {
       setError(getApiErrorMessage(exc, "Login failed. Check backend and credentials."));

@@ -10,17 +10,32 @@ export function getStoredUser() {
 }
 
 export function storeSession(user, token) {
+  if (!token) {
+    console.error("[auth] Refusing to store session: token missing", { role: getUserRole(user) });
+    throw new Error("Login response did not include an access token.");
+  }
+
   const sessionUser = { ...user, role: getUserRole(user), token };
   localStorage.setItem("soc_token", token);
   localStorage.setItem("soc_user", JSON.stringify(sessionUser));
   localStorage.setItem("soc_role", sessionUser.role);
+  console.info("[auth] Session stored", {
+    tokenFound: Boolean(token),
+    role: sessionUser.role,
+    userId: sessionUser.id,
+  });
   return sessionUser;
 }
 
 export function clearSession() {
+  console.warn("[auth] Clearing stored session");
   localStorage.removeItem("soc_user");
   localStorage.removeItem("soc_token");
   localStorage.removeItem("soc_role");
+}
+
+export function isInvalidTokenError(error) {
+  return error?.response?.status === 401;
 }
 
 export function getUserRole(user = getStoredUser()) {

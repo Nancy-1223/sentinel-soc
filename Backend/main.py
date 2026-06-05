@@ -55,6 +55,12 @@ def get_allowed_origins() -> list[str]:
     return sorted(set(DEFAULT_ALLOWED_ORIGINS + configured_origins))
 
 
+def auth_debug_enabled() -> bool:
+    return os.getenv("AUTH_DEBUG", "").strip().lower() in {"1", "true", "yes"} or os.getenv(
+        "DEBUG_AUTH_TOOLS", ""
+    ).strip().lower() in {"1", "true", "yes"}
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_allowed_origins(),
@@ -137,6 +143,11 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+
+class DebugPasswordResetRequest(BaseModel):
+    email: str
+    new_password: str = Field(..., min_length=1)
 
 
 class LoginResponse(BaseModel):
@@ -480,10 +491,19 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
     email = request.email.strip().lower()
     role = normalize_role(request.role)
     admin_count = db.query(User).filter(func.lower(User.role) == "admin").count()
-    logger.info("Registration received: email=%s role=%s", email, role)
+    password_hash = get_password_hash(request.password)
+    logger.info(
+        "Register attempt: email=%s normalized_email=%s role=%s password_hash_exists=%s password_hash_length=%s",
+        request.email,
+        email,
+        role,
+        bool(password_hash),
+        len(password_hash),
+    )
     logger.info("Admin count before registration: %s", admin_count)
 
     existing_user = db.query(User).filter(User.email == email).first()
+    logger.info("Register existing email found: email=%s found=%s", email, bool(existing_user))
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
 
@@ -502,7 +522,7 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
     user = User(
         name=request.name.strip(),
         email=email,
-        password_hash=get_password_hash(request.password),
+        password_hash=password_hash,
         role=role,
     )
     try:
@@ -541,16 +561,25 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
 @safe_endpoint
 def login(request: LoginRequest, db: Session = Depends(get_db)):
     email = request.email.strip().lower()
-    logger.info("Login attempt received: email=%s", email)
+    logger.info("Login attempt: email=%s normalized_email=%s", request.email, email)
     user = get_user_by_email(db, email)
     if not user:
-        logger.info("Login email not found: email=%s", email)
-        raise HTTPException(status_code=401, detail="Invalid email or password")
-    logger.info("Login email found: id=%s role=%s", user.id, user.role)
+        logger.info("Login user found: email=%s found=false", email)
+        detail = "User not found" if auth_debug_enabled() else "Invalid email or password"
+        raise HTTPException(status_code=401, detail=detail)
+    logger.info(
+        "Login user found: email=%s found=true id=%s role=%s password_hash_exists=%s password_hash_length=%s",
+        email,
+        user.id,
+        user.role,
+        bool(user.password_hash),
+        len(user.password_hash or ""),
+    )
     password_ok = verify_password(request.password, user.password_hash)
-    logger.info("Password verification result for %s: %s", email, password_ok)
+    logger.info("Login password verify result: email=%s result=%s", email, password_ok)
     if not password_ok:
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+        detail = "Invalid password" if auth_debug_enabled() else "Invalid email or password"
+        raise HTTPException(status_code=401, detail=detail)
 
     user.role = normalize_role(user.role)
     db.commit()
@@ -563,6 +592,7 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
         "team_id": user.team_id,
         "admin_id": user.admin_id,
     })
+    logger.info("Login success: user_id=%s role=%s token_returned=%s", user.id, user.role, bool(token))
     return {
         "access_token": token,
         "token": token,
@@ -570,9 +600,35 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     }
 
 
+@app.post("/debug/auth/reset-password")
+@safe_endpoint
+def debug_reset_password(request: DebugPasswordResetRequest, db: Session = Depends(get_db)):
+    if not auth_debug_enabled():
+        raise HTTPException(status_code=404, detail="Not found")
+
+    email = request.email.strip().lower()
+    logger.warning("Debug password reset requested: email=%s", email)
+    user = get_user_by_email(db, email)
+    if not user:
+        logger.warning("Debug password reset failed: email=%s found=false", email)
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.password_hash = get_password_hash(request.new_password)
+    db.commit()
+    logger.warning(
+        "Debug password reset completed: email=%s user_id=%s password_hash_exists=%s password_hash_length=%s",
+        email,
+        user.id,
+        bool(user.password_hash),
+        len(user.password_hash or ""),
+    )
+    return {"message": "Password reset for debug user", "user": serialize_user(user)}
+
+
 @app.get("/me")
 @safe_endpoint
 def read_current_user(current_user: User = Depends(get_current_user)):
+    logger.info("/me success: user_id=%s role=%s", current_user.id, normalize_role(current_user.role))
     return serialize_user(current_user)
 
 

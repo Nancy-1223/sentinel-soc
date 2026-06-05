@@ -20,6 +20,15 @@ export function createApiClient(baseURL = getBackendUrl()) {
     const token = localStorage.getItem("soc_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.debug("[auth] Authorization header attached", {
+        url: config.url,
+        tokenFound: true,
+      });
+    } else {
+      console.debug("[auth] Authorization header not attached: token missing", {
+        url: config.url,
+        tokenFound: false,
+      });
     }
     return config;
   });
