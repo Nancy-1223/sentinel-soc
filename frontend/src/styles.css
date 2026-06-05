@@ -1333,6 +1333,54 @@ html[data-theme="light"] .sentinel-cyber-landing .landing-glow-three {
   background: rgba(45, 212, 191, 0.15);
 }
 
+/* Light theme hero animation - soft muted colors */
+html[data-theme="light"] .landing-clean-hud-glow {
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.12), rgba(6, 182, 212, 0.05) 42%, transparent 68%);
+}
+
+html[data-theme="light"] .landing-clean-hud-ring-outer {
+  border-color: rgba(6, 182, 212, 0.22);
+  box-shadow: 0 0 18px rgba(6, 182, 212, 0.12), inset 0 0 16px rgba(6, 182, 212, 0.03);
+}
+
+html[data-theme="light"] .landing-clean-hud-ring-outer::before,
+html[data-theme="light"] .landing-clean-hud-ring-middle::before {
+  background: conic-gradient(
+    from 90deg,
+    transparent 0 8%,
+    rgba(6, 182, 212, 0.58) 8% 10%,
+    transparent 10% 34%,
+    rgba(2, 200, 199, 0.48) 34% 36%,
+    transparent 36% 62%,
+    rgba(6, 182, 212, 0.42) 62% 64%,
+    transparent 64% 100%
+  );
+}
+
+html[data-theme="light"] .landing-clean-hud-ring-middle {
+  border-color: rgba(2, 200, 199, 0.18);
+  box-shadow: 0 0 14px rgba(6, 182, 212, 0.08);
+}
+
+html[data-theme="light"] .landing-clean-hud-ring-dotted {
+  border-color: rgba(6, 182, 212, 0.16);
+}
+
+html[data-theme="light"] .landing-clean-hud-ring-inner {
+  border-color: rgba(6, 182, 212, 0.1);
+  box-shadow: inset 0 0 12px rgba(6, 182, 212, 0.03);
+}
+
+html[data-theme="light"] .landing-clean-hud-orbit span {
+  background: #0891b2;
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.58);
+}
+
+html[data-theme="light"] .landing-clean-hud-orbit span:nth-child(3n) {
+  background: #06b6d4;
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.48);
+}
+
 html[data-theme="light"] .sentinel-cyber-landing .landing-nav {
   border-color: rgba(14, 165, 233, 0.2);
   background: rgba(255, 255, 255, 0.95);
@@ -1374,7 +1422,7 @@ html[data-theme="light"] .sentinel-cyber-landing .landing-brand-mark {
 }
 
 html[data-theme="light"] .sentinel-cyber-landing .landing-hero-copy::before {
-  background: radial-gradient(circle, rgba(14, 165, 233, 0.15), rgba(45, 212, 191, 0.08) 38%, transparent 72%);
+  background: radial-gradient(ellipse, rgba(15, 23, 42, 0.12), rgba(15, 23, 42, 0.04) 58%, transparent 74%);
 }
 
 html[data-theme="light"] .sentinel-cyber-landing .landing-hud-grid {
@@ -2305,7 +2353,7 @@ html[data-presentation="on"] .scanline {
 
 .landing-feature-card {
   border-radius: 18px;
-  padding: 1.2rem;
+  padding: 2rem;
   transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
 }
 
@@ -2317,11 +2365,12 @@ html[data-presentation="on"] .scanline {
 
 .landing-feature-card svg {
   color: #0284c7;
+  margin-bottom: 0.4rem;
 }
 
 .landing-feature-card h3,
 .landing-timeline-step h3 {
-  margin-top: 0.8rem;
+  margin-top: 1.2rem;
   color: #020617;
   font-size: 1rem;
   font-weight: 900;
@@ -2329,7 +2378,7 @@ html[data-presentation="on"] .scanline {
 
 .landing-feature-card p,
 .landing-timeline-step p {
-  margin-top: 0.55rem;
+  margin-top: 0.9rem;
   color: #475569;
   font-size: 0.9rem;
   line-height: 1.6;
@@ -2387,15 +2436,16 @@ html[data-presentation="on"] .scanline {
 .landing-safety,
 .landing-contact {
   display: flex;
-  gap: 1.2rem;
+  gap: 2rem;
   align-items: flex-start;
   border-radius: 22px;
-  padding: 1.4rem;
+  padding: 2.2rem;
 }
 
 .landing-safety svg {
   flex: 0 0 auto;
   color: #0284c7;
+  margin-top: 0.4rem;
 }
 
 .landing-contact {
@@ -5222,8 +5272,8 @@ html[data-theme="dark"] .landing-contact-links a {
   }
 }
 
-/* Rebuilt hero HUD from scratch: empty-center premium cyber interface */
-.sentinel-cyber-landing .landing-clean-hud {
+/* Base hero HUD styles - applies to both light and dark themes */
+.landing-clean-hud {
   position: absolute;
   left: 50%;
   top: 48%;
@@ -5236,34 +5286,147 @@ html[data-theme="dark"] .landing-contact-links a {
   animation: landing-clean-hud-enter 900ms cubic-bezier(.2,.8,.2,1) both, landing-clean-hud-breathing 6s ease-in-out 900ms infinite;
 }
 
-.sentinel-cyber-landing .landing-clean-hud-glow {
+.landing-clean-hud-glow {
   position: absolute;
   inset: 13%;
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(34, 211, 238, 0.16), rgba(45, 212, 191, 0.07) 42%, transparent 68%);
   filter: blur(22px);
   opacity: 0.72;
 }
 
-.sentinel-cyber-landing .landing-clean-hud-ring {
+.landing-clean-hud-ring {
   position: absolute;
   inset: 0;
   border-radius: 999px;
 }
 
-.sentinel-cyber-landing .landing-clean-hud-ring-outer {
-  inset: 3%;
-  border: 1px solid rgba(103, 232, 249, 0.3);
-  box-shadow: 0 0 24px rgba(56, 189, 248, 0.18), inset 0 0 20px rgba(45, 212, 191, 0.04);
-  animation: landing-clean-hud-rotate 48s linear infinite;
+.landing-clean-hud-ring-outer,
+.landing-clean-hud-ring-middle,
+.landing-clean-hud-ring-dotted,
+.landing-clean-hud-ring-inner {
+  position: absolute;
+  border-radius: 999px;
 }
 
-.sentinel-cyber-landing .landing-clean-hud-ring-outer::before,
-.sentinel-cyber-landing .landing-clean-hud-ring-middle::before {
+.landing-clean-hud-ring-outer {
+  inset: 3%;
+  border: 1px solid;
+}
+
+.landing-clean-hud-ring-outer::before,
+.landing-clean-hud-ring-middle::before {
   content: "";
   position: absolute;
   inset: -1px;
   border-radius: inherit;
+  mask: radial-gradient(circle, transparent 0 98.5%, black 99% 100%);
+}
+
+.landing-clean-hud-ring-middle {
+  inset: 15%;
+  border: 1px solid;
+}
+
+.landing-clean-hud-ring-dotted {
+  inset: 27%;
+  border: 1px dotted;
+}
+
+.landing-clean-hud-ring-inner {
+  inset: 40%;
+  border: 1px solid;
+}
+
+.landing-clean-hud-orbit {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+}
+
+.landing-clean-hud-orbit span {
+  --angle: calc(var(--i) * 30deg);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  transform: rotate(var(--angle)) translateX(min(34vw, 300px));
+  animation: landing-clean-hud-orbit 12s ease-in-out infinite, landing-dot-twinkle 3.2s ease-in-out infinite;
+}
+
+/* Light theme hero animation - soft muted colors */
+.landing-clean-hud-glow {
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.12), rgba(6, 182, 212, 0.05) 42%, transparent 68%);
+}
+
+.landing-clean-hud-ring-outer {
+  border-color: rgba(6, 182, 212, 0.22);
+  box-shadow: 0 0 18px rgba(6, 182, 212, 0.12), inset 0 0 16px rgba(6, 182, 212, 0.03);
+}
+
+.landing-clean-hud-ring-outer::before,
+.landing-clean-hud-ring-middle::before {
+  background: conic-gradient(
+    from 90deg,
+    transparent 0 8%,
+    rgba(6, 182, 212, 0.58) 8% 10%,
+    transparent 10% 34%,
+    rgba(2, 200, 199, 0.48) 34% 36%,
+    transparent 36% 62%,
+    rgba(6, 182, 212, 0.42) 62% 64%,
+    transparent 64% 100%
+  );
+}
+
+.landing-clean-hud-ring-middle {
+  border-color: rgba(2, 200, 199, 0.18);
+  box-shadow: 0 0 14px rgba(6, 182, 212, 0.08);
+}
+
+.landing-clean-hud-ring-dotted {
+  border-color: rgba(6, 182, 212, 0.16);
+}
+
+.landing-clean-hud-ring-inner {
+  border-color: rgba(6, 182, 212, 0.1);
+  box-shadow: inset 0 0 12px rgba(6, 182, 212, 0.03);
+}
+
+.landing-clean-hud-orbit span {
+  background: #0891b2;
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.58);
+}
+
+.landing-clean-hud-orbit span:nth-child(3n) {
+  background: #06b6d4;
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.48);
+}
+
+.landing-clean-hud-ring-outer {
+  animation: landing-clean-hud-rotate 48s linear infinite;
+}
+
+.landing-clean-hud-ring-middle {
+  animation: landing-clean-hud-rotate-reverse 62s linear infinite;
+}
+
+.landing-clean-hud-ring-dotted {
+  animation: landing-clean-hud-rotate-reverse 70s linear infinite;
+}
+
+/* Dark theme hero animation - bright neon colors */
+.sentinel-cyber-landing .landing-clean-hud-glow {
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.16), rgba(45, 212, 191, 0.07) 42%, transparent 68%);
+}
+
+.sentinel-cyber-landing .landing-clean-hud-ring-outer {
+  border-color: rgba(103, 232, 249, 0.3);
+  box-shadow: 0 0 24px rgba(56, 189, 248, 0.18), inset 0 0 20px rgba(45, 212, 191, 0.04);
+}
+
+.sentinel-cyber-landing .landing-clean-hud-ring-outer::before,
+.sentinel-cyber-landing .landing-clean-hud-ring-middle::before {
   background: conic-gradient(
     from 90deg,
     transparent 0 8%,
@@ -5274,40 +5437,25 @@ html[data-theme="dark"] .landing-contact-links a {
     rgba(103, 232, 249, 0.52) 62% 64%,
     transparent 64% 100%
   );
-  mask: radial-gradient(circle, transparent 0 98.5%, black 99% 100%);
 }
 
 .sentinel-cyber-landing .landing-clean-hud-ring-middle {
-  inset: 15%;
-  border: 1px solid rgba(45, 212, 191, 0.24);
+  border-color: rgba(45, 212, 191, 0.24);
   box-shadow: 0 0 18px rgba(45, 212, 191, 0.1);
-  animation: landing-clean-hud-rotate-reverse 62s linear infinite;
 }
 
 .sentinel-cyber-landing .landing-clean-hud-ring-dotted {
-  inset: 27%;
-  border: 1px dotted rgba(103, 232, 249, 0.26);
-  animation: landing-clean-hud-rotate-reverse 70s linear infinite;
+  border-color: rgba(103, 232, 249, 0.26);
 }
 
 .sentinel-cyber-landing .landing-clean-hud-ring-inner {
-  inset: 40%;
-  border: 1px solid rgba(103, 232, 249, 0.14);
+  border-color: rgba(103, 232, 249, 0.14);
   box-shadow: inset 0 0 16px rgba(56, 189, 248, 0.04);
 }
 
 .sentinel-cyber-landing .landing-clean-hud-orbit span {
-  --angle: calc(var(--i) * 30deg);
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 4px;
-  height: 4px;
-  border-radius: 999px;
   background: #67e8f9;
   box-shadow: 0 0 12px rgba(103, 232, 249, 0.72);
-  transform: rotate(var(--angle)) translateX(min(34vw, 300px));
-  animation: landing-clean-hud-orbit 12s ease-in-out infinite, landing-dot-twinkle 3.2s ease-in-out infinite;
 }
 
 .sentinel-cyber-landing .landing-clean-hud-orbit span:nth-child(3n) {
