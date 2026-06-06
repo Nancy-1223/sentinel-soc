@@ -368,7 +368,7 @@ def ensure_endpoint_visible(db: Session, current_user: User, endpoint_id: int) -
 
 
 def require_team_for_endpoint_user(current_user: User) -> None:
-    if normalize_role(current_user.role) == "endpoint" and (current_user.team_id is None or current_user.admin_id is None):
+    if normalize_role(current_user.role) == "endpoint" and current_user.endpoint_id is None:
         raise HTTPException(status_code=403, detail="Endpoint user must connect to a team first")
 
 
@@ -664,8 +664,9 @@ def update_endpoint_control(
 
 def validate_endpoint_agent_access(endpoint_id: int, db: Session, endpoint_token: str | None) -> Endpoint:
     endpoint = get_endpoint_or_404(endpoint_id, db)
+    provided_token = (endpoint_token or "").strip()
 
-    if not endpoint_token:
+    if not provided_token:
         logger.warning(
             "Endpoint control auth using legacy missing-token access: endpoint_id=%s. Download a fresh agent package to enable endpoint tokens.",
             endpoint_id,
@@ -673,17 +674,22 @@ def validate_endpoint_agent_access(endpoint_id: int, db: Session, endpoint_token
         return endpoint
 
     if endpoint.agent_token_hash:
-        if not verify_agent_token(endpoint_token, endpoint.agent_token_hash):
+        if not verify_agent_token(provided_token, endpoint.agent_token_hash):
             logger.warning("Endpoint control auth failed: endpoint_id=%s token_present=%s", endpoint_id, bool(endpoint_token))
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid endpoint token")
         logger.info("Endpoint control auth succeeded: endpoint_id=%s", endpoint_id)
         return endpoint
 
-    logger.warning(
-        "Endpoint control auth using legacy tokenless access: endpoint_id=%s. Download a fresh agent package to enable endpoint tokens.",
-        endpoint_id,
-    )
-    return endpoint
+    if provided_token == generate_agent_token(endpoint.id):
+        endpoint.agent_token_hash = hash_agent_token(provided_token)
+        db.commit()
+        db.refresh(endpoint)
+        logger.info("Endpoint control auth succeeded and token hash backfilled: endpoint_id=%s", endpoint_id)
+        return endpoint
+
+    logger.warning("Endpoint control auth failed with unregistered token: endpoint_id=%s", endpoint_id)
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid endpoint token")
+
 
 
 @app.post("/register", status_code=status.HTTP_201_CREATED)
@@ -940,8 +946,13 @@ def get_agent_config(endpoint_id: int, request: Request, db: Session = Depends(g
     ensure_endpoint_visible(db, current_user, endpoint_id)
     endpoint = get_endpoint_or_404(endpoint_id, db)
     agent_token = issue_endpoint_agent_token(endpoint, db)
+    backend_url = public_backend_url(request)
     return {
-        "SOC_BACKEND_URL": public_backend_url(request),
+        "BACKEND_URL": backend_url,
+        "ENDPOINT_ID": str(endpoint.id),
+        "ENDPOINT_TOKEN": agent_token,
+        "PC_NAME": endpoint.pc_name,
+        "SOC_BACKEND_URL": backend_url,
         "SOC_ENDPOINT_ID": str(endpoint.id),
         "SOC_PC_NAME": endpoint.pc_name,
         "SOC_ENDPOINT_TOKEN": agent_token,
@@ -981,6 +992,16 @@ def predict(request: PredictRequest):
         keyword_count=request.keyword_count,
         file_size=request.file_size,
         is_executable=request.is_executable,
+    )
+    logger.info(
+        "Prediction requested: filename=%s extension=%s keywords=%s size=%s executable=%s result=%s risk=%s",
+        request.filename,
+        request.file_extension,
+        request.keyword_count,
+        request.file_size,
+        request.is_executable,
+        result.get("prediction"),
+        result.get("risk_score"),
     )
     return result
 
@@ -1087,11 +1108,20 @@ def receive_heartbeat(
     x_endpoint_token: str | None = Header(default=None, alias="X-Endpoint-Token"),
 ):
     endpoint = validate_endpoint_agent_access(request.endpoint_id, db, x_endpoint_token)
+    logger.info(
+        "Heartbeat received: endpoint_id=%s pc_name=%s agent_mode=%s token_present=%s",
+        request.endpoint_id,
+        request.pc_name,
+        request.agent_mode,
+        bool(x_endpoint_token),
+    )
 
     endpoint.pc_name = request.pc_name
     if endpoint.agent_mode == "removed":
+        logger.info("Heartbeat ignored for removed endpoint: endpoint_id=%s", request.endpoint_id)
         return {"message": "Heartbeat ignored for removed endpoint", **serialize_endpoint_control(endpoint)}
     if endpoint.agent_mode == "stopped" and request.agent_mode != "stopped":
+        logger.info("Heartbeat ignored for stopped endpoint: endpoint_id=%s", request.endpoint_id)
         return {"message": "Heartbeat ignored for stopped endpoint", **serialize_endpoint_control(endpoint)}
 
     endpoint.last_seen = datetime.utcnow()
@@ -1099,6 +1129,13 @@ def receive_heartbeat(
         endpoint.agent_mode = request.agent_mode
         endpoint.status = "Paused" if request.agent_mode == "paused" else "Offline" if request.agent_mode == "stopped" else "Online"
     db.commit()
+    logger.info(
+        "Heartbeat stored: endpoint_id=%s status=%s agent_mode=%s last_seen=%s",
+        endpoint.id,
+        endpoint.status,
+        endpoint.agent_mode,
+        endpoint.last_seen,
+    )
 
     return {"message": "Heartbeat received", **serialize_endpoint_control(endpoint)}
 
@@ -1110,8 +1147,13 @@ async def receive_telemetry(
     x_endpoint_token: str | None = Header(default=None, alias="X-Endpoint-Token"),
 ):
     payload = await request.json()
-    print(f"[TELEMETRY] {payload}")
     telemetry_events.append(payload)
+    logger.info(
+        "Telemetry received: endpoint_id=%s pc_name=%s token_present=%s",
+        payload.get("endpoint_id"),
+        payload.get("pc_name"),
+        bool(x_endpoint_token),
+    )
 
     endpoint_id = payload.get("endpoint_id")
     if endpoint_id is not None:
@@ -1141,6 +1183,13 @@ async def receive_telemetry(
             )
             db.add(telemetry)
             db.commit()
+            logger.info(
+                "Telemetry stored: endpoint_id=%s cpu=%s ram=%s disk=%s",
+                endpoint.id,
+                telemetry.cpu,
+                telemetry.ram,
+                telemetry.disk,
+            )
 
     return {"message": "Telemetry received"}
 

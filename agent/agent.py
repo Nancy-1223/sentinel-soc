@@ -451,7 +451,7 @@ def send_telemetry_once() -> None:
             timeout=REQUEST_TIMEOUT_SECONDS,
         )
         response.raise_for_status()
-        log("INFO", "Telemetry sent successfully")
+        log("INFO", f"Telemetry sent successfully: status={response.status_code} endpoint_id={ENDPOINT_ID}")
         write_status("running", "Telemetry sent successfully")
     except RequestException as exc:
         log("WARNING", f"Telemetry backend is offline or unreachable: {exc}")
@@ -477,6 +477,7 @@ def send_heartbeat_once(agent_mode: str) -> None:
             timeout=REQUEST_TIMEOUT_SECONDS,
         )
         response.raise_for_status()
+        log("INFO", f"Heartbeat sent successfully: status={response.status_code} endpoint_id={ENDPOINT_ID} mode={agent_mode}")
         write_status("paused" if agent_mode == "paused" else "running", "Heartbeat sent successfully")
     except RequestException as exc:
         log("WARNING", f"Heartbeat backend is offline or unreachable: {exc}")
@@ -782,13 +783,22 @@ def send_prediction_request(features: Dict[str, object]) -> Dict[str, object] | 
     }
 
     try:
+        log(
+            "INFO",
+            f"Sending prediction request: endpoint_id={ENDPOINT_ID} filename={features['filename']} extension={features['file_extension']} keywords={features['keyword_count']}",
+        )
         response = requests.post(
             f"{BACKEND_URL}/predict",
             json=predict_payload,
             timeout=REQUEST_TIMEOUT_SECONDS,
         )
         response.raise_for_status()
-        return response.json()
+        result = response.json()
+        log(
+            "INFO",
+            f"Prediction response received: status={response.status_code} filename={features['filename']} prediction={result.get('prediction')} risk={result.get('risk_score')}",
+        )
+        return result
     except RequestException as exc:
         log("ERROR", f"Backend prediction API is offline or unreachable: {exc}")
     except ValueError:
@@ -1004,9 +1014,9 @@ def upload_alert(
         response.raise_for_status()
         result = response.json()
         if result.get("duplicate_ignored"):
-            log("INFO", f"Duplicate alert updated by backend for {features['filename']} alert_id={result.get('alert_id')}")
+            log("INFO", f"Duplicate alert updated by backend: status={response.status_code} filename={features['filename']} alert_id={result.get('alert_id')}")
         else:
-            log("INFO", f"Alert uploaded successfully for {features['filename']} alert_id={result.get('alert_id')}")
+            log("INFO", f"Alert uploaded successfully: status={response.status_code} filename={features['filename']} alert_id={result.get('alert_id')}")
         return True
     except RequestException as exc:
         log("ERROR", f"Could not upload alert to backend: {exc}")
