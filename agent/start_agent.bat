@@ -8,4 +8,4 @@ if %ERRORLEVEL%==0 (
 ) else (
     python "%~dp0agent.py"
 )
-pause
+exit /b %ERRORLEVEL%
