@@ -16,6 +16,7 @@ import subprocess
 import sys
 import threading
 import time
+import traceback
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -88,10 +89,30 @@ def load_env_file() -> None:
 
 load_env_file()
 
-BACKEND_URL = os.getenv("SOC_BACKEND_URL", "http://10.170.117.155:8000")
-ENDPOINT_ID = int(os.getenv("SOC_ENDPOINT_ID", "1"))
-PC_NAME = os.getenv("SOC_PC_NAME", socket.gethostname())
-ENDPOINT_TOKEN = os.getenv("SOC_ENDPOINT_TOKEN", "")
+def env_value(*names: str, default: str = "") -> str:
+    for name in names:
+        value = os.getenv(name)
+        if value:
+            return value
+    return default
+
+
+def parse_endpoint_id(raw_value: str) -> int:
+    try:
+        endpoint_id = int(raw_value)
+        if endpoint_id > 0:
+            return endpoint_id
+    except (TypeError, ValueError):
+        pass
+
+    append_log_file("ERROR", f"Invalid ENDPOINT_ID/SOC_ENDPOINT_ID value: {raw_value!r}")
+    return 0
+
+
+BACKEND_URL = env_value("BACKEND_URL", "SOC_BACKEND_URL", default="https://sentinel-soc-backend-fxb8.onrender.com")
+ENDPOINT_ID = parse_endpoint_id(env_value("ENDPOINT_ID", "SOC_ENDPOINT_ID", default=""))
+PC_NAME = env_value("PC_NAME", "SOC_PC_NAME", default=socket.gethostname())
+ENDPOINT_TOKEN = env_value("ENDPOINT_TOKEN", "SOC_ENDPOINT_TOKEN", default="")
 AGENT_VERSION = "1.3.0"
 AGENT_STARTED_AT = time.monotonic()
 
@@ -1098,6 +1119,22 @@ class DownloadsEventHandler(FileSystemEventHandler):
 
 def start_monitoring() -> None:
     write_pid_file()
+    if not BACKEND_URL:
+        log("ERROR", "BACKEND_URL is missing in .env")
+        write_status("error", "BACKEND_URL is missing in .env")
+        remove_pid_file()
+        return
+    if ENDPOINT_ID <= 0:
+        log("ERROR", "ENDPOINT_ID is missing or invalid in .env")
+        write_status("error", "ENDPOINT_ID is missing or invalid in .env")
+        remove_pid_file()
+        return
+    if not ENDPOINT_TOKEN:
+        log("ERROR", "ENDPOINT_TOKEN is missing in .env")
+        write_status("error", "ENDPOINT_TOKEN is missing in .env")
+        remove_pid_file()
+        return
+
     if not DOWNLOADS_DIR.exists():
         log("ERROR", f"Downloads folder not found: {DOWNLOADS_DIR}")
         write_status("error", f"Downloads folder not found: {DOWNLOADS_DIR}")
@@ -1148,4 +1185,10 @@ def start_monitoring() -> None:
 
 
 if __name__ == "__main__":
-    start_monitoring()
+    try:
+        start_monitoring()
+    except Exception as exc:
+        append_log_file("ERROR", f"Fatal agent startup/runtime error: {exc}")
+        append_log_file("ERROR", traceback.format_exc())
+        write_status("error", f"Fatal agent startup/runtime error: {exc}")
+        raise

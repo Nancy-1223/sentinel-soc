@@ -3,6 +3,7 @@ setlocal EnableExtensions
 cd /d "%~dp0"
 
 set "INSTALL_DIR=C:\ProgramData\SentinelSOC"
+set "LOG_DIR=C:\ProgramData\SentinelSOC\logs"
 set "RUN_KEY=HKLM\Software\Microsoft\Windows\CurrentVersion\Run"
 set "RUN_NAME=SentinelSOCAgent"
 set "INSTALL_LOG=C:\ProgramData\SentinelSOC\install_agent.log"
@@ -24,13 +25,19 @@ if not exist "%~dp0agent.exe" (
 
 if not exist "%~dp0.env" (
     echo .env was not found in this folder.
-    echo Add SOC_BACKEND_URL, SOC_ENDPOINT_ID, SOC_ENDPOINT_TOKEN, and SOC_PC_NAME before installing.
+    echo Download a fresh agent ZIP from the Sentinel SOC dashboard.
     pause
     exit /b 1
 )
 
+findstr /B /C:"BACKEND_URL=" "%~dp0.env" >nul || goto env_failed
+findstr /B /C:"ENDPOINT_ID=" "%~dp0.env" >nul || goto env_failed
+findstr /B /C:"ENDPOINT_TOKEN=" "%~dp0.env" >nul || goto env_failed
+findstr /B /C:"PC_NAME=" "%~dp0.env" >nul || goto env_failed
+
 echo Installing Sentinel SOC Agent to "%INSTALL_DIR%"...
 if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%"
+if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 echo [%DATE% %TIME%] Installing Sentinel SOC Agent > "%INSTALL_LOG%"
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$agentPath = 'C:\ProgramData\SentinelSOC\agent.exe'.ToLower(); Get-CimInstance Win32_Process | Where-Object { ($_.ExecutablePath -and $_.ExecutablePath.ToLower() -eq $agentPath) -or ($_.CommandLine -and $_.CommandLine.ToLower().Contains($agentPath)) } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }" >> "%INSTALL_LOG%" 2>&1
@@ -75,6 +82,13 @@ echo Runtime log: %INSTALL_DIR%\agent.log
 echo The agent will start automatically when this Windows user signs in.
 pause
 exit /b 0
+
+:env_failed
+echo .env is missing one or more required values.
+echo Required keys: BACKEND_URL, ENDPOINT_ID, ENDPOINT_TOKEN, PC_NAME
+echo Download a fresh agent ZIP from the Sentinel SOC dashboard and try again.
+pause
+exit /b 1
 
 :copy_failed
 echo Failed to copy Sentinel SOC Agent files to "%INSTALL_DIR%".

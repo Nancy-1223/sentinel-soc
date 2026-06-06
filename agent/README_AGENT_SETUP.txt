@@ -13,10 +13,10 @@ Package contents:
 
 Before installing:
 1. Open .env and confirm these values:
-   SOC_BACKEND_URL="https://your-backend-url"
-   SOC_ENDPOINT_ID="1"
-   SOC_ENDPOINT_TOKEN="paste-endpoint-token-here"
-   SOC_PC_NAME="PC_NAME"
+   BACKEND_URL=https://sentinel-soc-backend-fxb8.onrender.com
+   ENDPOINT_ID=1
+   ENDPOINT_TOKEN=paste-endpoint-token-here
+   PC_NAME=PC_NAME
 2. Keep all package files in the same extracted folder.
 
 Install on a clean Windows laptop:
@@ -24,9 +24,10 @@ Install on a clean Windows laptop:
 2. Right-click install_agent.bat.
 3. Choose Run as administrator.
 4. The installer copies files to C:\ProgramData\SentinelSOC\.
-5. It creates a Windows startup entry.
-6. It starts C:\ProgramData\SentinelSOC\agent.exe silently.
-7. Runtime logs are written to C:\ProgramData\SentinelSOC\agent.log.
+5. It creates C:\ProgramData\SentinelSOC\logs\ if needed.
+6. It creates a Windows startup entry.
+7. It starts C:\ProgramData\SentinelSOC\agent.exe silently.
+8. Runtime logs are written to C:\ProgramData\SentinelSOC\agent.log.
 
 Stop the agent:
 - Run C:\ProgramData\SentinelSOC\stop_agent.bat.
@@ -37,12 +38,12 @@ Uninstall:
 3. The uninstaller stops agent.exe, removes startup entries, deletes
    C:\ProgramData\SentinelSOC\, and removes local Sentinel runtime files.
 
-Build the executable on the developer PC:
-1. Install dependencies in the agent folder:
-   pip install -r requirements.txt pyinstaller
-2. Build:
+Build or refresh the executable on the developer PC only:
+1. From the agent folder, build:
    pyinstaller --onefile --noconsole agent.py
-3. Copy dist\agent.exe into the endpoint ZIP beside .env and the scripts.
+2. Copy dist\agent.exe to agent.exe before deploying the backend.
+
+Endpoint PCs do not need Python, IDLE, VS Code, pip, or terminal commands.
 
 Expected clean-PC test:
 - No Python installed.

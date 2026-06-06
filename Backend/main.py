@@ -534,10 +534,10 @@ def issue_endpoint_agent_token(endpoint: Endpoint, db: Session) -> str:
 def build_agent_env(backend_url: str, endpoint: Endpoint, agent_token: str) -> str:
     return "\n".join(
         [
-            f"SOC_BACKEND_URL={env_quote(backend_url)}",
-            f"SOC_ENDPOINT_ID={env_quote(str(endpoint.id))}",
-            f"SOC_PC_NAME={env_quote(endpoint.pc_name)}",
-            f"SOC_ENDPOINT_TOKEN={env_quote(agent_token)}",
+            f"BACKEND_URL={env_quote(backend_url)}",
+            f"ENDPOINT_ID={env_quote(str(endpoint.id))}",
+            f"ENDPOINT_TOKEN={env_quote(agent_token)}",
+            f"PC_NAME={env_quote(endpoint.pc_name)}",
             "",
         ]
     )
