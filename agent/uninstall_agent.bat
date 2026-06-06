@@ -2,7 +2,7 @@
 setlocal EnableExtensions
 
 set "INSTALL_DIR=C:\ProgramData\SentinelSOC"
-set "RUN_KEY=HKCU\Software\Microsoft\Windows\CurrentVersion\Run"
+set "RUN_KEY=HKLM\Software\Microsoft\Windows\CurrentVersion\Run"
 set "RUN_NAME=SentinelSOCAgent"
 
 net session >nul 2>&1
@@ -18,6 +18,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$agentPath = 'C:\Program
 
 echo Removing Windows startup entry...
 reg delete "%RUN_KEY%" /v "%RUN_NAME%" /f >nul 2>nul
+reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "%RUN_NAME%" /f >nul 2>nul
 schtasks /Delete /TN "SentinelSOCAgent" /F >nul 2>nul
 
 echo Removing installed Sentinel SOC files...

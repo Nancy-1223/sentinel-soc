@@ -494,7 +494,7 @@ def build_unique_restore_path(original_path: Path) -> Path:
 
 
 def public_backend_url(request: Request) -> str:
-    return os.getenv("AGENT_BACKEND_URL", DEFAULT_AGENT_BACKEND_URL).rstrip("/")
+    return DEFAULT_AGENT_BACKEND_URL
 
 
 def env_quote(value: str) -> str:
@@ -545,13 +545,12 @@ def build_agent_env(backend_url: str, endpoint: Endpoint, agent_token: str) -> s
 
 def build_agent_package(endpoint: Endpoint, backend_url: str, db: Session) -> tuple[BytesIO, str]:
     required_files = [
-        "agent.py",
-        "install_agent.py",
+        "agent.exe",
         "install_agent.bat",
         "start_agent_silent.vbs",
-        "start_agent.bat",
         "stop_agent.bat",
         "uninstall_agent.bat",
+        "README_AGENT_SETUP.txt",
     ]
     missing_files = [name for name in required_files if not (AGENT_DIR / name).is_file()]
     if missing_files:
@@ -563,29 +562,7 @@ def build_agent_package(endpoint: Endpoint, backend_url: str, db: Session) -> tu
         for filename in required_files:
             archive.write(AGENT_DIR / filename, arcname=filename)
 
-        optional_files = ["requirements.txt", "README.md"]
-        for filename in optional_files:
-            source_path = AGENT_DIR / filename
-            if source_path.is_file():
-                archive.write(source_path, arcname=filename)
-
         archive.writestr(".env", build_agent_env(backend_url, endpoint, agent_token))
-        archive.writestr(
-            "README_AGENT_SETUP.txt",
-            "\n".join(
-                [
-                    "Sentinel SOC Agent",
-                    "==================",
-                    "",
-                    "1. Extract this zip folder.",
-                    "2. Double-click install_agent.bat, or install_agent.py if Python opens .py files.",
-                    "3. The installer creates a Windows Startup entry and starts the agent silently.",
-                    "4. After this, telemetry and Downloads malware detection start automatically when Windows signs in.",
-                    "5. Check agent_status.json or agent.log to confirm local status.",
-                    "",
-                ]
-            ),
-        )
     package.seek(0)
 
     safe_pc_name = "".join(char if char.isalnum() or char in {"-", "_"} else "-" for char in endpoint.pc_name).strip("-")
@@ -1086,10 +1063,12 @@ def upload_alert(
 
 @app.post("/heartbeat")
 @safe_endpoint
-def receive_heartbeat(request: HeartbeatRequest, db: Session = Depends(get_db)):
-    endpoint = db.get(Endpoint, request.endpoint_id)
-    if not endpoint:
-        raise HTTPException(status_code=404, detail="Endpoint not found")
+def receive_heartbeat(
+    request: HeartbeatRequest,
+    db: Session = Depends(get_db),
+    x_endpoint_token: str | None = Header(default=None, alias="X-Endpoint-Token"),
+):
+    endpoint = validate_endpoint_agent_access(request.endpoint_id, db, x_endpoint_token)
 
     endpoint.pc_name = request.pc_name
     if endpoint.agent_mode == "removed":
@@ -1107,14 +1086,18 @@ def receive_heartbeat(request: HeartbeatRequest, db: Session = Depends(get_db)):
 
 
 @app.post("/telemetry")
-async def receive_telemetry(request: Request, db: Session = Depends(get_db)):
+async def receive_telemetry(
+    request: Request,
+    db: Session = Depends(get_db),
+    x_endpoint_token: str | None = Header(default=None, alias="X-Endpoint-Token"),
+):
     payload = await request.json()
     print(f"[TELEMETRY] {payload}")
     telemetry_events.append(payload)
 
     endpoint_id = payload.get("endpoint_id")
     if endpoint_id is not None:
-        endpoint = db.get(Endpoint, int(endpoint_id))
+        endpoint = validate_endpoint_agent_access(int(endpoint_id), db, x_endpoint_token)
         if endpoint:
             endpoint.last_seen = datetime.utcnow()
             if endpoint.agent_mode not in {"paused", "stopped", "removed"}:

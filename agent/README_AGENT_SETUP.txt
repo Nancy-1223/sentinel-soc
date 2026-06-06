@@ -24,8 +24,9 @@ Install on a clean Windows laptop:
 2. Right-click install_agent.bat.
 3. Choose Run as administrator.
 4. The installer copies files to C:\ProgramData\SentinelSOC\.
-5. It creates a Windows startup entry for this user.
+5. It creates a Windows startup entry.
 6. It starts C:\ProgramData\SentinelSOC\agent.exe silently.
+7. Runtime logs are written to C:\ProgramData\SentinelSOC\agent.log.
 
 Stop the agent:
 - Run C:\ProgramData\SentinelSOC\stop_agent.bat.
