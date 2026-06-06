@@ -149,16 +149,17 @@ PROJECT_ROOT = AGENT_DIR.parent
 QUARANTINE_DIR = AGENT_DIR / "quarantine" if getattr(sys, "frozen", False) else PROJECT_ROOT / "quarantine"
 HASH_BLACKLIST_PATH = AGENT_DIR / "malicious_hashes.json"
 
-SCAN_DELAY_SECONDS = 0.5
+SCAN_DELAY_SECONDS = 0.1
 REQUEST_TIMEOUT_SECONDS = 8
 TELEMETRY_INTERVAL_SECONDS = 5
 TELEMETRY_API_PATH = "/telemetry"
 CONTROL_POLL_INTERVAL_SECONDS = 3
-DETECTION_POLL_INTERVAL_SECONDS = 10
+DETECTION_POLL_INTERVAL_SECONDS = 3
 MAX_TEXT_READ_BYTES = 1_000_000
 HASH_CACHE_SECONDS = 60
 DUPLICATE_ALERT_SECONDS = 60
 EVENT_DEBOUNCE_SECONDS = 30
+FALLBACK_CACHE_SECONDS = 15
 EICAR_SIGNATURE = "EICAR-STANDARD-ANTIVIRUS-TEST-FILE"
 
 SUSPICIOUS_KEYWORDS = [
@@ -224,6 +225,7 @@ SCAN_CANDIDATE_EXTENSIONS = TEXT_LIKE_EXTENSIONS | EXECUTABLE_EXTENSIONS | {".zi
 processed_files: Dict[str, float] = {}
 files_in_progress: set[str] = set()
 recent_path_events: Dict[str, float] = {}
+fallback_scan_signatures: Dict[str, Tuple[int, int, float]] = {}
 malicious_hashes: set[str] = set()
 cache_lock = threading.Lock()
 control_lock = threading.Lock()
@@ -544,7 +546,7 @@ def wait_for_file_ready(file_path: Path) -> bool:
     last_signature = None
     stable_checks = 0
 
-    for _ in range(6):
+    for _ in range(12):
         try:
             if not file_path.exists() or not file_path.is_file():
                 return False
@@ -566,7 +568,7 @@ def wait_for_file_ready(file_path: Path) -> bool:
         except OSError:
             log("WARNING", f"File appears locked: {file_path.name}; retrying...")
 
-        time.sleep(1)
+        time.sleep(0.25)
 
     return False
 
@@ -595,6 +597,44 @@ def cleanup_old_cache_entries(now: float) -> None:
     ]
     for path in expired_paths:
         recent_path_events.pop(path, None)
+
+    expired_fallback_paths = [
+        path
+        for path, (_, _, queued_at) in fallback_scan_signatures.items()
+        if now - queued_at > FALLBACK_CACHE_SECONDS
+    ]
+    for path in expired_fallback_paths:
+        fallback_scan_signatures.pop(path, None)
+
+
+def file_change_signature(file_path: Path) -> Tuple[int, int] | None:
+    try:
+        stat = file_path.stat()
+        return stat.st_size, stat.st_mtime_ns
+    except OSError:
+        return None
+
+
+def should_queue_fallback_scan(file_path: Path) -> bool:
+    signature = file_change_signature(file_path)
+    if signature is None:
+        return False
+
+    try:
+        cache_key = str(file_path.resolve()).lower()
+    except OSError:
+        cache_key = str(file_path).lower()
+
+    now = time.monotonic()
+    with cache_lock:
+        cleanup_old_cache_entries(now)
+        previous = fallback_scan_signatures.get(cache_key)
+        if previous and previous[:2] == signature:
+            log("DUPLICATE_SKIPPED", f"Fallback skipped unchanged file path={file_path} size={signature[0]} mtime_ns={signature[1]}")
+            return False
+
+        fallback_scan_signatures[cache_key] = (signature[0], signature[1], now)
+        return True
 
 
 def build_alert_upload_cache_key(features: Dict[str, object]) -> str:
@@ -1112,6 +1152,7 @@ def scan_file(file_path: Path) -> None:
     file_hash = None
     processing_started = False
     alert_cache_key = None
+    scan_started_at = time.perf_counter()
     try:
         log("SCAN_STARTED", f"Scan started for {file_path}")
         if not detection_is_active():
@@ -1169,10 +1210,18 @@ def scan_file(file_path: Path) -> None:
         log("INFO", f"Risk score: {risk_score}")
 
         action_taken = "Allowed"
-        if should_quarantine(prediction_result):
+        duplicate_alert = should_suppress_duplicate_alert(alert_cache_key, file_hash)
+        should_block = should_quarantine(prediction_result)
+
+        if duplicate_alert:
+            log("DUPLICATE_SKIPPED", f"Duplicate alert skipped but local protection will still run: filename={features['filename']} sha256={file_hash}")
+        elif should_block:
+            upload_alert(features, prediction_result, "Detected - Quarantine Pending")
+
+        if should_block:
             action_taken = enforce_blocking_protection(file_path, features)
 
-        if should_suppress_duplicate_alert(alert_cache_key, file_hash):
+        if duplicate_alert:
             if processing_started:
                 clear_hash_processing(file_hash)
             log("SCAN_COMPLETED", f"Scan completed: path={file_path} sha256={file_hash} prediction={prediction} action={action_taken} result=alert_suppressed_duplicate")
@@ -1201,6 +1250,9 @@ def scan_file(file_path: Path) -> None:
             clear_hash_processing(file_hash)
         log("ERROR", f"Unexpected scan error for {file_path.name}: {exc}")
         log("SCAN_COMPLETED", f"Scan completed: path={file_path} result=unexpected_error error={exc}")
+    finally:
+        elapsed_ms = round((time.perf_counter() - scan_started_at) * 1000, 2)
+        log("DETECTION_TIME_MS", f"path={file_path} elapsed_ms={elapsed_ms}")
 
 
 def queue_scan(file_path: Path, event_name: str) -> None:
@@ -1255,7 +1307,8 @@ def detection_poll_loop(stop_event: threading.Event) -> None:
                 ]
                 log("FALLBACK_SCAN_STARTED", f"Fallback Downloads scan started: folder={DOWNLOADS_DIR} candidates={len(candidates)}")
                 for path in candidates:
-                    queue_scan(path, "fallback-scan")
+                    if should_queue_fallback_scan(path):
+                        queue_scan(path, "fallback-scan")
             except OSError as exc:
                 log("ERROR", f"Could not poll Downloads folder: {exc}")
         else:
