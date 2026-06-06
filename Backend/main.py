@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, Header, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, Response
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -543,7 +543,7 @@ def build_agent_env(backend_url: str, endpoint: Endpoint, agent_token: str) -> s
     )
 
 
-def build_agent_package(endpoint: Endpoint, backend_url: str, db: Session) -> tuple[BytesIO, str]:
+def build_agent_package(endpoint: Endpoint, backend_url: str, db: Session) -> tuple[bytes, str]:
     required_files = [
         "agent.exe",
         "install_agent.bat",
@@ -554,8 +554,14 @@ def build_agent_package(endpoint: Endpoint, backend_url: str, db: Session) -> tu
     ]
     missing_files = [name for name in required_files if not (AGENT_DIR / name).is_file()]
     if missing_files:
+        logger.error(
+            "Agent ZIP generation failed: missing_files=%s agent_dir=%s",
+            ", ".join(missing_files),
+            AGENT_DIR,
+        )
         raise HTTPException(status_code=500, detail=f"Agent package files missing: {', '.join(missing_files)}")
 
+    logger.info("Generating ZIP: endpoint_id=%s agent_dir=%s", endpoint.id, AGENT_DIR)
     package = BytesIO()
     agent_token = issue_endpoint_agent_token(endpoint, db)
     with zipfile.ZipFile(package, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
@@ -565,9 +571,21 @@ def build_agent_package(endpoint: Endpoint, backend_url: str, db: Session) -> tu
         archive.writestr(".env", build_agent_env(backend_url, endpoint, agent_token))
     package.seek(0)
 
-    safe_pc_name = "".join(char if char.isalnum() or char in {"-", "_"} else "-" for char in endpoint.pc_name).strip("-")
-    filename = f"sentinel-agent-endpoint-{endpoint.id}-{safe_pc_name or 'pc'}.zip"
-    return package, filename
+    filename = f"sentinel-agent-endpoint-{endpoint.id}.zip"
+    return package.getvalue(), filename
+
+
+def agent_zip_response(package: bytes, filename: str) -> Response:
+    logger.info("Sending ZIP: filename=%s size_bytes=%s", filename, len(package))
+    return Response(
+        content=package,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Length": str(len(package)),
+            "Cache-Control": "no-store",
+        },
+    )
 
 
 def get_endpoint_or_404(endpoint_id: int, db: Session) -> Endpoint:
@@ -933,11 +951,11 @@ def get_agent_config(endpoint_id: int, request: Request, db: Session = Depends(g
 @app.get("/download-agent/{endpoint_id}")
 @safe_endpoint
 def download_agent(endpoint_id: int, request: Request, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    logger.info("Download request received: endpoint_id=%s user_id=%s", endpoint_id, current_user.id)
     ensure_endpoint_visible(db, current_user, endpoint_id)
     endpoint = get_endpoint_or_404(endpoint_id, db)
     package, filename = build_agent_package(endpoint, public_backend_url(request), db)
-    headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
-    return StreamingResponse(package, media_type="application/zip", headers=headers)
+    return agent_zip_response(package, filename)
 
 
 @app.get("/my/download-agent")
@@ -949,9 +967,9 @@ def download_my_agent(request: Request, db: Session = Depends(get_db), current_u
     else:
         endpoint = get_endpoint_or_404(int(current_user.endpoint_id), db)
         ensure_endpoint_visible(db, current_user, endpoint.id)
+    logger.info("Download request received: endpoint_id=%s user_id=%s", endpoint.id, current_user.id)
     package, filename = build_agent_package(endpoint, public_backend_url(request), db)
-    headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
-    return StreamingResponse(package, media_type="application/zip", headers=headers)
+    return agent_zip_response(package, filename)
 
 
 @app.post("/predict")

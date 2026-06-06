@@ -56,3 +56,29 @@ export function getApiErrorMessage(error, fallback = "Request failed. Check back
 
   return fallback;
 }
+
+export async function getBlobApiErrorMessage(error, fallback = "Request failed. Check backend connection.") {
+  const data = error?.response?.data;
+  if (data instanceof Blob) {
+    try {
+      const text = await data.text();
+      if (text) {
+        const parsed = JSON.parse(text);
+        const detail = parsed?.detail;
+        if (typeof detail === "string") {
+          return detail;
+        }
+        if (Array.isArray(detail)) {
+          return detail
+            .map((item) => item.msg || JSON.stringify(item))
+            .filter(Boolean)
+            .join(" ");
+        }
+      }
+    } catch {
+      return fallback;
+    }
+  }
+
+  return getApiErrorMessage(error, fallback);
+}

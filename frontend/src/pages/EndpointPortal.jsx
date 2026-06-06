@@ -1,6 +1,6 @@
 import { AlertTriangle, Download, HardDrive, LockKeyhole, ShieldCheck } from "lucide-react";
 import { useState } from "react";
-import { createApiClient, getApiErrorMessage } from "../api/client";
+import { createApiClient, getApiErrorMessage, getBlobApiErrorMessage } from "../api/client";
 import AlertTable from "../components/AlertTable";
 import Button from "../components/Button";
 import StatCard from "../components/StatCard";
@@ -14,6 +14,7 @@ export default function EndpointPortal() {
   const { alerts, loading: alertsLoading } = useAlerts();
   const { endpointStatus, latestTelemetry, loading: telemetryLoading } = useTelemetry();
   const [downloadState, setDownloadState] = useState({ loading: false, error: "" });
+  const [toast, setToast] = useState(null);
   const endpoint = endpointStatus[0] || null;
   const telemetry = endpoint?.telemetry || latestTelemetry[0] || null;
   const quarantined = alerts.filter((alert) => String(alert.action_taken || "").toLowerCase().includes("quarantine"));
@@ -21,9 +22,10 @@ export default function EndpointPortal() {
 
   async function downloadMyAgent() {
     setDownloadState({ loading: true, error: "" });
+    setToast(null);
     try {
       const api = createApiClient();
-      const response = await api.get("/my/download-agent", { responseType: "blob" });
+      const response = await api.get("/my/download-agent", { responseType: "blob", timeout: 60000 });
       const disposition = response.headers["content-disposition"] || "";
       const match = disposition.match(/filename="?([^"]+)"?/i);
       const filename = match?.[1] || `sentinel-agent-endpoint-${user?.endpoint_id || "mine"}.zip`;
@@ -37,7 +39,10 @@ export default function EndpointPortal() {
       window.URL.revokeObjectURL(url);
       setDownloadState({ loading: false, error: "" });
     } catch (exc) {
-      setDownloadState({ loading: false, error: getApiErrorMessage(exc, "Could not download endpoint agent.") });
+      const message = await getBlobApiErrorMessage(exc, "Could not download endpoint agent.");
+      setDownloadState({ loading: false, error: message });
+      setToast({ type: "error", text: message });
+      window.setTimeout(() => setToast(null), 3500);
     }
   }
 
@@ -58,6 +63,12 @@ export default function EndpointPortal() {
         </Button>
       </div>
       {downloadState.error && <div className="glass cyber-border rounded-lg border-cyber-red/30 p-3 text-sm text-cyber-red">{downloadState.error}</div>}
+      {toast && (
+        <div className="fixed bottom-5 right-5 z-50 w-[min(360px,calc(100vw-2rem))] rounded-lg border border-cyber-red/30 bg-white/90 p-4 text-cyber-red shadow-2xl">
+          <div className="text-sm font-semibold">Download failed</div>
+          <div className="mt-1 text-sm text-slate-300">{toast.text}</div>
+        </div>
+      )}
 
       {!user?.endpoint_id && (
         <div className="glass cyber-border rounded-lg border-cyber-amber/30 p-4 text-sm text-cyber-amber">

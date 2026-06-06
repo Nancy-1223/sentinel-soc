@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { AlertTriangle, Download, Pause, Play, Power, Trash2 } from "lucide-react";
-import { createApiClient, getApiErrorMessage } from "../api/client";
+import { createApiClient, getApiErrorMessage, getBlobApiErrorMessage } from "../api/client";
 import Button from "../components/Button";
 import { useAlerts } from "../context/AlertsContext";
 import { useSettings } from "../context/SettingsContext";
@@ -137,6 +137,7 @@ export default function EndpointManagement() {
       const api = createApiClient();
       const response = await api.get(`/download-agent/${endpoint.endpoint_id}`, {
         responseType: "blob",
+        timeout: 60000,
       });
       const blobUrl = window.URL.createObjectURL(new Blob([response.data], { type: "application/zip" }));
       const link = document.createElement("a");
@@ -148,7 +149,7 @@ export default function EndpointManagement() {
       window.URL.revokeObjectURL(blobUrl);
       showToast("success", "Configured agent package downloaded.");
     } catch (exc) {
-      showToast("error", getApiErrorMessage(exc, "Could not download agent package."));
+      showToast("error", await getBlobApiErrorMessage(exc, "Could not download agent package."));
     } finally {
       setBusyAction("");
     }
