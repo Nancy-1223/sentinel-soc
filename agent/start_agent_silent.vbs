@@ -1,3 +1,3 @@
 Set WshShell = CreateObject("WScript.Shell")
-WshShell.CurrentDirectory = CreateObject("Scripting.FileSystemObject").GetParentFolderName(WScript.ScriptFullName)
-WshShell.Run "cmd /c start_agent.bat", 0, False
+WshShell.CurrentDirectory = "C:\ProgramData\SentinelSOC"
+WshShell.Run """C:\ProgramData\SentinelSOC\agent.exe""", 0, False

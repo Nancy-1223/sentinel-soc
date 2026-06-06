@@ -27,7 +27,14 @@ from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
 
-AGENT_DIR = Path(__file__).resolve().parent
+def get_agent_dir() -> Path:
+    """Return the real install folder, including for PyInstaller onefile builds."""
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent
+
+
+AGENT_DIR = get_agent_dir()
 LOG_PATH = AGENT_DIR / "agent.log"
 STATUS_PATH = AGENT_DIR / "agent_status.json"
 PID_PATH = AGENT_DIR / "agent.pid"
@@ -89,8 +96,8 @@ AGENT_VERSION = "1.3.0"
 AGENT_STARTED_AT = time.monotonic()
 
 DOWNLOADS_DIR = Path.home() / "Downloads"
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-QUARANTINE_DIR = PROJECT_ROOT / "quarantine"
+PROJECT_ROOT = AGENT_DIR.parent
+QUARANTINE_DIR = AGENT_DIR / "quarantine" if getattr(sys, "frozen", False) else PROJECT_ROOT / "quarantine"
 HASH_BLACKLIST_PATH = AGENT_DIR / "malicious_hashes.json"
 
 SCAN_DELAY_SECONDS = 0.5
