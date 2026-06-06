@@ -173,6 +173,59 @@ SUSPICIOUS_KEYWORDS = [
     "download",
 ]
 
+SUSPICIOUS_FILENAME_KEYWORDS = {
+    "eicar",
+    "malware",
+    "virus",
+    "trojan",
+    "payload",
+    "ransom",
+    "keylogger",
+    "backdoor",
+    "exploit",
+    "dropper",
+    "loader",
+    "credential",
+    "stealer",
+}
+
+SUSPICIOUS_COMMAND_PATTERNS = {
+    "invoke-webrequest",
+    "iwr ",
+    "curl ",
+    "wget ",
+    "downloadstring",
+    "frombase64string",
+    "-enc",
+    "-encodedcommand",
+    "bypass",
+    "executionpolicy",
+    "start-process",
+    "new-object",
+    "wscript.shell",
+    "schtasks",
+    "reg add",
+    "regsvr32",
+    "rundll32",
+    "certutil",
+    "bitsadmin",
+    "net user",
+    "taskkill",
+    "vssadmin",
+}
+
+POWERSHELL_PATTERNS = {
+    "powershell",
+    "pwsh",
+    "invoke-expression",
+    "iex",
+    "downloadstring",
+    "frombase64string",
+    "-encodedcommand",
+    "-enc",
+    "set-executionpolicy",
+}
+
 EXECUTABLE_EXTENSIONS = {
     ".exe",
     ".com",
@@ -184,6 +237,9 @@ EXECUTABLE_EXTENSIONS = {
     ".js",
     ".jar",
 }
+
+SCRIPT_EXTENSIONS = {".bat", ".cmd", ".ps1", ".vbs", ".js", ".jar", ".py", ".sh"}
+ARCHIVE_EXTENSIONS = {".zip", ".rar"}
 
 AGGRESSIVE_PROTECTION_EXTENSIONS = {
     ".bat",
@@ -735,10 +791,15 @@ def clear_hash_processing(file_hash: str) -> None:
 
 
 def build_eicar_prediction() -> Dict[str, object]:
+    log("PREDICTION_SCORE", "threat_type=EICAR-Test-File risk_score=100 confidence=100 severity=Critical")
+    log("DETECTION_REASON", "EICAR antivirus test signature or filename rule matched")
     return {
         "prediction": "Malicious",
-        "risk_score": 95,
-        "reason": "Manual EICAR antivirus test-file rule",
+        "risk_score": 100,
+        "reason": "threat_type=EICAR-Test-File; confidence=100; severity=Critical; action=Blocked / Quarantined",
+        "threat_type": "EICAR-Test-File",
+        "confidence": 100,
+        "severity": "Critical",
     }
 
 
@@ -753,12 +814,95 @@ def build_aggressive_rule_prediction(features: Dict[str, object]) -> Dict[str, o
     }
 
 
+def build_rule_prediction(threat_type: str, risk_score: int, confidence: int, severity: str, reasons: List[str]) -> Dict[str, object]:
+    reason_text = "; ".join(reasons) if reasons else "Local detection rule matched suspicious indicators"
+    prediction = "Malicious" if risk_score >= 70 else "Suspicious" if risk_score >= 45 else "Safe"
+    log("PREDICTION_SCORE", f"threat_type={threat_type} risk_score={risk_score} confidence={confidence} severity={severity}")
+    log("DETECTION_REASON", reason_text)
+    return {
+        "prediction": prediction,
+        "risk_score": risk_score,
+        "reason": reason_text,
+        "threat_type": threat_type,
+        "confidence": confidence,
+        "severity": severity,
+    }
+
+
 def build_hash_blacklist_prediction() -> Dict[str, object]:
     return {
         "prediction": "Malicious",
         "risk_score": 100,
         "reason": "SHA256 matched local malicious hash blacklist",
+        "threat_type": "Unknown-Suspicious",
+        "confidence": 100,
+        "severity": "Critical",
     }
+
+
+def local_rule_prediction(features: Dict[str, object]) -> Dict[str, object] | None:
+    extension = str(features.get("file_extension", "")).lower()
+    filename = str(features.get("filename", "")).lower()
+    filename_matches = list(features.get("filename_matches", []))
+    matched_keywords = list(features.get("matched_keywords", []))
+    command_matches = list(features.get("command_matches", []))
+    powershell_matches = list(features.get("powershell_matches", []))
+    zip_entries = list(features.get("zip_suspicious_entries", []))
+    zip_keywords = list(features.get("zip_keyword_matches", []))
+    zip_powershell = list(features.get("zip_powershell_matches", []))
+    zip_commands = list(features.get("zip_command_matches", []))
+
+    if filename_matches:
+        log("RULE_MATCH", f"Suspicious filename indicators: {', '.join(filename_matches)}")
+    if matched_keywords or command_matches or powershell_matches:
+        log(
+            "CONTENT_MATCH",
+            f"keywords={matched_keywords or 'none'} commands={command_matches or 'none'} powershell={powershell_matches or 'none'}",
+        )
+    if zip_entries or zip_keywords or zip_powershell or zip_commands:
+        log(
+            "ZIP_CONTENT_MATCH",
+            f"entries={zip_entries or 'none'} keywords={zip_keywords or 'none'} powershell={zip_powershell or 'none'} commands={zip_commands or 'none'}",
+        )
+
+    reasons = []
+    if filename_matches:
+        reasons.append(f"Suspicious filename indicator(s): {', '.join(filename_matches)}")
+    if matched_keywords:
+        reasons.append(f"Suspicious content keyword(s): {', '.join(matched_keywords)}")
+    if command_matches:
+        reasons.append(f"Suspicious command/script pattern(s): {', '.join(command_matches)}")
+    if powershell_matches:
+        reasons.append(f"Suspicious PowerShell pattern(s): {', '.join(powershell_matches)}")
+    if zip_entries:
+        reasons.append(f"Suspicious ZIP content: {' | '.join(zip_entries[:5])}")
+
+    if extension == ".ps1" or powershell_matches or zip_powershell:
+        reasons.append("PowerShell execution or download behavior detected")
+        return build_rule_prediction("Suspicious-PowerShell", 90, 90, "Critical", reasons)
+
+    if extension in SCRIPT_EXTENSIONS and (matched_keywords or command_matches or filename_matches):
+        reasons.append(f"Script file {extension} contains suspicious indicators")
+        return build_rule_prediction("Suspicious-Script", 85, 85, "High", reasons)
+
+    if extension in EXECUTABLE_EXTENSIONS:
+        if filename_matches or command_matches or matched_keywords:
+            reasons.append(f"Executable file {extension} has suspicious filename/content indicators")
+            return build_rule_prediction("Suspicious-Executable", 82, 80, "High", reasons)
+        reasons.append(f"Executable file {extension} downloaded to monitored folder")
+        return build_rule_prediction("Suspicious-Executable", 72, 65, "Medium", reasons)
+
+    if extension in ARCHIVE_EXTENSIONS and (zip_entries or zip_keywords or zip_commands or zip_powershell or filename_matches):
+        reasons.append("Archive contains suspicious entry names or script content")
+        return build_rule_prediction("Suspicious-Archive", 78, 75, "High", reasons)
+
+    if filename_matches or command_matches or matched_keywords:
+        return build_rule_prediction("Unknown-Suspicious", 60, 55, "Medium", reasons)
+
+    if "eicar" in filename:
+        return build_rule_prediction("EICAR-Test-File", 100, 100, "Critical", ["Filename contains eicar"])
+
+    return None
 
 
 def decide_final_prediction(features: Dict[str, object]) -> Dict[str, object] | None:
@@ -773,9 +917,9 @@ def decide_final_prediction(features: Dict[str, object]) -> Dict[str, object] | 
             log("EICAR_MATCH", f"EICAR test filename rule matched {features['filename']}")
         return build_eicar_prediction()
 
-    if should_aggressively_block(features):
-        log("BLOCKED", f"{features['filename']} matched aggressive protection rules")
-        return build_aggressive_rule_prediction(features)
+    rule_prediction = local_rule_prediction(features)
+    if rule_prediction:
+        return rule_prediction
 
     return send_prediction_request(features)
 
@@ -797,6 +941,66 @@ def read_text_sample(file_path: Path, extension: str) -> str:
         log("WARNING", f"Could not read content from {file_path.name}: {exc}")
 
     return ""
+
+
+def find_terms(content: str, terms) -> List[str]:
+    return sorted({term for term in terms if term in content})
+
+
+def inspect_zip_indicators(file_path: Path) -> Dict[str, object]:
+    indicators = {
+        "zip_suspicious_entries": [],
+        "zip_keyword_matches": [],
+        "zip_powershell_matches": [],
+        "zip_command_matches": [],
+    }
+    if file_path.suffix.lower() != ".zip":
+        return indicators
+
+    try:
+        with zipfile.ZipFile(file_path) as archive:
+            for entry in archive.infolist():
+                if entry.is_dir():
+                    continue
+                entry_name = entry.filename.lower()
+                entry_suffix = Path(entry_name).suffix.lower()
+                entry_reasons = []
+                filename_matches = find_terms(entry_name, SUSPICIOUS_FILENAME_KEYWORDS)
+                if filename_matches:
+                    entry_reasons.append(f"filename={','.join(filename_matches)}")
+                if entry_suffix in EXECUTABLE_EXTENSIONS or entry_suffix in SCRIPT_EXTENSIONS:
+                    entry_reasons.append(f"extension={entry_suffix or 'none'}")
+
+                if entry_suffix in TEXT_LIKE_EXTENSIONS or entry_suffix in SCRIPT_EXTENSIONS:
+                    try:
+                        with archive.open(entry) as zipped_file:
+                            sample = zipped_file.read(MAX_TEXT_READ_BYTES).decode("utf-8", errors="ignore").lower()
+                        keyword_matches = find_terms(sample, SUSPICIOUS_KEYWORDS)
+                        powershell_matches = find_terms(sample, POWERSHELL_PATTERNS)
+                        command_matches = find_terms(sample, SUSPICIOUS_COMMAND_PATTERNS)
+                        indicators["zip_keyword_matches"].extend(keyword_matches)
+                        indicators["zip_powershell_matches"].extend(powershell_matches)
+                        indicators["zip_command_matches"].extend(command_matches)
+                        if keyword_matches:
+                            entry_reasons.append(f"keywords={','.join(keyword_matches)}")
+                        if powershell_matches:
+                            entry_reasons.append(f"powershell={','.join(powershell_matches)}")
+                        if command_matches:
+                            entry_reasons.append(f"commands={','.join(command_matches)}")
+                    except (OSError, RuntimeError) as exc:
+                        log("WARNING", f"Could not inspect ZIP entry {entry.filename}: {exc}")
+
+                if entry_reasons:
+                    indicators["zip_suspicious_entries"].append(f"{entry.filename} ({'; '.join(entry_reasons)})")
+    except zipfile.BadZipFile:
+        log("WARNING", f"ZIP file could not be inspected for suspicious content: {file_path.name}")
+    except (OSError, RuntimeError) as exc:
+        log("WARNING", f"Could not inspect ZIP indicators in {file_path.name}: {exc}")
+
+    indicators["zip_keyword_matches"] = sorted(set(indicators["zip_keyword_matches"]))
+    indicators["zip_powershell_matches"] = sorted(set(indicators["zip_powershell_matches"]))
+    indicators["zip_command_matches"] = sorted(set(indicators["zip_command_matches"]))
+    return indicators
 
 
 def bytes_contain_eicar_signature(raw_content: bytes) -> bool:
@@ -860,25 +1064,35 @@ def extract_file_features(file_path: Path) -> Dict[str, object]:
     file_size = file_path.stat().st_size
     content_sample = read_text_sample(file_path, extension)
     keyword_count, matched_keywords = count_suspicious_keywords(content_sample)
+    filename_matches = find_terms(file_path.name.lower(), SUSPICIOUS_FILENAME_KEYWORDS)
+    command_matches = find_terms(content_sample, SUSPICIOUS_COMMAND_PATTERNS)
+    powershell_matches = find_terms(content_sample, POWERSHELL_PATTERNS)
+    zip_indicators = inspect_zip_indicators(file_path)
     sha256_hash = calculate_sha256(file_path)
     is_executable = extension in EXECUTABLE_EXTENSIONS
     eicar_detected, eicar_match_source = file_contains_eicar_signature(file_path)
+    total_keyword_count = keyword_count + len(zip_indicators.get("zip_keyword_matches", []))
     log(
         "INFO",
-        f"Scan features extracted: filename={file_path.name} extension={extension or '(none)'} size={file_size} sha256={sha256_hash} eicar_detected={eicar_detected} eicar_source={eicar_match_source or 'none'} keywords={keyword_count}",
+        f"Scan features extracted: filename={file_path.name} extension={extension or '(none)'} size={file_size} sha256={sha256_hash} eicar_detected={eicar_detected} eicar_source={eicar_match_source or 'none'} keywords={total_keyword_count} filename_matches={filename_matches} command_matches={command_matches} powershell_matches={powershell_matches} zip_entries={len(zip_indicators.get('zip_suspicious_entries', []))}",
     )
 
     return {
         "filename": file_path.name,
         "file_path": str(file_path),
         "file_extension": extension,
-        "keyword_count": keyword_count,
+        "keyword_count": total_keyword_count,
         "file_size": file_size,
         "is_executable": is_executable,
         "sha256": sha256_hash,
         "matched_keywords": matched_keywords,
+        "filename_matches": filename_matches,
+        "command_matches": command_matches,
+        "powershell_matches": powershell_matches,
+        "content_sample": content_sample,
         "eicar_detected": eicar_detected,
         "eicar_match_source": eicar_match_source,
+        **zip_indicators,
     }
 
 
@@ -1082,9 +1296,15 @@ def enforce_blocking_protection(file_path: Path, features: Dict[str, object]) ->
 def build_suspicious_content_summary(features: Dict[str, object], prediction_result: Dict[str, object]) -> str:
     matched_keywords = features.get("matched_keywords", [])
     keyword_text = ", ".join(matched_keywords) if matched_keywords else "none"
+    threat_type = prediction_result.get("threat_type", "Generic-Threat")
+    confidence = prediction_result.get("confidence", int(prediction_result.get("risk_score", 0)))
+    severity = prediction_result.get("severity", "Critical" if int(prediction_result.get("risk_score", 0)) >= 90 else "High")
 
     return (
         f"SHA256={features['sha256']}; "
+        f"threat_type={threat_type}; "
+        f"confidence={confidence}; "
+        f"severity={severity}; "
         f"keywords={keyword_text}; "
         f"reason={prediction_result.get('reason', 'No reason provided')}"
     )
@@ -1094,6 +1314,7 @@ def upload_alert(
     features: Dict[str, object],
     prediction_result: Dict[str, object],
     action_taken: str,
+    timeout_seconds: float = REQUEST_TIMEOUT_SECONDS,
 ) -> bool:
     """Send one live incident event to the central SOC backend."""
     alert_payload = {
@@ -1121,7 +1342,7 @@ def upload_alert(
             f"{BACKEND_URL}/upload-alert",
             json=alert_payload,
             headers=endpoint_auth_headers(),
-            timeout=REQUEST_TIMEOUT_SECONDS,
+            timeout=timeout_seconds,
         )
         response.raise_for_status()
         result = response.json()
@@ -1141,6 +1362,39 @@ def should_quarantine(prediction_result: Dict[str, object]) -> bool:
     prediction = str(prediction_result.get("prediction", "")).lower()
     risk_score = int(prediction_result.get("risk_score", 0))
     return prediction == "malicious" or risk_score >= 70
+
+
+def handle_eicar_detection(file_path: Path, features: Dict[str, object]) -> Tuple[str, str]:
+    """Immediate guaranteed block path for EICAR test files."""
+    file_hash = str(features["sha256"])
+    alert_cache_key = build_alert_upload_cache_key(features)
+    prediction_result = decide_final_prediction(features)
+    prediction = str(prediction_result.get("prediction", "Malicious"))
+
+    log(
+        "EICAR_MATCH",
+        (
+            f"Immediate EICAR block: filename={features['filename']} "
+            f"sha256={file_hash} source={features.get('eicar_match_source') or 'filename'} "
+            "threat_type=EICAR-Test-File confidence=100 severity=Critical"
+        ),
+    )
+
+    duplicate_alert = should_suppress_duplicate_alert(alert_cache_key, file_hash)
+    alert_sent = False
+    if duplicate_alert:
+        log("DUPLICATE_SKIPPED", f"EICAR duplicate alert skipped after previous successful block: filename={features['filename']} sha256={file_hash}")
+    else:
+        alert_sent = upload_alert(features, prediction_result, "Blocked / Quarantined", timeout_seconds=2)
+
+    action_taken = enforce_blocking_protection(file_path, features)
+
+    if alert_sent and action_taken == "Quarantined":
+        mark_alert_uploaded(alert_cache_key)
+    elif not duplicate_alert and not alert_sent:
+        upload_alert(features, prediction_result, action_taken, timeout_seconds=2)
+
+    return prediction, action_taken
 
 
 def scan_file(file_path: Path) -> None:
@@ -1176,22 +1430,25 @@ def scan_file(file_path: Path) -> None:
             log("SCAN_COMPLETED", f"Scan completed: path={file_path} result=skipped_not_ready")
             return
 
-        if should_debounce_event(file_path):
-            log("SCAN_COMPLETED", f"Scan completed: path={file_path} result=skipped_duplicate_event")
-            return
-
         features = extract_file_features(file_path)
         file_hash = str(features["sha256"])
         alert_cache_key = build_alert_upload_cache_key(features)
+
+        if is_eicar_test_file(features):
+            prediction, action_taken = handle_eicar_detection(file_path, features)
+            log("SCAN_COMPLETED", f"Scan completed: path={file_path} sha256={file_hash} prediction={prediction} action={action_taken} result=eicar_blocked")
+            return
+
+        if should_debounce_event(file_path):
+            log("SCAN_COMPLETED", f"Scan completed: path={file_path} result=skipped_duplicate_event")
+            return
 
         if not begin_hash_processing(file_hash):
             log("SCAN_COMPLETED", f"Scan completed: path={file_path} sha256={file_hash} result=skipped_duplicate_hash")
             return
         processing_started = True
 
-        if is_eicar_test_file(features):
-            prediction_result = decide_final_prediction(features)
-        elif is_blacklisted_hash(file_hash):
+        if is_blacklisted_hash(file_hash):
             log("HASH BLACKLIST MATCH", features["filename"])
             prediction_result = build_hash_blacklist_prediction()
         else:
