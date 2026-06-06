@@ -84,6 +84,7 @@ load_env_file()
 BACKEND_URL = os.getenv("SOC_BACKEND_URL", "http://10.170.117.155:8000")
 ENDPOINT_ID = int(os.getenv("SOC_ENDPOINT_ID", "1"))
 PC_NAME = os.getenv("SOC_PC_NAME", socket.gethostname())
+ENDPOINT_TOKEN = os.getenv("SOC_ENDPOINT_TOKEN", "")
 AGENT_VERSION = "1.3.0"
 AGENT_STARTED_AT = time.monotonic()
 
@@ -226,6 +227,7 @@ def poll_control_status() -> Dict[str, object]:
     try:
         response = requests.get(
             f"{BACKEND_URL}/endpoints/{ENDPOINT_ID}/control/status",
+            headers=endpoint_auth_headers(),
             timeout=REQUEST_TIMEOUT_SECONDS,
         )
         response.raise_for_status()
@@ -236,6 +238,10 @@ def poll_control_status() -> Dict[str, object]:
         log("WARNING", "Endpoint control status returned invalid JSON")
 
     return get_control_state()
+
+
+def endpoint_auth_headers() -> Dict[str, str]:
+    return {"X-Endpoint-Token": ENDPOINT_TOKEN} if ENDPOINT_TOKEN else {}
 
 
 def detection_is_active() -> bool:
@@ -413,6 +419,7 @@ def send_telemetry_once() -> None:
         response = requests.post(
             f"{BACKEND_URL}{TELEMETRY_API_PATH}",
             json=collect_system_info(),
+            headers=endpoint_auth_headers(),
             timeout=REQUEST_TIMEOUT_SECONDS,
         )
         response.raise_for_status()
@@ -438,6 +445,7 @@ def send_heartbeat_once(agent_mode: str) -> None:
         response = requests.post(
             f"{BACKEND_URL}/heartbeat",
             json=payload,
+            headers=endpoint_auth_headers(),
             timeout=REQUEST_TIMEOUT_SECONDS,
         )
         response.raise_for_status()
@@ -954,6 +962,7 @@ def upload_alert(
         response = requests.post(
             f"{BACKEND_URL}/upload-alert",
             json=alert_payload,
+            headers=endpoint_auth_headers(),
             timeout=REQUEST_TIMEOUT_SECONDS,
         )
         response.raise_for_status()

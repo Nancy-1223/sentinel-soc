@@ -43,6 +43,7 @@ class Endpoint(Base):
     heartbeat_enabled = Column(Boolean, default=True, nullable=False)
     removed_at = Column(DateTime, nullable=True)
     team_id = Column(Integer, nullable=True)
+    agent_token_hash = Column(String, nullable=True)
 
     user = relationship("User", back_populates="endpoints", foreign_keys=[user_id])
     alerts = relationship("Alert", back_populates="endpoint")

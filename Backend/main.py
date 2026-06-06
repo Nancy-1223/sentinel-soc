@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, Request, status
+from fastapi import FastAPI, Depends, Header, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -14,12 +14,14 @@ import json
 import logging
 import os
 import re
+import base64
+import hmac
 import shutil
 import zipfile
 
 from database import Base, get_db, init_database
 from models import User, Team, Endpoint, Alert, Telemetry
-from auth import get_password_hash, verify_password, get_user_by_email, create_access_token, get_current_user, normalize_role, require_admin, require_endpoint_user
+from auth import SECRET_KEY, get_password_hash, verify_password, get_user_by_email, create_access_token, get_current_user, normalize_role, require_admin, require_endpoint_user
 from detector import predict_file
 
 init_database(Base)
@@ -486,12 +488,41 @@ def env_quote(value: str) -> str:
     return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def build_agent_env(backend_url: str, endpoint: Endpoint) -> str:
+def generate_agent_token(endpoint_id: int) -> str:
+    digest = hmac.new(
+        SECRET_KEY.encode("utf-8"),
+        f"sentinel-endpoint-agent:{endpoint_id}".encode("utf-8"),
+        digestmod="sha256",
+    ).digest()
+    return base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
+
+
+def hash_agent_token(token: str) -> str:
+    return get_password_hash(token.strip())
+
+
+def verify_agent_token(token: str, token_hash: str | None) -> bool:
+    return bool(token and token_hash and hash_agent_token(token) == token_hash)
+
+
+def issue_endpoint_agent_token(endpoint: Endpoint, db: Session) -> str:
+    token = generate_agent_token(endpoint.id)
+    next_hash = hash_agent_token(token)
+    if endpoint.agent_token_hash != next_hash:
+        endpoint.agent_token_hash = next_hash
+        db.commit()
+        db.refresh(endpoint)
+        logger.info("Issued endpoint agent token: endpoint_id=%s", endpoint.id)
+    return token
+
+
+def build_agent_env(backend_url: str, endpoint: Endpoint, agent_token: str) -> str:
     return "\n".join(
         [
             f"SOC_BACKEND_URL={env_quote(backend_url)}",
             f"SOC_ENDPOINT_ID={env_quote(str(endpoint.id))}",
             f"SOC_PC_NAME={env_quote(endpoint.pc_name)}",
+            f"SOC_ENDPOINT_TOKEN={env_quote(agent_token)}",
             "",
         ]
     )
@@ -540,6 +571,30 @@ def update_endpoint_control(
     db.commit()
     db.refresh(endpoint)
     return serialize_endpoint_control(endpoint)
+
+
+def validate_endpoint_agent_access(endpoint_id: int, db: Session, endpoint_token: str | None) -> Endpoint:
+    endpoint = get_endpoint_or_404(endpoint_id, db)
+
+    if not endpoint_token:
+        logger.warning(
+            "Endpoint control auth using legacy missing-token access: endpoint_id=%s. Download a fresh agent package to enable endpoint tokens.",
+            endpoint_id,
+        )
+        return endpoint
+
+    if endpoint.agent_token_hash:
+        if not verify_agent_token(endpoint_token, endpoint.agent_token_hash):
+            logger.warning("Endpoint control auth failed: endpoint_id=%s token_present=%s", endpoint_id, bool(endpoint_token))
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid endpoint token")
+        logger.info("Endpoint control auth succeeded: endpoint_id=%s", endpoint_id)
+        return endpoint
+
+    logger.warning(
+        "Endpoint control auth using legacy tokenless access: endpoint_id=%s. Download a fresh agent package to enable endpoint tokens.",
+        endpoint_id,
+    )
+    return endpoint
 
 
 @app.post("/register", status_code=status.HTTP_201_CREATED)
@@ -776,10 +831,12 @@ def register_endpoint(
 def get_agent_config(endpoint_id: int, request: Request, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     ensure_endpoint_visible(db, current_user, endpoint_id)
     endpoint = get_endpoint_or_404(endpoint_id, db)
+    agent_token = issue_endpoint_agent_token(endpoint, db)
     return {
         "SOC_BACKEND_URL": public_backend_url(request),
         "SOC_ENDPOINT_ID": str(endpoint.id),
         "SOC_PC_NAME": endpoint.pc_name,
+        "SOC_ENDPOINT_TOKEN": agent_token,
     }
 
 
@@ -803,6 +860,7 @@ def download_agent(endpoint_id: int, request: Request, db: Session = Depends(get
 
     package = BytesIO()
     backend_url = public_backend_url(request)
+    agent_token = issue_endpoint_agent_token(endpoint, db)
     with zipfile.ZipFile(package, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
         for filename in required_files:
             archive.write(AGENT_DIR / filename, arcname=filename)
@@ -813,7 +871,7 @@ def download_agent(endpoint_id: int, request: Request, db: Session = Depends(get
             if source_path.is_file():
                 archive.write(source_path, arcname=filename)
 
-        archive.writestr(".env", build_agent_env(backend_url, endpoint))
+        archive.writestr(".env", build_agent_env(backend_url, endpoint, agent_token))
         archive.writestr(
             "README_AGENT_SETUP.txt",
             "\n".join(
@@ -1025,9 +1083,13 @@ def get_endpoint_status(db: Session = Depends(get_db), current_user: User = Depe
 
 @app.get("/endpoints/{endpoint_id}/control/status")
 @safe_endpoint
-def get_endpoint_control_status(endpoint_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
-    ensure_endpoint_visible(db, current_user, endpoint_id)
-    return serialize_endpoint_control(get_endpoint_or_404(endpoint_id, db))
+def get_endpoint_control_status(
+    endpoint_id: int,
+    db: Session = Depends(get_db),
+    x_endpoint_token: str | None = Header(default=None, alias="X-Endpoint-Token"),
+):
+    endpoint = validate_endpoint_agent_access(endpoint_id, db, x_endpoint_token)
+    return serialize_endpoint_control(endpoint)
 
 
 @app.post("/endpoints/{endpoint_id}/detection/pause")

@@ -54,13 +54,14 @@ def env_quote(value: str) -> str:
     return f'"{escaped}"'
 
 
-def save_env(backend_url: str, endpoint_id: str, pc_name: str) -> None:
+def save_env(backend_url: str, endpoint_id: str, pc_name: str, endpoint_token: str) -> None:
     ENV_PATH.write_text(
         "\n".join(
             [
                 f"SOC_BACKEND_URL={env_quote(backend_url)}",
                 f"SOC_ENDPOINT_ID={env_quote(endpoint_id)}",
                 f"SOC_PC_NAME={env_quote(pc_name)}",
+                f"SOC_ENDPOINT_TOKEN={env_quote(endpoint_token)}",
                 "",
             ]
         ),
@@ -146,13 +147,15 @@ def main() -> int:
     backend_url = existing_env.get("SOC_BACKEND_URL", "").rstrip("/")
     endpoint_id = existing_env.get("SOC_ENDPOINT_ID", "")
     pc_name = existing_env.get("SOC_PC_NAME", "")
+    endpoint_token = existing_env.get("SOC_ENDPOINT_TOKEN", "")
 
-    if not all([backend_url, endpoint_id, pc_name]):
+    if not all([backend_url, endpoint_id, pc_name, endpoint_token]):
         print("Enter the endpoint values shown in the SOC dashboard.")
         print()
         backend_url = prompt_value("Backend URL", backend_url or "http://127.0.0.1:8000").rstrip("/")
         endpoint_id = prompt_value("Endpoint ID", endpoint_id or None)
         pc_name = prompt_value("PC name", pc_name or socket.gethostname())
+        endpoint_token = prompt_value("Endpoint token", endpoint_token or None)
     else:
         print(f"Using dashboard configuration for endpoint {endpoint_id} ({pc_name}).")
 
@@ -162,7 +165,7 @@ def main() -> int:
         print("Endpoint ID must be a number.")
         return 1
 
-    save_env(backend_url, endpoint_id, pc_name)
+    save_env(backend_url, endpoint_id, pc_name, endpoint_token)
     print(f"Saved settings to: {ENV_PATH}")
     install_dependencies()
 

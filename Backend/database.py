@@ -121,6 +121,10 @@ def _add_missing_sqlite_columns(base) -> None:
                     connection.exec_driver_sql(
                         f"ALTER TABLE {table.name} ADD COLUMN {column.name} INTEGER"
                     )
+                elif column.name == "agent_token_hash":
+                    connection.exec_driver_sql(
+                        f"ALTER TABLE {table.name} ADD COLUMN {column.name} VARCHAR"
+                    )
                 elif column.name == "agent_version":
                     connection.exec_driver_sql(
                         f"ALTER TABLE {table.name} ADD COLUMN {column.name} VARCHAR NOT NULL DEFAULT 'unknown'"
