@@ -39,7 +39,7 @@ export default function EndpointPortal() {
       window.URL.revokeObjectURL(url);
       setDownloadState({ loading: false, error: "" });
     } catch (exc) {
-      const message = await getBlobApiErrorMessage(exc, "Could not download endpoint agent.");
+      const message = await getBlobApiErrorMessage(exc, "Agent download failed. Please try again or check backend logs.");
       setDownloadState({ loading: false, error: message });
       setToast({ type: "error", text: message });
       window.setTimeout(() => setToast(null), 3500);

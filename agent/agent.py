@@ -117,7 +117,34 @@ ENDPOINT_TOKEN = env_value("ENDPOINT_TOKEN", "SOC_ENDPOINT_TOKEN", default="")
 AGENT_VERSION = "1.3.0"
 AGENT_STARTED_AT = time.monotonic()
 
-DOWNLOADS_DIR = Path.home() / "Downloads"
+def expand_windows_path(value: str) -> Path:
+    return Path(os.path.expandvars(value)).expanduser()
+
+
+def get_downloads_dir() -> Path:
+    configured_path = env_value("DOWNLOADS_DIR", "SOC_DOWNLOADS_DIR", default="")
+    if configured_path:
+        return expand_windows_path(configured_path)
+
+    if os.name == "nt":
+        try:
+            import winreg
+
+            with winreg.OpenKey(
+                winreg.HKEY_CURRENT_USER,
+                r"Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders",
+            ) as key:
+                downloads_value, _ = winreg.QueryValueEx(key, "{374DE290-123F-4565-9164-39C4925E467B}")
+                downloads_path = expand_windows_path(str(downloads_value))
+                if downloads_path.exists():
+                    return downloads_path
+        except OSError:
+            pass
+
+    return Path.home() / "Downloads"
+
+
+DOWNLOADS_DIR = get_downloads_dir()
 PROJECT_ROOT = AGENT_DIR.parent
 QUARANTINE_DIR = AGENT_DIR / "quarantine" if getattr(sys, "frozen", False) else PROJECT_ROOT / "quarantine"
 HASH_BLACKLIST_PATH = AGENT_DIR / "malicious_hashes.json"
@@ -127,6 +154,7 @@ REQUEST_TIMEOUT_SECONDS = 8
 TELEMETRY_INTERVAL_SECONDS = 5
 TELEMETRY_API_PATH = "/telemetry"
 CONTROL_POLL_INTERVAL_SECONDS = 3
+DETECTION_POLL_INTERVAL_SECONDS = 10
 MAX_TEXT_READ_BYTES = 1_000_000
 HASH_CACHE_SECONDS = 60
 DUPLICATE_ALERT_SECONDS = 60
@@ -190,6 +218,8 @@ REPORT_NAME_PREFIXES = (
     "soc-incident-report-",
     "ai-soc-report-",
 )
+
+SCAN_CANDIDATE_EXTENSIONS = TEXT_LIKE_EXTENSIONS | EXECUTABLE_EXTENSIONS | {".zip", ".rar"}
 
 processed_files: Dict[str, float] = {}
 files_in_progress: set[str] = set()
@@ -567,17 +597,21 @@ def cleanup_old_cache_entries(now: float) -> None:
         recent_path_events.pop(path, None)
 
 
-def should_suppress_duplicate_alert(file_hash: str) -> bool:
+def build_alert_upload_cache_key(features: Dict[str, object]) -> str:
+    return f"{features['sha256']}:{str(features['filename']).lower()}"
+
+
+def should_suppress_duplicate_alert(cache_key: str, file_hash: str) -> bool:
     """
-    Avoid spamming the SOC dashboard with the same hash repeatedly.
+    Avoid spamming the SOC dashboard with the same file repeatedly.
     Blocking still happens; only the alert upload is suppressed.
     """
     now = time.monotonic()
     with cache_lock:
         cleanup_old_cache_entries(now)
-        last_upload_time = processed_files.get(file_hash)
+        last_upload_time = processed_files.get(cache_key)
         if last_upload_time and now - last_upload_time < DUPLICATE_ALERT_SECONDS:
-            log("INFO", "Suppressing duplicate backend alert for recently reported hash")
+            log("DUPLICATE_SKIPPED", f"Suppressing duplicate backend alert for recently reported file sha256={file_hash} cache_key={cache_key}")
             return True
         return False
 
@@ -608,6 +642,12 @@ def should_ignore_path(file_path: Path) -> bool:
     return False
 
 
+def is_scan_candidate(file_path: Path) -> bool:
+    name = file_path.name.lower()
+    suffix = file_path.suffix.lower()
+    return "eicar" in name or suffix in SCAN_CANDIDATE_EXTENSIONS
+
+
 def should_debounce_event(file_path: Path) -> bool:
     now = time.monotonic()
     try:
@@ -619,7 +659,7 @@ def should_debounce_event(file_path: Path) -> bool:
         cleanup_old_cache_entries(now)
         last_event_time = recent_path_events.get(cache_key)
         if last_event_time and now - last_event_time < EVENT_DEBOUNCE_SECONDS:
-            log("INFO", f"Ignoring duplicate filesystem event for {file_path.name}")
+            log("DUPLICATE_SKIPPED", f"Ignoring duplicate filesystem event for {file_path.name}")
             return True
 
         recent_path_events[cache_key] = now
@@ -630,23 +670,22 @@ def begin_hash_processing(file_hash: str) -> bool:
     now = time.monotonic()
     with cache_lock:
         cleanup_old_cache_entries(now)
-        last_upload_time = processed_files.get(file_hash)
-        if last_upload_time and now - last_upload_time < HASH_CACHE_SECONDS:
-            log("INFO", "Skipping duplicate alert upload for recently processed file hash")
-            return False
-
         if file_hash in files_in_progress:
-            log("INFO", "Skipping duplicate scan already in progress for this file hash")
+            log("DUPLICATE_SKIPPED", f"Skipping duplicate scan already in progress for sha256={file_hash}")
             return False
 
         files_in_progress.add(file_hash)
         return True
 
 
-def mark_hash_uploaded(file_hash: str) -> None:
+def mark_alert_uploaded(cache_key: str) -> None:
     """Record that this hash has already produced a backend alert recently."""
     with cache_lock:
-        processed_files[file_hash] = time.monotonic()
+        processed_files[cache_key] = time.monotonic()
+
+
+def mark_hash_finished(file_hash: str) -> None:
+    with cache_lock:
         files_in_progress.discard(file_hash)
 
 
@@ -689,9 +728,9 @@ def decide_final_prediction(features: Dict[str, object]) -> Dict[str, object] | 
     """
     if is_eicar_test_file(features):
         if features.get("eicar_detected"):
-            log("SIGNATURE MATCHED", f"EICAR test signature detected in {features['filename']} source={features.get('eicar_match_source') or 'unknown'}")
+            log("EICAR_MATCH", f"EICAR test signature detected in {features['filename']} source={features.get('eicar_match_source') or 'unknown'}")
         else:
-            log("SIGNATURE MATCHED", f"EICAR test filename rule matched {features['filename']}")
+            log("EICAR_MATCH", f"EICAR test filename rule matched {features['filename']}")
         return build_eicar_prediction()
 
     if should_aggressively_block(features):
@@ -972,18 +1011,18 @@ def quarantine_file(file_path: Path, features: Dict[str, object]) -> Tuple[str, 
         metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
         log("QUARANTINED", f"{file_path.name} -> {quarantine_path}")
-        log("QUARANTINE SUCCESS", f"Quarantine success: filename={file_path.name} quarantine_path={quarantine_path} metadata_path={metadata_path}")
+        log("QUARANTINE_SUCCESS", f"Quarantine success: filename={file_path.name} quarantine_path={quarantine_path} metadata_path={metadata_path}")
         return "Quarantined", str(quarantine_path)
     except PermissionError:
-        log("QUARANTINE FAILURE", f"Permission denied while quarantining {file_path.name}")
+        log("QUARANTINE_FAILED", f"Permission denied while quarantining {file_path.name}")
     except OSError as exc:
-        log("QUARANTINE FAILURE", f"Could not quarantine {file_path.name}: {exc}")
+        log("QUARANTINE_FAILED", f"Could not quarantine {file_path.name}: {exc}")
 
     if force_delete_file(file_path):
-        log("QUARANTINE FAILURE", f"Quarantine failed, original force deleted: filename={file_path.name}")
+        log("QUARANTINE_FAILED", f"Quarantine failed, original force deleted: filename={file_path.name}")
         return "Quarantine Failure - Force Deleted", None
 
-    log("QUARANTINE FAILURE", f"Quarantine failed and original file remains: filename={file_path.name}")
+    log("QUARANTINE_FAILED", f"Quarantine failed and original file remains: filename={file_path.name}")
     return "Quarantine Failure", None
 
 
@@ -1050,7 +1089,7 @@ def upload_alert(
             log("INFO", f"Duplicate alert updated by backend: status={response.status_code} filename={features['filename']} alert_id={result.get('alert_id')}")
         else:
             log("INFO", f"Alert uploaded successfully: status={response.status_code} filename={features['filename']} alert_id={result.get('alert_id')}")
-        log("ALERT SENT", f"Alert sent: status={response.status_code} filename={features['filename']} alert_id={result.get('alert_id')} duplicate={bool(result.get('duplicate_ignored'))}")
+        log("ALERT_SENT", f"Alert sent: status={response.status_code} filename={features['filename']} alert_id={result.get('alert_id')} duplicate={bool(result.get('duplicate_ignored'))}")
         return True
     except RequestException as exc:
         log("ERROR", f"Could not upload alert to backend: {exc}")
@@ -1072,36 +1111,46 @@ def scan_file(file_path: Path) -> None:
     """
     file_hash = None
     processing_started = False
+    alert_cache_key = None
     try:
-        log("SCAN STARTED", f"Scan started for {file_path}")
+        log("SCAN_STARTED", f"Scan started for {file_path}")
         if not detection_is_active():
             log("INFO", f"Detection paused; skipping scan for {file_path.name}")
+            log("SCAN_COMPLETED", f"Scan completed: path={file_path} result=skipped_detection_inactive")
             return
 
         if not file_path.is_file():
             log("INFO", f"Skipping non-file path discovered by watcher: {file_path}")
+            log("SCAN_COMPLETED", f"Scan completed: path={file_path} result=skipped_not_file")
             return
 
         if should_ignore_path(file_path):
+            log("SCAN_COMPLETED", f"Scan completed: path={file_path} result=skipped_ignored_path")
             return
 
-        log("FILE DISCOVERED", f"File discovered in Downloads: {file_path}")
+        log("FILE_DISCOVERED", f"File discovered in Downloads: {file_path}")
 
         if not wait_for_file_ready(file_path):
             log("WARNING", f"Skipping unreadable or incomplete file: {file_path.name}")
+            log("SCAN_COMPLETED", f"Scan completed: path={file_path} result=skipped_not_ready")
             return
 
         if should_debounce_event(file_path):
+            log("SCAN_COMPLETED", f"Scan completed: path={file_path} result=skipped_duplicate_event")
             return
 
         features = extract_file_features(file_path)
         file_hash = str(features["sha256"])
+        alert_cache_key = build_alert_upload_cache_key(features)
 
         if not begin_hash_processing(file_hash):
+            log("SCAN_COMPLETED", f"Scan completed: path={file_path} sha256={file_hash} result=skipped_duplicate_hash")
             return
         processing_started = True
 
-        if is_blacklisted_hash(file_hash):
+        if is_eicar_test_file(features):
+            prediction_result = decide_final_prediction(features)
+        elif is_blacklisted_hash(file_hash):
             log("HASH BLACKLIST MATCH", features["filename"])
             prediction_result = build_hash_blacklist_prediction()
         else:
@@ -1111,6 +1160,7 @@ def scan_file(file_path: Path) -> None:
             if processing_started:
                 clear_hash_processing(file_hash)
             log("WARNING", "Scan completed locally, but backend prediction was not available")
+            log("SCAN_COMPLETED", f"Scan completed: path={file_path} sha256={file_hash} result=prediction_unavailable")
             return
 
         prediction = prediction_result.get("prediction", "Unknown")
@@ -1122,32 +1172,39 @@ def scan_file(file_path: Path) -> None:
         if should_quarantine(prediction_result):
             action_taken = enforce_blocking_protection(file_path, features)
 
-        if should_suppress_duplicate_alert(file_hash):
+        if should_suppress_duplicate_alert(alert_cache_key, file_hash):
             if processing_started:
                 clear_hash_processing(file_hash)
+            log("SCAN_COMPLETED", f"Scan completed: path={file_path} sha256={file_hash} prediction={prediction} action={action_taken} result=alert_suppressed_duplicate")
             return
 
         if upload_alert(features, prediction_result, action_taken):
-            mark_hash_uploaded(file_hash)
+            mark_alert_uploaded(alert_cache_key)
+            mark_hash_finished(file_hash)
+            log("SCAN_COMPLETED", f"Scan completed: path={file_path} sha256={file_hash} prediction={prediction} action={action_taken} result=alert_uploaded")
         else:
             if processing_started:
                 clear_hash_processing(file_hash)
+            log("SCAN_COMPLETED", f"Scan completed: path={file_path} sha256={file_hash} prediction={prediction} action={action_taken} result=alert_upload_failed")
     except PermissionError:
         if file_hash and processing_started:
             clear_hash_processing(file_hash)
         log("ERROR", f"Permission denied while scanning {file_path.name}")
+        log("SCAN_COMPLETED", f"Scan completed: path={file_path} result=permission_error")
     except OSError as exc:
         if file_hash and processing_started:
             clear_hash_processing(file_hash)
         log("ERROR", f"File scan failed for {file_path.name}: {exc}")
+        log("SCAN_COMPLETED", f"Scan completed: path={file_path} result=os_error error={exc}")
     except Exception as exc:
         if file_hash and processing_started:
             clear_hash_processing(file_hash)
         log("ERROR", f"Unexpected scan error for {file_path.name}: {exc}")
+        log("SCAN_COMPLETED", f"Scan completed: path={file_path} result=unexpected_error error={exc}")
 
 
 def queue_scan(file_path: Path, event_name: str) -> None:
-    log("WATCHER EVENT", f"{event_name}: {file_path}")
+    log("WATCHER_EVENT", f"{event_name}: {file_path}")
     worker = threading.Thread(target=scan_file, args=(file_path,), name=f"sentinel-scan-{event_name}", daemon=True)
     worker.start()
     log("INFO", f"Scan worker started: event={event_name} path={file_path} thread={worker.name}")
@@ -1172,7 +1229,11 @@ class DownloadsEventHandler(FileSystemEventHandler):
 
 def scan_existing_downloads() -> None:
     try:
-        candidates = [path for path in DOWNLOADS_DIR.iterdir() if path.is_file() and not should_ignore_path(path)]
+        candidates = [
+            path
+            for path in DOWNLOADS_DIR.iterdir()
+            if path.is_file() and is_scan_candidate(path) and not should_ignore_path(path)
+        ]
     except OSError as exc:
         log("WARNING", f"Could not enumerate existing Downloads files: {exc}")
         return
@@ -1180,6 +1241,27 @@ def scan_existing_downloads() -> None:
     log("INFO", f"Initial Downloads scan queued: file_count={len(candidates)} folder={DOWNLOADS_DIR}")
     for path in candidates:
         queue_scan(path, "startup-sweep")
+
+
+def detection_poll_loop(stop_event: threading.Event) -> None:
+    log("WATCHER_STARTED", f"Downloads polling safety net started: folder={DOWNLOADS_DIR} interval_seconds={DETECTION_POLL_INTERVAL_SECONDS}")
+    while not stop_event.is_set():
+        if detection_is_active():
+            try:
+                candidates = [
+                    path
+                    for path in DOWNLOADS_DIR.iterdir()
+                    if path.is_file() and is_scan_candidate(path) and not should_ignore_path(path)
+                ]
+                log("FALLBACK_SCAN_STARTED", f"Fallback Downloads scan started: folder={DOWNLOADS_DIR} candidates={len(candidates)}")
+                for path in candidates:
+                    queue_scan(path, "fallback-scan")
+            except OSError as exc:
+                log("ERROR", f"Could not poll Downloads folder: {exc}")
+        else:
+            log("INFO", "Downloads polling skipped because detection is inactive")
+
+        stop_event.wait(DETECTION_POLL_INTERVAL_SECONDS)
 
 
 def start_monitoring() -> None:
@@ -1224,12 +1306,14 @@ def start_monitoring() -> None:
     observer.schedule(DownloadsEventHandler(), str(DOWNLOADS_DIR), recursive=False)
     observer.start()
     log(
-        "WATCHER STARTED",
+        "WATCHER_STARTED",
         f"Downloads watcher started: folder={DOWNLOADS_DIR} observer_alive={observer.is_alive()} observer_thread={observer.name}",
     )
     stop_event = threading.Event()
     telemetry_thread = threading.Thread(target=telemetry_loop, args=(stop_event,), daemon=True)
     telemetry_thread.start()
+    detection_poll_thread = threading.Thread(target=detection_poll_loop, args=(stop_event,), daemon=True)
+    detection_poll_thread.start()
     scan_existing_downloads()
     write_status("running", "Monitoring Downloads and sending telemetry")
 
@@ -1253,6 +1337,7 @@ def start_monitoring() -> None:
         observer.stop()
         observer.join()
         telemetry_thread.join(timeout=2)
+        detection_poll_thread.join(timeout=2)
         if get_control_state().get("agent_mode") != "removed":
             remove_pid_file()
             write_status("stopped", "Sentinel SOC Agent stopped")

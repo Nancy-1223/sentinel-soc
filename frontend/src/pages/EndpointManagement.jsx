@@ -149,7 +149,7 @@ export default function EndpointManagement() {
       window.URL.revokeObjectURL(blobUrl);
       showToast("success", "Configured agent package downloaded.");
     } catch (exc) {
-      showToast("error", await getBlobApiErrorMessage(exc, "Could not download agent package."));
+      showToast("error", await getBlobApiErrorMessage(exc, "Agent download failed. Please try again or check backend logs."));
     } finally {
       setBusyAction("");
     }

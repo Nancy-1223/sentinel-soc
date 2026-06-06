@@ -17,6 +17,7 @@ import re
 import base64
 import hmac
 import shutil
+import time
 import zipfile
 
 from database import Base, get_db, init_database
@@ -32,6 +33,14 @@ QUARANTINE_DIR = PROJECT_ROOT / "quarantine"
 ENDPOINT_ONLINE_TIMEOUT_SECONDS = 15
 DEFAULT_AGENT_BACKEND_URL = "https://sentinel-soc-backend-fxb8.onrender.com"
 ALERT_DEDUP_WINDOW_SECONDS = int(os.getenv("ALERT_DEDUP_WINDOW_SECONDS", "60"))
+AGENT_PACKAGE_FILES = [
+    "agent.exe",
+    "install_agent.bat",
+    "start_agent_silent.vbs",
+    "stop_agent.bat",
+    "uninstall_agent.bat",
+    "README_AGENT_SETUP.txt",
+]
 telemetry_events = []
 
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(name)s: %(message)s")
@@ -544,15 +553,15 @@ def build_agent_env(backend_url: str, endpoint: Endpoint, agent_token: str) -> s
 
 
 def build_agent_package(endpoint: Endpoint, backend_url: str, db: Session) -> tuple[bytes, str]:
-    required_files = [
-        "agent.exe",
-        "install_agent.bat",
-        "start_agent_silent.vbs",
-        "stop_agent.bat",
-        "uninstall_agent.bat",
-        "README_AGENT_SETUP.txt",
-    ]
-    missing_files = [name for name in required_files if not (AGENT_DIR / name).is_file()]
+    started_at = time.perf_counter()
+    logger.info(
+        "Agent package generation started: endpoint_id=%s pc_name=%s agent_dir=%s",
+        endpoint.id,
+        endpoint.pc_name,
+        AGENT_DIR,
+    )
+
+    missing_files = [name for name in AGENT_PACKAGE_FILES if not (AGENT_DIR / name).is_file()]
     if missing_files:
         logger.error(
             "Agent ZIP generation failed: missing_files=%s agent_dir=%s",
@@ -561,17 +570,40 @@ def build_agent_package(endpoint: Endpoint, backend_url: str, db: Session) -> tu
         )
         raise HTTPException(status_code=500, detail=f"Agent package files missing: {', '.join(missing_files)}")
 
-    logger.info("Generating ZIP: endpoint_id=%s agent_dir=%s", endpoint.id, AGENT_DIR)
     package = BytesIO()
     agent_token = issue_endpoint_agent_token(endpoint, db)
-    with zipfile.ZipFile(package, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
-        for filename in required_files:
-            archive.write(AGENT_DIR / filename, arcname=filename)
+    env_content = build_agent_env(backend_url, endpoint, agent_token)
+    with zipfile.ZipFile(package, mode="w") as archive:
+        for filename in AGENT_PACKAGE_FILES:
+            source_path = AGENT_DIR / filename
+            zip_info = zipfile.ZipInfo(filename)
+            zip_info.compress_type = zipfile.ZIP_STORED if filename == "agent.exe" else zipfile.ZIP_DEFLATED
+            zip_info.date_time = time.localtime(source_path.stat().st_mtime)[:6]
+            file_bytes = source_path.read_bytes()
+            archive.writestr(zip_info, file_bytes)
+            logger.info(
+                "Agent package file added: endpoint_id=%s file=%s bytes=%s compression=%s",
+                endpoint.id,
+                filename,
+                len(file_bytes),
+                "stored" if zip_info.compress_type == zipfile.ZIP_STORED else "deflated",
+            )
 
-        archive.writestr(".env", build_agent_env(backend_url, endpoint, agent_token))
+        env_info = zipfile.ZipInfo(".env")
+        env_info.compress_type = zipfile.ZIP_DEFLATED
+        archive.writestr(env_info, env_content.encode("utf-8"))
+        logger.info("Agent package file added: endpoint_id=%s file=.env bytes=%s compression=deflated", endpoint.id, len(env_content.encode("utf-8")))
     package.seek(0)
 
     filename = f"sentinel-agent-endpoint-{endpoint.id}.zip"
+    elapsed_ms = round((time.perf_counter() - started_at) * 1000, 2)
+    logger.info(
+        "Agent ZIP created successfully: endpoint_id=%s filename=%s size_bytes=%s time_ms=%s",
+        endpoint.id,
+        filename,
+        package.getbuffer().nbytes,
+        elapsed_ms,
+    )
     return package.getvalue(), filename
 
 
