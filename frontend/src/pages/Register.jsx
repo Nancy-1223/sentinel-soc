@@ -35,6 +35,10 @@ export default function Register() {
       setMessage("Passwords do not match.");
       return;
     }
+    if ((form.role === "admin" || form.role === "endpoint") && !form.teamPassword.trim()) {
+      setMessage("Team passcode is required.");
+      return;
+    }
     if (form.role === "admin" && !teamExists && form.teamPassword !== form.confirmTeamPassword) {
       setMessage("Team passcodes do not match.");
       return;
@@ -47,10 +51,11 @@ export default function Register() {
         email: form.email.trim(),
         password: form.password,
         role: form.role,
-        team_password: form.role === "admin" ? form.teamPassword : undefined,
+        team_password: form.role === "admin" || form.role === "endpoint" ? form.teamPassword : undefined,
         team_password_confirm: form.role === "admin" && !teamExists ? form.confirmTeamPassword : undefined,
+        pc_name: form.role === "endpoint" ? `${form.name.trim() || "Endpoint"} Device` : undefined,
       });
-      setMessage(form.role === "admin" ? "Admin account created successfully. You can login now." : "Account created. You can login now.");
+      setMessage(form.role === "admin" ? "Admin account created successfully. You can login now." : "Endpoint account linked. You can login and download your agent.");
       setTimeout(() => navigate("/login"), 900);
     } catch (exc) {
       setMessage(getApiErrorMessage(exc, "Registration failed."));
@@ -91,16 +96,18 @@ export default function Register() {
             <span>Confirm Password</span>
             <input className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-sm outline-none focus:border-cyber-cyan/60" placeholder="Confirm Password" type="password" autoComplete="new-password" required value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} />
           </label>
-          {form.role === "admin" && (
+          {(form.role === "admin" || form.role === "endpoint") && (
             <label className="grid gap-2 text-sm text-slate-300 sm:col-span-2">
-              <span>{teamExists ? "Enter Team Passcode" : "Create Team Passcode"}</span>
-              <input className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-sm outline-none focus:border-cyber-cyan/60" placeholder={teamExists ? "Enter Team Passcode" : "Create Team Passcode"} type="password" required value={form.teamPassword} onChange={(e) => setForm({ ...form, teamPassword: e.target.value })} />
+              <span>{form.role === "endpoint" || teamExists ? "Enter Team Passcode" : "Create Team Passcode"}</span>
+              <input className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-sm outline-none focus:border-cyber-cyan/60" placeholder={form.role === "endpoint" || teamExists ? "Enter Team Passcode" : "Create Team Passcode"} type="password" required value={form.teamPassword} onChange={(e) => setForm({ ...form, teamPassword: e.target.value })} />
               <span className="text-xs leading-5 text-slate-500">
-                {teamExists
+                {form.role === "endpoint"
+                  ? "Endpoint users must enter the admin team passcode to join and download their agent."
+                  : teamExists
                   ? "This is the existing team passcode used to verify authorization for admin account creation."
                   : "This creates the first team passcode. Store it securely for future admins and endpoint users."}
               </span>
-              {!teamExists && (
+              {form.role === "admin" && !teamExists && (
                 <>
                   <span className="mt-2">Confirm Team Passcode</span>
                   <input className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-sm outline-none focus:border-cyber-cyan/60" placeholder="Confirm Team Passcode" type="password" required value={form.confirmTeamPassword} onChange={(e) => setForm({ ...form, confirmTeamPassword: e.target.value })} />

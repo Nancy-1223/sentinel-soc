@@ -142,6 +142,7 @@ class RegisterRequest(BaseModel):
     role: str
     team_password: str | None = None
     team_password_confirm: str | None = None
+    pc_name: str | None = None
 
 
 class LoginRequest(BaseModel):
@@ -210,6 +211,7 @@ class HeartbeatRequest(BaseModel):
 class ConnectTeamRequest(BaseModel):
     team_passcode: str | None = None
     team_password: str | None = None
+    pc_name: str | None = None
 
 
 def serialize_telemetry(row: Telemetry):
@@ -528,10 +530,89 @@ def build_agent_env(backend_url: str, endpoint: Endpoint, agent_token: str) -> s
     )
 
 
+def build_agent_package(endpoint: Endpoint, backend_url: str, db: Session) -> tuple[BytesIO, str]:
+    required_files = [
+        "agent.py",
+        "install_agent.py",
+        "install_agent.bat",
+        "start_agent_silent.vbs",
+        "start_agent.bat",
+        "stop_agent.bat",
+        "uninstall_agent.bat",
+    ]
+    missing_files = [name for name in required_files if not (AGENT_DIR / name).is_file()]
+    if missing_files:
+        raise HTTPException(status_code=500, detail=f"Agent package files missing: {', '.join(missing_files)}")
+
+    package = BytesIO()
+    agent_token = issue_endpoint_agent_token(endpoint, db)
+    with zipfile.ZipFile(package, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for filename in required_files:
+            archive.write(AGENT_DIR / filename, arcname=filename)
+
+        optional_files = ["requirements.txt", "README.md"]
+        for filename in optional_files:
+            source_path = AGENT_DIR / filename
+            if source_path.is_file():
+                archive.write(source_path, arcname=filename)
+
+        archive.writestr(".env", build_agent_env(backend_url, endpoint, agent_token))
+        archive.writestr(
+            "README_AGENT_SETUP.txt",
+            "\n".join(
+                [
+                    "Sentinel SOC Agent",
+                    "==================",
+                    "",
+                    "1. Extract this zip folder.",
+                    "2. Double-click install_agent.bat, or install_agent.py if Python opens .py files.",
+                    "3. The installer creates a Windows Startup entry and starts the agent silently.",
+                    "4. After this, telemetry and Downloads malware detection start automatically when Windows signs in.",
+                    "5. Check agent_status.json or agent.log to confirm local status.",
+                    "",
+                ]
+            ),
+        )
+    package.seek(0)
+
+    safe_pc_name = "".join(char if char.isalnum() or char in {"-", "_"} else "-" for char in endpoint.pc_name).strip("-")
+    filename = f"sentinel-agent-endpoint-{endpoint.id}-{safe_pc_name or 'pc'}.zip"
+    return package, filename
+
+
 def get_endpoint_or_404(endpoint_id: int, db: Session) -> Endpoint:
     endpoint = db.get(Endpoint, endpoint_id)
     if not endpoint:
         raise HTTPException(status_code=404, detail="Endpoint not found")
+    return endpoint
+
+
+def default_endpoint_name(user: User, requested_pc_name: str | None = None) -> str:
+    pc_name = (requested_pc_name or "").strip()
+    if pc_name:
+        return pc_name
+    base_name = (user.name or user.email or "Endpoint").strip()
+    return f"{base_name}'s Endpoint"
+
+
+def create_endpoint_for_user(db: Session, user: User, pc_name: str | None = None, assign_to_user: bool = True) -> Endpoint:
+    endpoint = Endpoint(
+        user_id=user.id,
+        pc_name=default_endpoint_name(user, pc_name),
+        status="Registered",
+        last_seen=None,
+        detection_enabled=True,
+        agent_mode="running",
+        heartbeat_enabled=True,
+        team_id=user.team_id,
+    )
+    db.add(endpoint)
+    db.commit()
+    db.refresh(endpoint)
+    if assign_to_user:
+        user.endpoint_id = endpoint.id
+        db.commit()
+        db.refresh(user)
     return endpoint
 
 
@@ -620,6 +701,8 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Email already registered")
 
     primary_team = get_primary_team(db)
+    endpoint_team = None
+    endpoint_admin_id = None
     if role == "admin":
         team_password = (request.team_password or "").strip()
         if not team_password:
@@ -630,6 +713,24 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
         else:
             if team_password != (request.team_password_confirm or "").strip():
                 raise HTTPException(status_code=400, detail="Team passcodes do not match")
+    elif role == "endpoint":
+        team_password = (request.team_password or "").strip()
+        if not team_password:
+            raise HTTPException(status_code=400, detail="Team passcode is required for endpoint registration")
+        endpoint_team = find_team_by_passcode(db, team_password)
+        if not endpoint_team:
+            raise HTTPException(status_code=400, detail="Invalid Team Passcode")
+        endpoint_admin_id = endpoint_team.owner_admin_id
+        if endpoint_admin_id is None:
+            admin = (
+                db.query(User)
+                .filter(User.team_id == endpoint_team.id, func.lower(User.role) == "admin")
+                .order_by(User.id.asc())
+                .first()
+            )
+            endpoint_admin_id = admin.id if admin else None
+        if endpoint_admin_id is None:
+            raise HTTPException(status_code=400, detail="Invalid Team Passcode")
 
     user = User(
         name=request.name.strip(),
@@ -658,6 +759,12 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
                 user.admin_id = user.id
             db.commit()
             db.refresh(user)
+        elif role == "endpoint":
+            user.team_id = endpoint_team.id
+            user.admin_id = endpoint_admin_id
+            db.commit()
+            db.refresh(user)
+            create_endpoint_for_user(db, user, request.pc_name)
         logger.info("User saved successfully: id=%s email=%s role=%s", user.id, user.email, user.role)
     except IntegrityError:
         db.rollback()
@@ -782,6 +889,9 @@ def connect_team(request: ConnectTeamRequest, db: Session = Depends(get_db), cur
         endpoint = db.get(Endpoint, current_user.endpoint_id)
         if endpoint:
             endpoint.team_id = team.id
+            endpoint.pc_name = endpoint.pc_name or default_endpoint_name(current_user, request.pc_name)
+    else:
+        create_endpoint_for_user(db, current_user, request.pc_name)
     db.commit()
     db.refresh(current_user)
     return {"message": "Team connected successfully", "user": serialize_user(current_user)}
@@ -802,22 +912,12 @@ def register_endpoint(
         if current_user.endpoint_id is not None:
             raise HTTPException(status_code=403, detail="Endpoint users can only manage their assigned endpoint")
 
-    endpoint = Endpoint(
-        user_id=current_user.id,
-        pc_name=pc_name,
-        status="Registered",
-        last_seen=None,
-        detection_enabled=True,
-        agent_mode="running",
-        heartbeat_enabled=True,
-        team_id=current_user.team_id,
+    endpoint = create_endpoint_for_user(
+        db,
+        current_user,
+        pc_name,
+        assign_to_user=normalize_role(current_user.role) == "endpoint",
     )
-    db.add(endpoint)
-    db.commit()
-    db.refresh(endpoint)
-    if normalize_role(current_user.role) == "endpoint" and current_user.endpoint_id is None:
-        current_user.endpoint_id = endpoint.id
-        db.commit()
     return {
         "message": "Endpoint registered successfully",
         "endpoint_id": endpoint.id,
@@ -845,53 +945,21 @@ def get_agent_config(endpoint_id: int, request: Request, db: Session = Depends(g
 def download_agent(endpoint_id: int, request: Request, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     ensure_endpoint_visible(db, current_user, endpoint_id)
     endpoint = get_endpoint_or_404(endpoint_id, db)
-    required_files = [
-        "agent.py",
-        "install_agent.py",
-        "install_agent.bat",
-        "start_agent_silent.vbs",
-        "start_agent.bat",
-        "stop_agent.bat",
-        "uninstall_agent.bat",
-    ]
-    missing_files = [name for name in required_files if not (AGENT_DIR / name).is_file()]
-    if missing_files:
-        raise HTTPException(status_code=500, detail=f"Agent package files missing: {', '.join(missing_files)}")
+    package, filename = build_agent_package(endpoint, public_backend_url(request), db)
+    headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+    return StreamingResponse(package, media_type="application/zip", headers=headers)
 
-    package = BytesIO()
-    backend_url = public_backend_url(request)
-    agent_token = issue_endpoint_agent_token(endpoint, db)
-    with zipfile.ZipFile(package, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
-        for filename in required_files:
-            archive.write(AGENT_DIR / filename, arcname=filename)
 
-        optional_files = ["requirements.txt", "README.md"]
-        for filename in optional_files:
-            source_path = AGENT_DIR / filename
-            if source_path.is_file():
-                archive.write(source_path, arcname=filename)
-
-        archive.writestr(".env", build_agent_env(backend_url, endpoint, agent_token))
-        archive.writestr(
-            "README_AGENT_SETUP.txt",
-            "\n".join(
-                [
-                    "Sentinel SOC Agent",
-                    "==================",
-                    "",
-                    "1. Extract this zip folder.",
-                    "2. Double-click install_agent.bat, or install_agent.py if Python opens .py files.",
-                    "3. The installer creates a Windows Startup entry and starts the agent silently.",
-                    "4. After this, telemetry and Downloads malware detection start automatically when Windows signs in.",
-                    "5. Check agent_status.json or agent.log to confirm local status.",
-                    "",
-                ]
-            ),
-        )
-    package.seek(0)
-
-    safe_pc_name = "".join(char if char.isalnum() or char in {"-", "_"} else "-" for char in endpoint.pc_name).strip("-")
-    filename = f"sentinel-agent-endpoint-{endpoint.id}-{safe_pc_name or 'pc'}.zip"
+@app.get("/my/download-agent")
+@safe_endpoint
+def download_my_agent(request: Request, db: Session = Depends(get_db), current_user: User = Depends(require_endpoint_user)):
+    require_team_for_endpoint_user(current_user)
+    if current_user.endpoint_id is None:
+        endpoint = create_endpoint_for_user(db, current_user)
+    else:
+        endpoint = get_endpoint_or_404(int(current_user.endpoint_id), db)
+        ensure_endpoint_visible(db, current_user, endpoint.id)
+    package, filename = build_agent_package(endpoint, public_backend_url(request), db)
     headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
     return StreamingResponse(package, media_type="application/zip", headers=headers)
 

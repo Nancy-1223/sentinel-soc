@@ -44,7 +44,7 @@ export function getUserRole(user = getStoredUser()) {
 }
 
 export function endpointNeedsTeam(user = getStoredUser()) {
-  return getUserRole(user) === "endpoint" && (!user?.team_id || !user?.admin_id);
+  return getUserRole(user) === "endpoint" && (!user?.team_id || !user?.admin_id || !user?.endpoint_id);
 }
 
 export function getRoleHome(roleOrUser = getStoredUser()) {

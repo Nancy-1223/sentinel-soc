@@ -1,5 +1,8 @@
-import { AlertTriangle, HardDrive, LockKeyhole, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Download, HardDrive, LockKeyhole, ShieldCheck } from "lucide-react";
+import { useState } from "react";
+import { createApiClient, getApiErrorMessage } from "../api/client";
 import AlertTable from "../components/AlertTable";
+import Button from "../components/Button";
 import StatCard from "../components/StatCard";
 import { useAlerts } from "../context/AlertsContext";
 import { useTelemetry } from "../context/TelemetryContext";
@@ -10,19 +13,51 @@ export default function EndpointPortal() {
   const user = getStoredUser();
   const { alerts, loading: alertsLoading } = useAlerts();
   const { endpointStatus, latestTelemetry, loading: telemetryLoading } = useTelemetry();
+  const [downloadState, setDownloadState] = useState({ loading: false, error: "" });
   const endpoint = endpointStatus[0] || null;
   const telemetry = endpoint?.telemetry || latestTelemetry[0] || null;
   const quarantined = alerts.filter((alert) => String(alert.action_taken || "").toLowerCase().includes("quarantine"));
   const threats = alerts.filter((alert) => String(alert.prediction || "").toLowerCase() !== "safe");
 
+  async function downloadMyAgent() {
+    setDownloadState({ loading: true, error: "" });
+    try {
+      const api = createApiClient();
+      const response = await api.get("/my/download-agent", { responseType: "blob" });
+      const disposition = response.headers["content-disposition"] || "";
+      const match = disposition.match(/filename="?([^"]+)"?/i);
+      const filename = match?.[1] || `sentinel-agent-endpoint-${user?.endpoint_id || "mine"}.zip`;
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: "application/zip" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      setDownloadState({ loading: false, error: "" });
+    } catch (exc) {
+      setDownloadState({ loading: false, error: getApiErrorMessage(exc, "Could not download endpoint agent.") });
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-white">My Endpoint</h1>
-        <p className="mt-1 text-sm text-slate-400">
-          Endpoint portal for {user?.name || "endpoint user"}. Only your assigned endpoint data is shown.
-        </p>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-white">My Endpoint</h1>
+          <p className="mt-1 text-sm text-slate-400">
+            Endpoint portal for {user?.name || "endpoint user"}. Only your assigned endpoint data is shown.
+          </p>
+        </div>
+        <Button onClick={downloadMyAgent} loading={downloadState.loading} loadingText="Preparing..." tone="solidCyan" size="sm">
+          <span className="inline-flex items-center gap-2">
+            <Download className="h-4 w-4" />
+            Download My Agent
+          </span>
+        </Button>
       </div>
+      {downloadState.error && <div className="glass cyber-border rounded-lg border-cyber-red/30 p-3 text-sm text-cyber-red">{downloadState.error}</div>}
 
       {!user?.endpoint_id && (
         <div className="glass cyber-border rounded-lg border-cyber-amber/30 p-4 text-sm text-cyber-amber">

@@ -3,10 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { createApiClient, getApiErrorMessage } from "../api/client";
 import BackendStatus from "../components/BackendStatus";
 import Button from "../components/Button";
-import { getRoleHome, storeSession } from "../utils/auth";
+import { getRoleHome, getStoredUser, storeSession } from "../utils/auth";
 
 export default function ConnectTeam() {
   const navigate = useNavigate();
+  const currentUser = getStoredUser();
   const [teamPassword, setTeamPassword] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -19,6 +20,7 @@ export default function ConnectTeam() {
       const api = createApiClient();
       const response = await api.post("/connect-team", {
         team_passcode: teamPassword,
+        pc_name: `${currentUser?.name || "Endpoint"} Device`,
       });
       const token = localStorage.getItem("soc_token");
       const user = storeSession(response.data.user, token);
