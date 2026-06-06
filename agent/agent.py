@@ -903,7 +903,7 @@ def quarantine_file(file_path: Path, features: Dict[str, object]) -> Tuple[str, 
         metadata_path = quarantine_path.with_suffix(quarantine_path.suffix + ".quarantine.json")
         metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
-        log("QUARANTINED", file_path.name)
+        log("QUARANTINED", f"{file_path.name} -> {quarantine_path}")
         return "Quarantined", str(quarantine_path)
     except PermissionError:
         log("ERROR", f"Permission denied while quarantining {file_path.name}")
@@ -921,7 +921,11 @@ def enforce_blocking_protection(file_path: Path, features: Dict[str, object]) ->
     log("BLOCKED", features["filename"])
     notify_threat_blocked(features["filename"])
     add_malicious_hash(str(features["sha256"]))
-    action_taken, _ = quarantine_file(file_path, features)
+    action_taken, quarantine_path = quarantine_file(file_path, features)
+    log(
+        "INFO",
+        f"Protection action complete for endpoint_id={ENDPOINT_ID} filename={features['filename']} action={action_taken} quarantine_path={quarantine_path or 'none'}",
+    )
     return action_taken
 
 
@@ -959,6 +963,10 @@ def upload_alert(
     }
 
     try:
+        log(
+            "INFO",
+            f"Uploading alert: endpoint_id={ENDPOINT_ID} filename={features['filename']} action={action_taken} alert_key={alert_payload['alert_key']}",
+        )
         response = requests.post(
             f"{BACKEND_URL}/upload-alert",
             json=alert_payload,
@@ -968,9 +976,9 @@ def upload_alert(
         response.raise_for_status()
         result = response.json()
         if result.get("duplicate_ignored"):
-            log("INFO", f"Duplicate alert ignored by backend for {features['filename']}")
+            log("INFO", f"Duplicate alert updated by backend for {features['filename']} alert_id={result.get('alert_id')}")
         else:
-            log("INFO", f"Alert uploaded successfully for {features['filename']}")
+            log("INFO", f"Alert uploaded successfully for {features['filename']} alert_id={result.get('alert_id')}")
         return True
     except RequestException as exc:
         log("ERROR", f"Could not upload alert to backend: {exc}")

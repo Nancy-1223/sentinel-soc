@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { createApiClient, getApiErrorMessage } from "../api/client";
 import Button from "../components/Button";
@@ -8,19 +8,38 @@ import { useSettings } from "../context/SettingsContext";
 import { formatDate } from "../utils/format";
 
 export default function Quarantine() {
-  const { alerts, refreshAlerts } = useAlerts();
+  const { refreshAlerts } = useAlerts();
   const { settings } = useSettings();
+  const [quarantineAlerts, setQuarantineAlerts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [hiddenAlertIds, setHiddenAlertIds] = useState(new Set());
   const [busyAlertIds, setBusyAlertIds] = useState(new Set());
   const [toast, setToast] = useState(null);
 
-  const quarantined = useMemo(
-    () =>
-      alerts.filter(
-        (alert) => String(alert.action_taken).toLowerCase() === "quarantined" && !hiddenAlertIds.has(alert.id)
-      ),
-    [alerts, hiddenAlertIds]
-  );
+  const fetchQuarantine = useCallback(async () => {
+    try {
+      const api = createApiClient();
+      console.info("[quarantine] Fetching quarantine records", { url: "/quarantine" });
+      const response = await api.get("/quarantine");
+      const rows = Array.isArray(response.data) ? response.data : [];
+      console.info("[quarantine] Records received", { count: rows.length });
+      setQuarantineAlerts(rows);
+      return true;
+    } catch (exc) {
+      console.error("[quarantine] Could not fetch quarantine records", exc);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchQuarantine();
+    const timer = window.setInterval(fetchQuarantine, Number(settings.refreshInterval) || 5000);
+    return () => window.clearInterval(timer);
+  }, [fetchQuarantine, settings.refreshInterval]);
+
+  const quarantined = quarantineAlerts.filter((alert) => !hiddenAlertIds.has(alert.id));
 
   function markBusy(alertId, isBusy) {
     setBusyAlertIds((current) => {
@@ -52,6 +71,7 @@ export default function Quarantine() {
       await api.delete(`/quarantine/${encodeURIComponent(alert.filename)}`);
       hideAlert(alert.id);
       showToast("success", `${alert.filename} deleted from quarantine.`);
+      await fetchQuarantine();
       await refreshAlerts();
     } catch (exc) {
       showToast("error", getApiErrorMessage(exc, "Could not delete quarantined file."));
@@ -69,6 +89,7 @@ export default function Quarantine() {
       await api.post(`/restore/${encodeURIComponent(alert.filename)}`);
       hideAlert(alert.id);
       showToast("success", `${alert.filename} restored to its original location.`);
+      await fetchQuarantine();
       await refreshAlerts();
     } catch (exc) {
       showToast("error", getApiErrorMessage(exc, "Could not restore quarantined file."));
@@ -146,7 +167,7 @@ export default function Quarantine() {
         })}
         {quarantined.length === 0 && (
           <div className="glass cyber-border hover-glow-card rounded-lg p-8 text-center text-slate-500">
-            No quarantined files reported.
+            {loading ? "Loading quarantined files..." : "No quarantined files reported."}
           </div>
         )}
       </div>

@@ -301,6 +301,19 @@ def update_duplicate_alert(alert: Alert, request: AlertUploadRequest, file_hash:
     alert.suspicious_content = suspicious_content
 
 
+def is_quarantine_action(action_taken: str | None) -> bool:
+    return "quarantine" in str(action_taken or "").strip().lower()
+
+
+def quarantine_alert_query(db: Session, allowed_ids: set[int] | None = None):
+    query = db.query(Alert).filter(Alert.action_taken.ilike("%quarantine%")).order_by(Alert.created_at.desc())
+    if allowed_ids is not None:
+        if not allowed_ids:
+            return []
+        query = query.filter(Alert.endpoint_id.in_(allowed_ids))
+    return query.all()
+
+
 def serialize_datetime(value: datetime | None):
     if not value:
         return None
@@ -979,18 +992,23 @@ def predict(request: PredictRequest):
 
 @app.post("/upload-alert", status_code=status.HTTP_201_CREATED)
 @safe_endpoint
-def upload_alert(request: AlertUploadRequest, db: Session = Depends(get_db)):
-    endpoint = db.get(Endpoint, request.endpoint_id)
-    if not endpoint:
-        raise HTTPException(status_code=404, detail="Endpoint not found")
+def upload_alert(
+    request: AlertUploadRequest,
+    db: Session = Depends(get_db),
+    x_endpoint_token: str | None = Header(default=None, alias="X-Endpoint-Token"),
+):
+    endpoint = validate_endpoint_agent_access(request.endpoint_id, db, x_endpoint_token)
 
     action_taken = request.action_taken.strip()
     file_hash = extract_alert_file_hash(request)
     alert_key = request.alert_key or build_alert_key(request.endpoint_id, file_hash)
     logger.info(
-        "Alert detected: endpoint_id=%s filename=%s file_hash=%s alert_key=%s",
+        "Alert upload received: endpoint_id=%s endpoint_user_id=%s team_id=%s filename=%s action_taken=%s file_hash=%s alert_key=%s",
         request.endpoint_id,
+        endpoint.user_id,
+        endpoint.team_id,
         request.filename,
+        action_taken,
         file_hash or "missing",
         alert_key or "missing",
     )
@@ -1006,10 +1024,12 @@ def upload_alert(request: AlertUploadRequest, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(duplicate_alert)
         logger.info(
-            "Duplicate alert ignored: endpoint_id=%s filename=%s alert_id=%s alert_key=%s",
+            "Duplicate alert updated: endpoint_id=%s filename=%s alert_id=%s action_taken=%s quarantine=%s alert_key=%s",
             request.endpoint_id,
             request.filename,
             duplicate_alert.id,
+            duplicate_alert.action_taken,
+            is_quarantine_action(duplicate_alert.action_taken),
             alert_key or "missing",
         )
         return {
@@ -1045,12 +1065,22 @@ def upload_alert(request: AlertUploadRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(alert)
     logger.info(
-        "Alert created: endpoint_id=%s filename=%s alert_id=%s alert_key=%s",
+        "Alert stored: endpoint_id=%s endpoint_user_id=%s filename=%s alert_id=%s action_taken=%s quarantine=%s alert_key=%s",
         request.endpoint_id,
+        endpoint.user_id,
         request.filename,
         alert.id,
+        alert.action_taken,
+        is_quarantine_action(alert.action_taken),
         alert_key or "missing",
     )
+    if is_quarantine_action(alert.action_taken):
+        logger.info(
+            "Quarantine record stored in alerts table: alert_id=%s endpoint_id=%s filename=%s",
+            alert.id,
+            alert.endpoint_id,
+            alert.filename,
+        )
     return {"message": "Alert stored successfully", "alert_id": alert.id, "duplicate_ignored": False, "alert_key": alert_key}
 
 
@@ -1271,9 +1301,34 @@ def get_alerts(db: Session = Depends(get_db), current_user: User = Depends(requi
     query = db.query(Alert).order_by(Alert.created_at.desc())
     if allowed_ids is not None:
         if not allowed_ids:
+            logger.info("Alerts requested: user_id=%s role=%s visible_endpoints=0 rows=0", current_user.id, normalize_role(current_user.role))
             return []
         query = query.filter(Alert.endpoint_id.in_(allowed_ids))
-    return [serialize_alert(alert) for alert in query.all()]
+    alerts = query.all()
+    logger.info(
+        "Alerts requested: user_id=%s role=%s visible_endpoints=%s rows=%s quarantine_rows=%s",
+        current_user.id,
+        normalize_role(current_user.role),
+        "all" if allowed_ids is None else sorted(allowed_ids),
+        len(alerts),
+        sum(1 for alert in alerts if is_quarantine_action(alert.action_taken)),
+    )
+    return [serialize_alert(alert) for alert in alerts]
+
+
+@app.get("/quarantine")
+@safe_endpoint
+def get_quarantine_alerts(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    allowed_ids = visible_endpoint_ids(db, current_user)
+    alerts = quarantine_alert_query(db, allowed_ids)
+    logger.info(
+        "Quarantine requested: user_id=%s role=%s visible_endpoints=%s rows=%s",
+        current_user.id,
+        normalize_role(current_user.role),
+        "all" if allowed_ids is None else sorted(allowed_ids),
+        len(alerts),
+    )
+    return [serialize_alert(alert) for alert in alerts]
 
 
 @app.get("/users")
@@ -1336,12 +1391,20 @@ def get_my_behavior(db: Session = Depends(get_db), current_user: User = Depends(
 def get_my_alerts(db: Session = Depends(get_db), current_user: User = Depends(require_endpoint_user)):
     require_team_for_endpoint_user(current_user)
     if current_user.endpoint_id is None:
+        logger.info("My alerts requested: user_id=%s endpoint_id=none rows=0", current_user.id)
         return []
     alerts = (
         db.query(Alert)
         .filter(Alert.endpoint_id == int(current_user.endpoint_id))
         .order_by(Alert.created_at.desc())
         .all()
+    )
+    logger.info(
+        "My alerts requested: user_id=%s endpoint_id=%s rows=%s quarantine_rows=%s",
+        current_user.id,
+        current_user.endpoint_id,
+        len(alerts),
+        sum(1 for alert in alerts if is_quarantine_action(alert.action_taken)),
     )
     return [serialize_alert(alert) for alert in alerts]
 
@@ -1351,12 +1414,14 @@ def get_my_alerts(db: Session = Depends(get_db), current_user: User = Depends(re
 def get_my_quarantine(db: Session = Depends(get_db), current_user: User = Depends(require_endpoint_user)):
     require_team_for_endpoint_user(current_user)
     if current_user.endpoint_id is None:
+        logger.info("My quarantine requested: user_id=%s endpoint_id=none rows=0", current_user.id)
         return []
-    alerts = (
-        db.query(Alert)
-        .filter(Alert.endpoint_id == int(current_user.endpoint_id), Alert.action_taken.ilike("%quarantine%"))
-        .order_by(Alert.created_at.desc())
-        .all()
+    alerts = quarantine_alert_query(db, {int(current_user.endpoint_id)})
+    logger.info(
+        "My quarantine requested: user_id=%s endpoint_id=%s rows=%s",
+        current_user.id,
+        current_user.endpoint_id,
+        len(alerts),
     )
     return [serialize_alert(alert) for alert in alerts]
 
@@ -1400,6 +1465,21 @@ def delete_alert(alert_id: int, db: Session = Depends(get_db), current_user: Use
 @safe_endpoint
 def delete_quarantined_file(filename: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     file_path, metadata_path = get_quarantine_paths(filename)
+    related_alerts = (
+        db.query(Alert)
+        .filter(Alert.filename == filename, Alert.action_taken.ilike("%quarantine%"))
+        .all()
+    )
+    for alert in related_alerts:
+        ensure_endpoint_visible(db, current_user, alert.endpoint_id)
+    logger.info(
+        "Delete quarantine requested: user_id=%s filename=%s related_alerts=%s file_exists=%s metadata_exists=%s",
+        current_user.id,
+        filename,
+        len(related_alerts),
+        file_path.exists(),
+        metadata_path.exists(),
+    )
 
     if not file_path.exists() and not metadata_path.exists():
         raise HTTPException(status_code=404, detail="Quarantined file not found")
@@ -1413,7 +1493,7 @@ def delete_quarantined_file(filename: str, db: Session = Depends(get_db), curren
 
         deleted_alerts = (
             db.query(Alert)
-            .filter(Alert.filename == filename, Alert.action_taken == "Quarantined")
+            .filter(Alert.filename == filename, Alert.action_taken.ilike("%quarantine%"))
             .delete(synchronize_session=False)
         )
         db.commit()
@@ -1427,6 +1507,12 @@ def delete_quarantined_file(filename: str, db: Session = Depends(get_db), curren
         db.rollback()
         raise HTTPException(status_code=500, detail="Could not remove related alert entry")
 
+    logger.info(
+        "Delete quarantine completed: user_id=%s filename=%s deleted_alerts=%s",
+        current_user.id,
+        filename,
+        deleted_alerts,
+    )
     return {
         "message": "Quarantined file deleted successfully",
         "filename": filename,
@@ -1438,6 +1524,21 @@ def delete_quarantined_file(filename: str, db: Session = Depends(get_db), curren
 @safe_endpoint
 def restore_quarantined_file(filename: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     file_path, metadata_path = get_quarantine_paths(filename)
+    related_alerts = (
+        db.query(Alert)
+        .filter(Alert.filename == filename, Alert.action_taken.ilike("%quarantine%"))
+        .all()
+    )
+    for alert in related_alerts:
+        ensure_endpoint_visible(db, current_user, alert.endpoint_id)
+    logger.info(
+        "Restore quarantine requested: user_id=%s filename=%s related_alerts=%s file_exists=%s metadata_exists=%s",
+        current_user.id,
+        filename,
+        len(related_alerts),
+        file_path.exists(),
+        metadata_path.exists(),
+    )
 
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Quarantined file not found")
@@ -1458,7 +1559,7 @@ def restore_quarantined_file(filename: str, db: Session = Depends(get_db), curre
 
         restored_alerts = (
             db.query(Alert)
-            .filter(Alert.filename == filename, Alert.action_taken == "Quarantined")
+            .filter(Alert.filename == filename, Alert.action_taken.ilike("%quarantine%"))
             .update({"action_taken": "Restored"}, synchronize_session=False)
         )
         db.commit()
@@ -1478,6 +1579,13 @@ def restore_quarantined_file(filename: str, db: Session = Depends(get_db), curre
         db.rollback()
         raise HTTPException(status_code=500, detail="Could not update related alert entry")
 
+    logger.info(
+        "Restore quarantine completed: user_id=%s filename=%s restored_path=%s updated_alerts=%s",
+        current_user.id,
+        filename,
+        restore_path,
+        restored_alerts,
+    )
     return {
         "message": "Quarantined file restored successfully",
         "filename": filename,
