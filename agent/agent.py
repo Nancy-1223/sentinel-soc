@@ -17,6 +17,7 @@ import sys
 import threading
 import time
 import traceback
+import zipfile
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -145,6 +146,7 @@ SUSPICIOUS_KEYWORDS = [
 
 EXECUTABLE_EXTENSIONS = {
     ".exe",
+    ".com",
     ".bat",
     ".ps1",
     ".vbs",
@@ -158,6 +160,7 @@ AGGRESSIVE_PROTECTION_EXTENSIONS = {
     ".bat",
     ".cmd",
     ".ps1",
+    ".com",
     ".exe",
     ".vbs",
     ".scr",
@@ -686,9 +689,9 @@ def decide_final_prediction(features: Dict[str, object]) -> Dict[str, object] | 
     """
     if is_eicar_test_file(features):
         if features.get("eicar_detected"):
-            log("INFO", "EICAR test signature detected")
+            log("SIGNATURE MATCHED", f"EICAR test signature detected in {features['filename']} source={features.get('eicar_match_source') or 'unknown'}")
         else:
-            log("INFO", "EICAR test file detected")
+            log("SIGNATURE MATCHED", f"EICAR test filename rule matched {features['filename']}")
         return build_eicar_prediction()
 
     if should_aggressively_block(features):
@@ -717,17 +720,39 @@ def read_text_sample(file_path: Path, extension: str) -> str:
     return ""
 
 
-def file_contains_eicar_signature(file_path: Path) -> bool:
+def bytes_contain_eicar_signature(raw_content: bytes) -> bool:
+    return EICAR_SIGNATURE.encode("ascii") in raw_content.upper()
+
+
+def file_contains_eicar_signature(file_path: Path) -> Tuple[bool, str]:
     try:
         with file_path.open("rb") as file_obj:
             raw_content = file_obj.read(MAX_TEXT_READ_BYTES)
-        return EICAR_SIGNATURE.encode("ascii") in raw_content.upper()
+        if bytes_contain_eicar_signature(raw_content):
+            return True, "file-bytes"
     except PermissionError:
         log("WARNING", f"Permission denied while checking EICAR signature in {file_path.name}")
+        return False, ""
     except OSError as exc:
         log("WARNING", f"Could not check EICAR signature in {file_path.name}: {exc}")
+        return False, ""
 
-    return False
+    if file_path.suffix.lower() == ".zip":
+        try:
+            with zipfile.ZipFile(file_path) as archive:
+                for entry in archive.infolist():
+                    if entry.is_dir():
+                        continue
+                    with archive.open(entry) as zipped_file:
+                        raw_content = zipped_file.read(MAX_TEXT_READ_BYTES)
+                    if bytes_contain_eicar_signature(raw_content):
+                        return True, f"zip-entry:{entry.filename}"
+        except zipfile.BadZipFile:
+            log("WARNING", f"ZIP file could not be inspected for EICAR signature: {file_path.name}")
+        except (OSError, RuntimeError) as exc:
+            log("WARNING", f"Could not inspect ZIP for EICAR signature in {file_path.name}: {exc}")
+
+    return False, ""
 
 
 def count_suspicious_keywords(content: str) -> Tuple[int, List[str]]:
@@ -758,7 +783,11 @@ def extract_file_features(file_path: Path) -> Dict[str, object]:
     keyword_count, matched_keywords = count_suspicious_keywords(content_sample)
     sha256_hash = calculate_sha256(file_path)
     is_executable = extension in EXECUTABLE_EXTENSIONS
-    eicar_detected = file_contains_eicar_signature(file_path)
+    eicar_detected, eicar_match_source = file_contains_eicar_signature(file_path)
+    log(
+        "INFO",
+        f"Scan features extracted: filename={file_path.name} extension={extension or '(none)'} size={file_size} sha256={sha256_hash} eicar_detected={eicar_detected} eicar_source={eicar_match_source or 'none'} keywords={keyword_count}",
+    )
 
     return {
         "filename": file_path.name,
@@ -770,6 +799,7 @@ def extract_file_features(file_path: Path) -> Dict[str, object]:
         "sha256": sha256_hash,
         "matched_keywords": matched_keywords,
         "eicar_detected": eicar_detected,
+        "eicar_match_source": eicar_match_source,
     }
 
 
@@ -942,15 +972,18 @@ def quarantine_file(file_path: Path, features: Dict[str, object]) -> Tuple[str, 
         metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
         log("QUARANTINED", f"{file_path.name} -> {quarantine_path}")
+        log("QUARANTINE SUCCESS", f"Quarantine success: filename={file_path.name} quarantine_path={quarantine_path} metadata_path={metadata_path}")
         return "Quarantined", str(quarantine_path)
     except PermissionError:
-        log("ERROR", f"Permission denied while quarantining {file_path.name}")
+        log("QUARANTINE FAILURE", f"Permission denied while quarantining {file_path.name}")
     except OSError as exc:
-        log("ERROR", f"Could not quarantine {file_path.name}: {exc}")
+        log("QUARANTINE FAILURE", f"Could not quarantine {file_path.name}: {exc}")
 
     if force_delete_file(file_path):
+        log("QUARANTINE FAILURE", f"Quarantine failed, original force deleted: filename={file_path.name}")
         return "Quarantine Failure - Force Deleted", None
 
+    log("QUARANTINE FAILURE", f"Quarantine failed and original file remains: filename={file_path.name}")
     return "Quarantine Failure", None
 
 
@@ -1017,6 +1050,7 @@ def upload_alert(
             log("INFO", f"Duplicate alert updated by backend: status={response.status_code} filename={features['filename']} alert_id={result.get('alert_id')}")
         else:
             log("INFO", f"Alert uploaded successfully: status={response.status_code} filename={features['filename']} alert_id={result.get('alert_id')}")
+        log("ALERT SENT", f"Alert sent: status={response.status_code} filename={features['filename']} alert_id={result.get('alert_id')} duplicate={bool(result.get('duplicate_ignored'))}")
         return True
     except RequestException as exc:
         log("ERROR", f"Could not upload alert to backend: {exc}")
@@ -1039,23 +1073,25 @@ def scan_file(file_path: Path) -> None:
     file_hash = None
     processing_started = False
     try:
+        log("SCAN STARTED", f"Scan started for {file_path}")
         if not detection_is_active():
             log("INFO", f"Detection paused; skipping scan for {file_path.name}")
             return
 
         if not file_path.is_file():
+            log("INFO", f"Skipping non-file path discovered by watcher: {file_path}")
             return
 
         if should_ignore_path(file_path):
             return
 
-        log("INFO", f"New file detected: {file_path.name}")
-
-        if should_debounce_event(file_path):
-            return
+        log("FILE DISCOVERED", f"File discovered in Downloads: {file_path}")
 
         if not wait_for_file_ready(file_path):
             log("WARNING", f"Skipping unreadable or incomplete file: {file_path.name}")
+            return
+
+        if should_debounce_event(file_path):
             return
 
         features = extract_file_features(file_path)
@@ -1110,21 +1146,40 @@ def scan_file(file_path: Path) -> None:
         log("ERROR", f"Unexpected scan error for {file_path.name}: {exc}")
 
 
+def queue_scan(file_path: Path, event_name: str) -> None:
+    log("WATCHER EVENT", f"{event_name}: {file_path}")
+    worker = threading.Thread(target=scan_file, args=(file_path,), name=f"sentinel-scan-{event_name}", daemon=True)
+    worker.start()
+    log("INFO", f"Scan worker started: event={event_name} path={file_path} thread={worker.name}")
+
+
 class DownloadsEventHandler(FileSystemEventHandler):
     def on_created(self, event) -> None:
         if event.is_directory:
             return
-        scan_file(Path(event.src_path))
+        queue_scan(Path(event.src_path), "created")
 
     def on_modified(self, event) -> None:
         if event.is_directory:
             return
-        scan_file(Path(event.src_path))
+        queue_scan(Path(event.src_path), "modified")
 
     def on_moved(self, event) -> None:
         if event.is_directory:
             return
-        scan_file(Path(event.dest_path))
+        queue_scan(Path(event.dest_path), "moved")
+
+
+def scan_existing_downloads() -> None:
+    try:
+        candidates = [path for path in DOWNLOADS_DIR.iterdir() if path.is_file() and not should_ignore_path(path)]
+    except OSError as exc:
+        log("WARNING", f"Could not enumerate existing Downloads files: {exc}")
+        return
+
+    log("INFO", f"Initial Downloads scan queued: file_count={len(candidates)} folder={DOWNLOADS_DIR}")
+    for path in candidates:
+        queue_scan(path, "startup-sweep")
 
 
 def start_monitoring() -> None:
@@ -1159,14 +1214,23 @@ def start_monitoring() -> None:
     log("INFO", f"PC Name: {PC_NAME}")
     log("INFO", f"Backend URL: {BACKEND_URL}")
     log("INFO", f"Monitoring Downloads folder: {DOWNLOADS_DIR}")
-    poll_control_status()
+    initial_control = poll_control_status()
+    log(
+        "INFO",
+        f"Initial detection state: detection_enabled={initial_control.get('detection_enabled')} agent_mode={initial_control.get('agent_mode')} heartbeat_enabled={initial_control.get('heartbeat_enabled')}",
+    )
 
     observer = Observer()
     observer.schedule(DownloadsEventHandler(), str(DOWNLOADS_DIR), recursive=False)
     observer.start()
+    log(
+        "WATCHER STARTED",
+        f"Downloads watcher started: folder={DOWNLOADS_DIR} observer_alive={observer.is_alive()} observer_thread={observer.name}",
+    )
     stop_event = threading.Event()
     telemetry_thread = threading.Thread(target=telemetry_loop, args=(stop_event,), daemon=True)
     telemetry_thread.start()
+    scan_existing_downloads()
     write_status("running", "Monitoring Downloads and sending telemetry")
 
     try:
